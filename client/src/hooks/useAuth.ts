@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // EFEITO DE INICIALIZAÇÃO
+    // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
     }), [isLoggedIn, currentUser, isInitializing]);
 
-    // O Retorno JSX (Corrigido da confusão de sintaxe)
+    // O Retorno JSX (Sintaticamente limpo)
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
