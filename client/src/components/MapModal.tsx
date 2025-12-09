@@ -31,7 +31,7 @@ interface RotaData {
     lng: number;
     tempo: string;
     distancia: string;
-    previsao_chegada: string; // Vem do Backend (Cálculo TomTom)
+    : string; // Vem do Backend (Cálculo TomTom)
     rastro_oficial: [number, number][]; 
     rastro_real: [number, number][];
     rastro_tomtom: [number, number][];
@@ -134,7 +134,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             <small className="text-secondary fw-bold text-uppercase d-block mb-1">
                                                 Final Programado
                                             </small>
-                                            <h2 className="mb-0 fw-bold text-dark">{pf || '--:--'}</h2>
+                                            <h2 className="mb-0 fw-bold text-dark">{pf}</h2>
                                         </div>
 
                                         {/* LADO DIREITO: PREVISÃO */}
