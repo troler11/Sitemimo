@@ -76,44 +76,63 @@ const Dashboard: React.FC = () => {
     };
 
     // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (LOTE DE 5)
-    const carregarPrevisoesAutomaticamente = useCallback(async () => {
-        const BATCH_SIZE = 5;
-        
-        const linhasAtivas = linhas.filter(l => 
-            l.ri && l.ri !== 'N/D' && 
-            l.c !== 'Carro desligado' && 
-            l.c !== 'Encerrado'
-        );
+    // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (LOTE DE 5)
+const carregarPrevisoesAutomaticamente = useCallback(async () => {
+    const BATCH_SIZE = 5;
+    
+    const linhasAtivas = linhas.filter(l => 
+        l.ri && l.ri !== 'N/D' && 
+        l.c !== 'Carro desligado' && 
+        l.c !== 'Encerrado'
+    );
 
-        if (linhasAtivas.length === 0) return;
+    if (linhasAtivas.length === 0) {
+        console.log("⏱️ PREVISÃO AUTOMÁTICA: Nenhuma linha ativa para calcular.");
+        return;
+    }
+    
+    console.log(`⏱️ PREVISÃO AUTOMÁTICA: Iniciando atualização em lotes de ${BATCH_SIZE} para ${linhasAtivas.length} veículos.`);
 
-        // Processamento em lotes (batching)
-        for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
-            const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
+        const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-            const promises = batch.map(async (linha) => {
-                try {
-                    const cacheBuster = Date.now();
+        console.log(`\n➡️ Processando LOTE ${batchNumber} (${batch.length} veículos)...`);
+
+        const promises = batch.map(async (linha) => {
+            try {
+                const cacheBuster = Date.now();
+                
+                // LOG: Requisitando (com cache buster)
+                console.log(`   [API REQ] ${linha.v} (ID: ${linha.id}) - Buscando TomTom...`);
+
+                const res = await api.get(`/rota/final/${linha.v}`, { 
+                    params: { idLinha: linha.id, cache: cacheBuster } 
+                });
+
+                const novaPrevisao: string = res.data.previsao_chegada;
+                
+                // LOG: Resultado da Requisição
+                if (novaPrevisao && novaPrevisao !== 'N/D') {
+                    console.log(`   ✅ [SUCESSO] ${linha.v}: Antigo PFN=${linha.pfn || 'N/D'} -> Novo PFN=${novaPrevisao}`);
                     
-                    const res = await api.get(`/rota/final/${linha.v}`, { 
-                        params: { idLinha: linha.id, cache: cacheBuster } 
-                    });
-
-                    const novaPrevisao: string = res.data.previsao_chegada;
-
-                    if (novaPrevisao && novaPrevisao !== 'N/D') {
-                        setLinhas(prevLinhas => prevLinhas.map(item => 
-                            item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
-                        ));
-                    }
-                } catch (err) {
-                    // Silencioso
+                    // Atualiza o estado
+                    setLinhas(prevLinhas => prevLinhas.map(item => 
+                        item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
+                    ));
+                } else {
+                    console.log(`   ⚠️ [ATENÇÃO] ${linha.v}: Backend retornou valor vazio ("${novaPrevisao}") ou não retornou TomTom. Mantendo PFN antigo.`);
                 }
-            });
+            } catch (err) {
+                console.error(`   ❌ [FALHA DE REDE] Erro ao buscar previsão para ${linha.v}.`, err);
+            }
+        });
 
-            await Promise.allSettled(promises);
-        }
-    }, [linhas]);
+        await Promise.allSettled(promises);
+        console.log(`   ☑️ LOTE ${batchNumber} finalizado.`);
+    }
+    console.log("⏱️ PREVISÃO AUTOMÁTICA: Ciclo de atualização de lotes concluído.");
+}, [linhas]);
 
     // 3. Loops de Refresh
     useEffect(() => {
