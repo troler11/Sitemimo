@@ -2,15 +2,18 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import moment from 'moment-timezone';
-import { predictionCache } from '../utils/sharedCache'; // <--- IMPORTAR O CACHE
+import { predictionCache } from '../utils/sharedCache'; 
 
-const appCache = new NodeCache({ stdTTL: 30 });
+const appCache = new NodeCache({ stdTTL: 30 }); 
 const URL_DASHBOARD_MAIN = "https://abmbus.com.br:8181/api/dashboard/mongo/95?naoVerificadas=false&agrupamentos=";
 const HEADERS_DASHBOARD_MAIN = {
     "Accept": "application/json, text/plain, */*",
     "Authorization": process.env.TOKEN_ABMBUS
 };
 const TIMEZONE = 'America/Sao_Paulo';
+
+// Formatos aceitos para parsing (Brasileiro e ISO)
+const INPUT_FORMATS = ["DD/MM/YYYY HH:mm:ss", "DD/MM/YYYY HH:mm", "YYYY-MM-DD HH:mm:ss", "ISO_8601"];
 
 export const getDashboardData = async (req: Request, res: Response) => {
     try {
@@ -41,28 +44,33 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 if (finalizada) continue;
 
                 // --- VARIÁVEIS BASE ---
-                let pi = "N/D"; // Prog Inicio
-                let ri = "N/D"; // Real Inicio
-                let pf = "N/D"; // Prog Fim
-                let pfn = "N/D"; // Previsão Fim Nova (Calculada)
-                let u = l.ultimaData ? moment(l.ultimaData).tz(TIMEZONE).format('HH:mm') : "N/D";
+                let pi = "N/D"; 
+                let ri = "N/D"; 
+                let pf = "N/D"; 
+                let pfn = "N/D"; 
+                let li = "N/D";
+                let lf = "N/D";
                 
-                // Dados para cálculo de atraso
+                // 1. CORREÇÃO DE DATA AQUI: Passamos os formatos aceitos explicitamente
+                let u = l.ultimaData 
+                    ? moment(l.ultimaData, INPUT_FORMATS).tz(TIMEZONE).format('HH:mm') 
+                    : "N/D";
+                
                 let diffMinutosSaida = 0; 
                 let saiu = false;
 
-                // Varredura dos pontos
                 if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
 
                         if (tipo === "Inicial") {
+                            if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                             if (p.horario) pi = p.horario;
                             
                             if (p.passou && p.horario) {
                                 saiu = true;
-                                // Lógica de Real Início (ri)
                                 if (p.tempoDiferenca) {
+                                    // Parseia horario base (hoje + horario)
                                     const baseTime = moment.tz(`${moment().format('YYYY-MM-DD')} ${p.horario}`, TIMEZONE);
                                     let dm = 0;
                                     if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
@@ -72,46 +80,38 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                         dm = parseInt(p.tempoDiferenca);
                                     }
                                     
-                                    // Guarda a diferença para projetar no final
                                     diffMinutosSaida = p.atrasado ? dm : -dm;
 
                                     if (p.atrasado) baseTime.add(dm, 'minutes');
                                     else baseTime.subtract(dm, 'minutes');
                                     ri = baseTime.format('HH:mm');
-                                } else if (p.dataPassouGmt3) {
-                                    ri = moment(p.dataPassouGmt3).tz(TIMEZONE).format('HH:mm');
+                                } 
+                                // 2. CORREÇÃO DE DATA AQUI TAMBÉM
+                                else if (p.dataPassouGmt3) {
+                                    ri = moment(p.dataPassouGmt3, INPUT_FORMATS).tz(TIMEZONE).format('HH:mm');
                                 }
                             }
                         }
 
                         if (tipo === "Final") {
+                            if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
                             if (p.horario) pf = p.horario;
                         }
                     }
                 }
 
-                // --- LÓGICA DE PREVISÃO DE TÉRMINO (Prev. Fim) ---
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
-                
-                // 1. Tenta pegar do Cache (TomTom) - Prioridade Máxima
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
                 if (cachedPred && cachedPred.horario) {
-                    pfn = cachedPred.horario; // Valor exato do GPS/TomTom
+                    pfn = cachedPred.horario;
                 } 
-                // 2. Se não tem cache, projeta o atraso da saída (Lógica Original)
                 else if (pf !== "N/D" && saiu) {
-                    // Pega o horário programado de chegada
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, TIMEZONE);
-                    
-                    // Aplica a mesma diferença da saída
                     progFimObj.add(diffMinutosSaida, 'minutes');
-                    
                     pfn = progFimObj.format('HH:mm');
                 }
-                // 3. Se não saiu ainda, a previsão é o próprio programado (ou atrasado pelo tempo atual)
                 else if (pf !== "N/D" && !saiu) {
-                     // Se já passou do horário de saída, empurramos a previsão
                      const progIniObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pi}`, TIMEZONE);
                      const agora = moment().tz(TIMEZONE);
                      
@@ -121,7 +121,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                          progFimObj.add(atrasoAteAgora, 'minutes');
                          pfn = progFimObj.format('HH:mm');
                      } else {
-                         pfn = pf; // Está no horário, previsão é a original
+                         pfn = pf;
                      }
                 }
 
@@ -134,7 +134,9 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     pi: pi,
                     ri: ri,
                     pf: pf,
-                    pfn: pfn, // <--- CAMPO NOVO: Previsão Fim Nova
+                    li: li,
+                    lf: lf,
+                    pfn: pfn,
                     u: u,
                     c: categoria
                 });
