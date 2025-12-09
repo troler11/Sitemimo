@@ -1,0 +1,47 @@
+/* --- ESTILOS DA TELA DE LOGIN (Portado do PHP) --- */
+
+/* Wrapper para simular o body do PHP antigo apenas nesta tela */
+.login-wrapper {
+    background: linear-gradient(135deg, #0b1f3a 0%, #1e3a8a 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.card-login {
+    width: 100%;
+    max-width: 400px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: none;
+}
+
+.card-login .card-header {
+    background-color: #ffffff;
+    border-bottom: none;
+    padding-top: 30px;
+    padding-bottom: 10px;
+    text-align: center;
+}
+
+.btn-login {
+    background-color: #0b1f3a;
+    border: none;
+    padding: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: white;
+}
+
+.btn-login:hover {
+    background-color: #163a6e;
+    color: white;
+}
+
+.logo-img {
+    max-width: 180px;
+    margin-bottom: 10px;
+}
