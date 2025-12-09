@@ -12,7 +12,7 @@ const HEADERS_DASHBOARD_MAIN = {
 };
 const TIMEZONE = 'America/Sao_Paulo';
 
-// Formatos aceitos para parsing
+// Formatos aceitos (O primeiro é o que você confirmou que vem da API)
 const INPUT_FORMATS = [
     "DD/MM/YYYY HH:mm:ss", 
     "DD/MM/YYYY HH:mm", 
@@ -20,6 +20,16 @@ const INPUT_FORMATS = [
     "YYYY-MM-DDTHH:mm:ss",
     moment.ISO_8601
 ];
+
+// Helper seguro para parsear datas
+const parseDateSafe = (dateInput: any): moment.Moment | null => {
+    if (!dateInput) return null;
+    // Converte para string e remove espaços em branco (trim)
+    const cleanStr = String(dateInput).trim();
+    // Tenta parsear
+    const m = moment(cleanStr, INPUT_FORMATS); // Remove o 'true' (strict) para ser mais tolerante, mas respeitando a ordem
+    return m.isValid() ? m : null;
+};
 
 export const getDashboardData = async (req: Request, res: Response) => {
     try {
@@ -57,11 +67,24 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 let li = "N/D";
                 let lf = "N/D";
                 
+                // --- 1. LÓGICA DE ÚLTIMO REPORTE (u) ---
                 let u = "N/D";
-                if (l.ultimaData) {
-                    const m = moment(l.ultimaData, INPUT_FORMATS);
-                    if (m.isValid()) u = m.tz(TIMEZONE).format('HH:mm');
+                let rawDate = null;
+
+                // Prioridade: dataHora (GPS) > dataComunicacao > ultimaData
+                if (l.veiculo && l.veiculo.dataHora) {
+                    rawDate = l.veiculo.dataHora;
+                } else if (l.veiculo && l.veiculo.dataComunicacao) {
+                    rawDate = l.veiculo.dataComunicacao;
+                } else {
+                    rawDate = l.ultimaData;
                 }
+
+                const mReporte = parseDateSafe(rawDate);
+                if (mReporte) {
+                    u = mReporte.tz(TIMEZONE).format('HH:mm');
+                }
+                // ---------------------------------------
                 
                 let diffMinutosSaida = 0; 
                 let saiu = false;
@@ -94,9 +117,10 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     else baseTime.subtract(dm, 'minutes');
                                     ri = baseTime.format('HH:mm');
                                 } 
+                                // Fallback usando a função segura
                                 else if (p.dataPassouGmt3) {
-                                    const m = moment(p.dataPassouGmt3, INPUT_FORMATS);
-                                    if (m.isValid()) ri = m.tz(TIMEZONE).format('HH:mm');
+                                    const mPassou = parseDateSafe(p.dataPassouGmt3);
+                                    if (mPassou) ri = mPassou.tz(TIMEZONE).format('HH:mm');
                                 }
                             }
                         }
@@ -112,18 +136,14 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
                 // --- LÓGICA DE PREVISÃO ---
-                
-                // 1. Cache (TomTom) - Prioridade Máxima
                 if (cachedPred && cachedPred.horario) {
                     pfn = cachedPred.horario;
                 } 
-                // 2. Se JÁ SAIU: Projeta o atraso da saída na chegada
                 else if (pf !== "N/D" && saiu) {
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     progFimObj.add(diffMinutosSaida, 'minutes');
                     pfn = progFimObj.format('HH:mm');
                 }
-                // 3. Se NÃO SAIU: Retorna traços (Mudança Solicitada)
                 else if (pf !== "N/D" && !saiu) {
                      pfn = "--:--"; 
                 }
