@@ -100,12 +100,12 @@ const Dashboard: React.FC = () => {
 
     // Helper para cor da previsão
     const getCorPrevisao = (prev?: string, prog?: string) => {
-        if (!prev || prev === 'N/D' || !prog || prog === 'N/D') return '';
+       if (!prev || prev === 'N/D' || prev === '--:--' || !prog || prog === 'N/D') return '';
         // Se a previsão é maior que o programado = Atrasado (Vermelho)
-        if (prev > prog) return 'text-danger fw-bold'; 
+     if (prev > prog) return 'text-danger fw-bold';
         // Se é menor ou igual = No horário (Verde)
         return 'text-success fw-bold';
-    };
+};
 
     // --- RENDERIZAÇÃO ---
 
