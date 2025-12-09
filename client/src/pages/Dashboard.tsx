@@ -7,13 +7,13 @@ interface Linha {
     e: string; // empresa
     r: string; // rota
     v: string; // veiculo
-    s: number; // sentido (1=ida, 0=volta)
+    s: number; // sentido
     pi: string; // prog inicio
     ri: string; // real inicio
     pf: string; // prog fim
-    pfn?: string; // Previsão Fim Nova (TomTom)
-    u: string;  // ultima atualizacao
-    c: string;  // categoria (status)
+    pfn?: string; // Previsão TomTom
+    u: string;  // update
+    c: string;  // categoria
 }
 
 const Dashboard: React.FC = () => {
@@ -21,18 +21,13 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [horaServidor, setHoraServidor] = useState('00:00');
     
-    // Filtros
     const [busca, setBusca] = useState('');
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    // Estado do Modal de Mapa
     const [selectedMap, setSelectedMap] = useState<{
-        placa: string, 
-        idLinha: string, 
-        tipo: 'inicial'|'final',
-        pf: string 
+        placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
     const fetchData = async () => {
@@ -41,9 +36,7 @@ const Dashboard: React.FC = () => {
             setLinhas(res.data.todas_linhas);
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
-        } catch (error) {
-            console.error("Erro dashboard", error);
-        }
+        } catch (error) { console.error(error); }
     };
 
     useEffect(() => {
@@ -52,29 +45,44 @@ const Dashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // --- LÓGICA DE DADOS & FILTROS ---
+    // --- CÁLCULO DE KPIS ---
+    const kpis = useMemo(() => {
+        let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
+        linhas.forEach(l => {
+            counts.total++;
+            if (l.c === 'Carro desligado') { counts.desligados++; return; }
+            const jaSaiu = l.ri && l.ri !== 'N/D';
+            if (jaSaiu) {
+                if (isLineAtrasada(l)) counts.atrasados++;
+                else counts.pontual++;
+            } else {
+                if (l.pi < horaServidor) counts.semInicio++;
+                else counts.deslocamento++;
+            }
+        });
+        return counts;
+    }, [linhas, horaServidor]);
 
-    const empresasUnicas = useMemo(() => {
-        const lista = new Set(linhas.map(l => l.e).filter(Boolean));
-        return Array.from(lista).sort();
-    }, [linhas]);
+    // --- LÓGICA DE PREVISÃO ---
+    const getDisplayPrevisao = (linha: Linha) => {
+        const temTomTom = linha.pfn && linha.pfn !== 'N/D' && linha.pfn !== '--:--' && linha.pfn !== '';
+        const horarioFinal = temTomTom ? linha.pfn : linha.pf;
+        let classeCor = 'text-muted';
+        if (temTomTom && linha.pf) {
+            classeCor = (linha.pfn! > linha.pf) ? 'text-danger fw-bold' : 'text-success fw-bold';
+        }
+        return { horario: horarioFinal, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Prog' };
+    };
 
+    // --- FILTROS ---
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
-            if (busca) {
-                const termo = busca.toLowerCase();
-                const textoLinha = `${l.e} ${l.r} ${l.v}`.toLowerCase();
-                if (!textoLinha.includes(termo)) return false;
-            }
+            if (busca && !`${l.e} ${l.r} ${l.v}`.toLowerCase().includes(busca.toLowerCase())) return false;
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
-            
-            // CORREÇÃO: Garante que o sentido (0 ou 1) seja tratado corretamente
             if (filtroSentido) {
-                const sNumber = Number(l.s);
-                const sentidoStr = sNumber === 1 ? 'ida' : 'volta';
+                const sentidoStr = Number(l.s) === 1 ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoStr) return false;
             }
-
             if (filtroStatus) {
                 const atrasado = isLineAtrasada(l);
                 if (filtroStatus === 'atrasado' && !atrasado) return false;
@@ -84,219 +92,112 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
-    // --- CÁLCULO DOS KPIS (RESTAURADO) ---
-    const kpis = useMemo(() => {
-        let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
-        
-        linhas.forEach(l => {
-            counts.total++;
-
-            if (l.c === 'Carro desligado') { 
-                counts.desligados++; 
-                return; 
-            }
-            
-            const jaSaiu = l.ri && l.ri !== 'N/D';
-            
-            if (jaSaiu) {
-                if (isLineAtrasada(l)) {
-                    counts.atrasados++;
-                } else {
-                    counts.pontual++;
-                }
-            } else {
-                if (l.pi < horaServidor) {
-                    counts.semInicio++;
-                } else {
-                    counts.deslocamento++;
-                }
-            }
-        });
-        return counts;
-    }, [linhas, horaServidor]);
-
-    // --- LÓGICA DE VISUALIZAÇÃO DE PREVISÃO (TOMTOM vs PROGRAMADO) ---
-    const getDisplayPrevisao = (linha: Linha) => {
-        const temTomTom = linha.pfn && linha.pfn !== 'N/D' && linha.pfn !== '--:--' && linha.pfn !== '';
-        
-        // Se tem TomTom, usa ele. Se não, usa o PF (Programado)
-        const horarioFinal = temTomTom ? linha.pfn : linha.pf;
-        
-        let classeCor = 'text-muted';
-
-        if (temTomTom && linha.pf) {
-            // Compara TomTom com Programado para definir cor
-            if (linha.pfn! > linha.pf) {
-                classeCor = 'text-danger fw-bold'; // Vai atrasar
-            } else {
-                classeCor = 'text-success fw-bold'; // No horário ou adiantado
-            }
-        }
-
-        return { 
-            horario: horarioFinal, 
-            classe: classeCor,
-            origem: temTomTom ? 'TomTom' : 'Programado'
-        };
-    };
+    const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     return (
         <div className="container-fluid pt-3">
-            {/* Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota</h4>
-                    <p className="text-muted small mb-0">
-                        Última atualização: <strong>{horaServidor}</strong>
-                    </p>
+                <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota ({horaServidor})</h4>
+                <input type="text" className="form-control w-25" placeholder="Busca..." value={busca} onChange={e => setBusca(e.target.value)} />
+            </div>
+
+            <div className="row g-2 mb-4">
+                <div className="col-md-3">
+                    <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                        <option value="">Todas Empresas</option>
+                        {empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
                 </div>
-                
-                <div className="d-flex gap-2 w-50 justify-content-end align-items-center">
-                    <div className="position-relative w-50">
-                        <i className="bi bi-search search-icon"></i>
-                        <input type="text" className="form-control search-bar" placeholder="Busca Inteligente..." value={busca} onChange={e => setBusca(e.target.value)} />
-                    </div>
+                <div className="col-md-3">
+                    <select className="form-select form-select-sm" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
+                        <option value="">Sentido: Todos</option>
+                        <option value="ida">IDA</option>
+                        <option value="volta">VOLTA</option>
+                    </select>
+                </div>
+                <div className="col-md-3">
+                    <select className="form-select form-select-sm" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                        <option value="">Status: Todos</option>
+                        <option value="atrasado">Atrasados</option>
+                        <option value="pontual">Pontual</option>
+                    </select>
                 </div>
             </div>
 
-            {/* Filtros */}
-            <div className="filter-bar mb-4">
-                <div className="row g-2 align-items-center">
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold text-secondary mb-1">Empresa:</label>
-                        <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
-                            <option value="">Todas as Empresas</option>
-                            {empresasUnicas.map(emp => <option key={emp} value={emp}>{emp}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold text-secondary mb-1">Sentido:</label>
-                        <select className="form-select form-select-sm" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
-                            <option value="">Todos</option>
-                            <option value="ida">➡️ IDA</option>
-                            <option value="volta">⬅️ VOLTA</option>
-                        </select>
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold text-secondary mb-1">Status:</label>
-                        <select className="form-select form-select-sm" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
-                            <option value="">Todos</option>
-                            <option value="atrasado">🚨 Atrasados</option>
-                            <option value="pontual">✅ Pontual</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* --- KPIs (VOLTARAM AQUI) --- */}
+            {/* CARDS / KPIS */}
             <div className="row g-3 mb-4">
-                <div className="col-md-2"><div className="card-summary card-blue"><h5>Total</h5><h3>{kpis.total}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary card-red"><h5>Atrasados</h5><h3>{kpis.atrasados}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary card-green"><h5>Pontual</h5><h3>{kpis.pontual}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-secondary"><h5>Desligados</h5><h3>{kpis.desligados}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-info"><h5>Em Deslocamento</h5><h3>{kpis.deslocamento}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-warning"><h5>Não Iniciou</h5><h3>{kpis.semInicio}</h3></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-primary text-white"><h5>{kpis.total}</h5><small>Total</small></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-danger text-white"><h5>{kpis.atrasados}</h5><small>Atrasados</small></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-success text-white"><h5>{kpis.pontual}</h5><small>Pontual</small></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-secondary text-white"><h5>{kpis.desligados}</h5><small>Desligados</small></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-info text-white"><h5>{kpis.deslocamento}</h5><small>Em Rota</small></div></div>
+                <div className="col-md-2"><div className="card p-3 text-center bg-warning text-dark"><h5>{kpis.semInicio}</h5><small>Não Iniciou</small></div></div>
             </div>
 
-            {/* Tabela */}
             <div className="card border-0 shadow-sm">
-                <div className="card-body p-0">
-                    <div className="table-responsive">
-                        <table className="table table-hover table-sm table-ultra-compact align-middle mb-0">
-                            <thead className="table-light">
-                                <tr>
-                                    <th>Empresa</th>
-                                    <th>Rota</th>
-                                    <th>Veículo</th>
-                                    <th className="col-narrow">Prev. Ini</th>
-                                    <th>Prog. Início</th>
-                                    <th>Real Início</th>
-                                    <th>Prog. Fim</th>
-                                    <th>Prev. Chegada</th>
-                                    <th>Ult. Reporte</th>
-                                    <th>Status</th>
-                                    <th className="text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    Array.from({ length: 5 }).map((_, i) => <tr key={i}><td colSpan={11} className="text-center">Carregando...</td></tr>)
-                                ) : dadosFiltrados.length === 0 ? (
-                                    <tr><td colSpan={11} className="text-center py-4 text-muted">Nenhum veículo encontrado.</td></tr>
-                                ) : (
-                                    dadosFiltrados.map((l, idx) => {
-                                        const atrasado = isLineAtrasada(l);
-                                        const valSentido = Number(l.s);
-                                        const iconSentido = valSentido === 1 
-                                            ? <i className="bi bi-arrow-right-circle-fill text-primary ms-1"></i> 
-                                            : <i className="bi bi-arrow-left-circle-fill text-warning ms-1"></i>;
+                <div className="table-responsive">
+                    <table className="table table-hover table-sm align-middle mb-0">
+                        <thead className="table-light">
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Rota</th>
+                                <th>Veículo</th>
+                                <th>Prev. Ini</th>
+                                <th>Real Início</th>
+                                <th>Prog. Fim</th>
+                                <th>Prev. Chegada</th>
+                                <th>Status</th>
+                                <th className="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? <tr><td colSpan={9}>Carregando...</td></tr> : dadosFiltrados.map((l, idx) => {
+                                const jaSaiu = l.ri && l.ri !== 'N/D';
+                                const atrasado = isLineAtrasada(l);
+                                const previsao = getDisplayPrevisao(l);
+                                
+                                return (
+                                    <tr key={`${l.id}-${idx}`}>
+                                        <td>{l.e}</td>
+                                        <td>{l.r} {Number(l.s) === 1 ? '➡️' : '⬅️'}</td>
+                                        <td className="fw-bold text-primary">{l.v}</td>
+                                        <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
+                                        <td>{l.ri}</td>
+                                        <td className="text-muted small">{l.pf}</td>
                                         
-                                        const jaSaiu = l.ri && l.ri !== 'N/D';
+                                        <td className={previsao.classe}>
+                                            {previsao.horario || 'N/D'}
+                                            {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small"></i>}
+                                        </td>
+
+                                        <td>
+                                            {l.c === 'Carro desligado' ? <span className="badge bg-secondary">Desligado</span> :
+                                             !jaSaiu ? <span className="badge bg-light text-dark border">Aguardando</span> :
+                                             atrasado ? <span className="badge bg-danger">Atrasado</span> : 
+                                             <span className="badge bg-success">Pontual</span>}
+                                        </td>
                                         
-                                        // Calcula previsão (TomTom ou Fixo)
-                                        const previsao = getDisplayPrevisao(l);
-
-                                        let statusBadge;
-                                        if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary badge-pill">Desligado</span>;
-                                        else if (!jaSaiu) {
-                                            if (l.pi < horaServidor) statusBadge = <span className="badge bg-danger badge-pill blink-animation">Atrasado (Inicial)</span>;
-                                            else statusBadge = <span className="badge bg-light text-dark border badge-pill">Aguardando</span>;
-                                        }
-                                        else if (atrasado) statusBadge = <span className="badge bg-danger badge-pill">Atrasado</span>;
-                                        else statusBadge = <span className="badge bg-success badge-pill">Pontual</span>;
-
-                                        return (
-                                            <tr key={`${l.id}-${idx}`}>
-                                                <td>{l.e}</td>
-                                                <td>{l.r} {iconSentido}</td>
-                                                <td className="fw-bold text-primary">{l.v}</td>
-                                                <td className="text-muted small">--:--</td>
-                                                <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger fw-bold' : ''}>{l.pi}</td>
-                                                <td>{l.ri}</td>
-                                                <td className="text-muted small">{l.pf}</td>
-                                                
-                                                {/* Coluna Visual: Mostra a previsão calculada */}
-                                                <td className={previsao.classe}>
-                                                    {previsao.horario || 'N/D'}
-                                                    {previsao.origem === 'TomTom' && (
-                                                        <i className="bi bi-broadcast ms-1 small" title="Tempo Real TomTom"></i>
-                                                    )}
-                                                </td>
-
-                                                <td className="small">{l.u}</td>
-                                                <td>{statusBadge}</td>
-                                                <td className="text-center">
-                                                    <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi})}>
-                                                        <i className="bi bi-clock" style={{fontSize: 10}}></i>
-                                                    </button>
-                                                    
-                                                    {/* Botão de Mapa: Envia EXATAMENTE o mesmo horário da tabela */}
-                                                   <button 
-    className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" 
-    style={{width:24, height:24}} 
-    onClick={() => setSelectedMap({
-        placa: l.v, 
-        idLinha: l.id, 
-        tipo: 'final', 
-        // ERRO ESTAVA AQUI: pf: previsao.horario
-        // CORREÇÃO: Adicione "|| ''" ou "|| 'N/D'" para garantir que é string
-        pf: previsao.horario || 'N/D' 
-    })}
->
-    <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
-</button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                        <td className="text-center">
+                                            {/* CORREÇÃO DO ONCLICK: Adicionado || 'N/D' para satisfazer TypeScript */}
+                                            <button className="btn btn-primary btn-sm rounded-circle" style={{width:24, height:24}}
+                                                onClick={() => setSelectedMap({
+                                                    placa: l.v, 
+                                                    idLinha: l.id, 
+                                                    tipo: 'final', 
+                                                    pf: previsao.horario || 'N/D' 
+                                                })}
+                                            >
+                                                <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {/* Modal */}
             {selectedMap && (
                 <MapModal 
                     placa={selectedMap.placa} 
@@ -311,13 +212,10 @@ const Dashboard: React.FC = () => {
 };
 
 function isLineAtrasada(l: Linha): boolean {
-    const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
     const [hP, mP] = l.pi.split(':').map(Number);
     const [hR, mR] = l.ri.split(':').map(Number);
-    const progMin = hP * 60 + mP;
-    const realMin = hR * 60 + mR;
-    return (realMin - progMin) > tolerancia;
+    return (hR * 60 + mR) - (hP * 60 + mP) > 10;
 }
 
 export default Dashboard;
