@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth'; // <--- Importamos o hook
 
 // 1. IMPORTANTE: Importar o CSS específico aqui
 import './Login.css';
@@ -9,20 +10,34 @@ const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    
+    // --- LÓGICA CORRIGIDA ---
     const navigate = useNavigate();
+    const { login, isLoggedIn } = useAuth(); // Usamos o contexto
+
+    // 1. Efeito que "assiste" o login. Só navega quando o estado atualizar.
+    useEffect(() => {
+        if (isLoggedIn) {
+            navigate('/', { replace: true });
+        }
+    }, [isLoggedIn, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         try {
             const res = await api.post('/login', { username, password });
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-            navigate('/');
+            
+            // 2. Em vez de setar localStorage na mão, usamos a função do contexto.
+            // Isso atualiza o estado global e dispara o useEffect acima.
+            login(res.data.token, res.data.user);
+
+            // OBS: Removemos o navigate('/') daqui para evitar a condição de corrida.
         } catch (err) {
             setError('Usuário ou senha incorretos.');
         }
     };
+    // ------------------------
 
     return (
         // Wrapper do Fundo Degradê
