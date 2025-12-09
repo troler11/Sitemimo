@@ -6,7 +6,6 @@ interface UserData {
     full_name: string;
     role: string;
     allowed_menus: string[];
-    // Adicione outros campos necessários
 }
 
 interface AuthContextType {
@@ -49,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
+    // EFEITO DE INICIALIZAÇÃO
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
@@ -65,11 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
         
-        // Esta linha CRÍTICA deve ser o último passo da checagem
+        // Define inicialização como concluída
         setIsInitializing(false); 
     }, []);
 
-    // Memoiza o valor do contexto (Usa useMemo para otimizar performance)
+    // Memoiza o valor do contexto
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
@@ -78,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
     }), [isLoggedIn, currentUser, isInitializing]);
 
-    // O Retorno JSX (Sintaticamente limpo e correto)
+    // --- CORREÇÃO DO BLOCO DE RETORNO ---
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
