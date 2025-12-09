@@ -72,15 +72,22 @@ const Admin: React.FC = () => {
     };
 
     const openModal = (user?: User) => {
-        if (user) {
-            setEditingUser(user);
-            setFormData({ ...user, password: '' }); // Limpa senha ao editar para não sobrescrever com hash antigo
-        } else {
-            setEditingUser(null);
-            setFormData({ username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: '' });
-        }
-        setShowModal(true);
-    };
+    if (user) {
+        setEditingUser(user);
+        // --- CORREÇÃO DE NORMALIZAÇÃO DE ARRAY ---
+        setFormData({ 
+            ...user, 
+            allowed_companies: user.allowed_companies || [], // Garante que é [] se for null
+            allowed_menus: user.allowed_menus || [],         // Garante que é [] se for null
+            password: '' 
+        });
+        // ------------------------------------------
+    } else {
+        setEditingUser(null);
+        setFormData({ username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: '' });
+    }
+    setShowModal(true);
+};
 
     // Helpers de Checkbox
     const toggleArrayItem = (field: 'allowed_companies' | 'allowed_menus', value: string) => {
