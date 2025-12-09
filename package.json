@@ -1,0 +1,52 @@
+{
+  "name": "sistema-frota-mimo",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node dist/server/index.js",
+    "build:server": "tsc -p server/tsconfig.json",
+    "build:client": "webpack --mode production",
+    "build": "npm run build:server && npm run build:client",
+    "dev:server": "ts-node-dev --respawn --transpile-only server/index.ts",
+    "dev:client": "webpack serve --mode development",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "node-cache": "^5.1.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.18.0",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1",
+    "bootstrap": "^5.3.2",
+    "bootstrap-icons": "^1.11.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.3",
+    "ts-loader": "^9.5.0",
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3",
+    "concurrently": "^8.2.2",
+    "@types/node": "^20.8.10",
+    "@types/react": "^18.2.33",
+    "@types/react-dom": "^18.2.14",
+    "@types/express": "^4.17.20",
+    "@types/pg": "^8.10.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/leaflet": "^1.9.8",
+    "@types/cors": "^2.8.15"
+  }
+}
