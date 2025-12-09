@@ -3,13 +3,13 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface AuthGuardProps {
-    requiredMenu: string; // Obrigatório passar o nome do menu
+    requiredMenu: string;
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ requiredMenu }) => {
     const { isLoggedIn, currentUser, isInitializing } = useAuth();
 
-    // 1. Aguarda carregamento (Evita bugs de redirect)
+    // 1. Carregando
     if (isInitializing) {
         return (
             <div className="d-flex justify-content-center align-items-center vh-100 flex-column">
@@ -19,21 +19,23 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ requiredMenu }) => {
         );
     }
 
-    // 2. Verifica Login
+    // 2. Não logado
     if (!isLoggedIn || !currentUser) {
         return <Navigate to="/login" replace />;
     }
 
-    // 3. Verifica Permissão Específica
-    // Usa o operador ?. para evitar erro se o array for null/undefined
-    const temPermissao = currentUser.allowed_menus?.includes(requiredMenu);
+    // --- NOVA LÓGICA DE ADMIN ---
+    
+    // Verifica se é admin (baseado na interface UserData que definimos no useAuth)
+    const isAdmin = currentUser.role === 'admin';
+
+    // A pessoa passa se for Admin OU se tiver o menu específico na lista
+    const temPermissao = isAdmin || currentUser.allowed_menus?.includes(requiredMenu);
 
     if (!temPermissao) {
-        console.warn(`Acesso negado. Usuário não tem o menu: ${requiredMenu}`);
         return <Navigate to="/unauthorized" replace />;
     }
 
-    // 4. Autorizado
     return <Outlet />;
 };
 
