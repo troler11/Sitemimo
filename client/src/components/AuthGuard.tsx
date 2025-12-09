@@ -1,41 +1,97 @@
-// src/components/AuthGuard.tsx
+import React, { useState, useEffect, useContext, createContext, useMemo } from 'react';
 
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth'; // Use seu hook real
-
-
-
-interface AuthGuardProps {
-    requiredMenu: string;
+// --- 1. Interfaces de Dados e Contexto ---
+interface UserData {
+    username: string;
+    full_name: string;
+    role: string;
+    allowed_menus: string[];
+    // Adicione outros campos necessários
 }
 
-const AuthGuard: React.FC<AuthGuardProps> = ({ requiredMenu }) => {
-    const { isLoggedIn, currentUser, isInitializing } = useAuth(); // Use seu hook real
+interface AuthContextType {
+    isLoggedIn: boolean;
+    currentUser: UserData | null;
+    isInitializing: boolean; 
+    login: (token: string, user: UserData) => void;
+    logout: () => void;
+}
 
-    // 🛑 1. TRATAMENTO DE INICIALIZAÇÃO: Bloqueia o redirecionamento até que o estado seja lido
-    if (isInitializing) {
-        return (
-            <div className="d-flex justify-content-center align-items-center vh-100 flex-column">
-                <div className="spinner-border text-primary mb-3" role="status"></div>
-                <p className="text-muted">Carregando sessão...</p>
-            </div>
-        );
-    }
-    
-    // 2. VERIFICAÇÃO DE AUTENTICAÇÃO
-    if (!isLoggedIn) {
-        return <Navigate to="/login" replace />;
-    }
-
-    // 3. VERIFICAÇÃO DE AUTORIZAÇÃO
-    const hasPermission = currentUser?.allowed_menus.includes(requiredMenu);
-
-    if (!hasPermission) {
-        return <Navigate to="/unauthorized" replace />;
-    }
-
-    return <Outlet />; 
+// Valores iniciais antes da carga
+const defaultAuthContext: AuthContextType = {
+    isLoggedIn: false,
+    currentUser: null,
+    isInitializing: true,
+    login: () => {},
+    logout: () => {},
 };
 
-export default AuthGuard;
+// Criação do Contexto
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
+
+// --- 2. Provedor de Contexto (AuthProvider) ---
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+    const [isInitializing, setIsInitializing] = useState(true);
+
+    // Funções login e logout
+    const login = (token: string, user: UserData) => {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('userData', JSON.stringify(user));
+        setIsLoggedIn(true);
+        setCurrentUser(user);
+    };
+
+    const logout = () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+    };
+
+    // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        const userDataString = localStorage.getItem('userData');
+        
+        if (token && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                setIsLoggedIn(true);
+                setCurrentUser(userData);
+            } catch (e) {
+                console.error("Dados do usuário corrompidos no storage:", e);
+                logout();
+            }
+        }
+        
+        // Esta linha CRÍTICA deve ser o último passo da checagem
+        setIsInitializing(false); 
+    }, []);
+
+    // Memoiza o valor do contexto
+    const contextValue = useMemo(() => ({
+        isLoggedIn,
+        currentUser,
+        isInitializing,
+        login,
+        logout,
+    }), [isLoggedIn, currentUser, isInitializing]);
+
+    // O Retorno JSX (Sintaticamente limpo)
+    return (
+        <AuthContext.Provider value={contextValue}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+// --- 3. Hook de Consumo (useAuth) ---
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    }
+    return context;
+};
