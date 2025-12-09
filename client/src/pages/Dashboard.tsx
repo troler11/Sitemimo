@@ -238,7 +238,7 @@ const Dashboard: React.FC = () => {
                                                     <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'inicial'})}>
                                                         <i className="bi bi-clock" style={{fontSize: 10}}></i>
                                                     </button>
-                                                    <button className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'final'})}>
+                                                    <button className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf})}>
                                                         <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                                     </button>
                                                 </td>
