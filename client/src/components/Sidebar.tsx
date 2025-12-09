@@ -4,9 +4,10 @@ import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
     isOpen: boolean;
+    toggle: () => void; // <--- NOVA PROPRIEDADE
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -22,7 +23,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     // Helper Lógico: Permissão
     const hasPermission = (menuKey: string) => {
         if (!currentUser) return false;
-        // Se for admin, libera tudo. Se não, checa a lista (allowed_menus)
         if (currentUser.role === 'admin') return true;
         return currentUser.allowed_menus?.includes(menuKey);
     };
@@ -40,19 +40,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 borderRight: '1px solid #dee2e6'
             }}
         >
-            {/* --- 1. CABEÇALHO COM LOGO --- */}
+            {/* --- 1. CABEÇALHO COM LOGO E TOGGLE --- */}
             <div>
-                <div className="d-flex align-items-center justify-content-center border-bottom bg-white" style={{ height: '80px' }}>
+                <div 
+                    className={`d-flex align-items-center border-bottom bg-white ${isOpen ? 'justify-content-between px-3' : 'justify-content-center'}`} 
+                    style={{ height: '80px' }}
+                >
                      {isOpen ? (
-                        // Logo Grande (Aberto)
-                        <img 
-                            src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Logo.png" 
-                            alt="Viação Mimo" 
-                            style={{ maxHeight: '50px', maxWidth: '180px' }} 
-                        />
+                        <>
+                            {/* Logo Grande (Aberto) */}
+                            <img 
+                                src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Logo.png" 
+                                alt="Viação Mimo" 
+                                style={{ maxHeight: '40px', maxWidth: '140px' }} 
+                            />
+                            {/* Botão Fechar (Apenas quando aberto) */}
+                            <button onClick={toggle} className="btn btn-sm btn-light text-secondary border-0">
+                                <i className="bi bi-chevron-left"></i>
+                            </button>
+                        </>
                      ) : (
-                        // Logo Pequeno / Texto (Fechado)
-                        <small className="fw-bold text-primary">MIMO</small>
+                        // Botão Abrir (Quando fechado, o logo vira o botão)
+                        <button onClick={toggle} className="btn btn-sm btn-white text-primary border-0 p-0" title="Expandir Menu">
+                            <i className="bi bi-list fs-3"></i>
+                        </button>
                      )}
                 </div>
 
@@ -137,14 +148,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             <style>
                 {`
                 .active-link {
-                    background-color: #e3f2fd !important; /* Azul bem claro */
-                    color: #0d6efd !important; /* Azul Bootstrap */
+                    background-color: #e3f2fd !important;
+                    color: #0d6efd !important;
                     font-weight: 600;
                     border-left: 4px solid #0d6efd !important;
                 }
                 .list-group-item-action {
                     transition: all 0.2s ease-in-out;
-                    color: #6c757d; /* Cinza suave */
+                    color: #6c757d;
+                    white-space: nowrap; /* Impede quebra de texto ao fechar */
                 }
                 .list-group-item-action:hover {
                     background-color: #f8f9fa;
