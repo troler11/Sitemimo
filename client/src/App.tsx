@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sidebar from './components/Sidebar';
+import Placeholder from './pages/Placeholder';
 
 // Componente Layout para Sidebar
 const Layout = ({ children }: { children: React.ReactNode }) => (
@@ -30,6 +31,8 @@ const App = () => {
                     </PrivateRoute>
                 } />
                 {/* Adicionar rotas para Admin, Escala, etc */}
+                <Route path="/rotas" element={<PrivateRoute><Placeholder title="Gestão de Rotas" /></PrivateRoute>} />
+<Route path="/veiculos" element={<PrivateRoute><Placeholder title="Gestão de Veículos" /></PrivateRoute>} />
             </Routes>
         </Router>
     );
