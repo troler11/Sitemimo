@@ -11,7 +11,7 @@ interface Linha {
     pi: string; // prog inicio
     ri: string; // real inicio
     pf: string; // prog fim
-    pfn?: string; // Previsão Fim Nova (TomTom)
+    pfn?: string; // Previsão TomTom
     u: string;  // update
     c: string;  // status
 }
@@ -31,28 +31,20 @@ const Dashboard: React.FC = () => {
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
-    // 1. --- CARREGAMENTO PRINCIPAL COM PRESERVAÇÃO DE ESTADO ---
     const fetchData = async () => {
         try {
             const res = await api.get('/dashboard');
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
             
-            // Usamos a função de callback do setLinhas para acessar o estado anterior (prevLinhas)
+            // Fusão: Preserva o PFN local se o servidor enviar cache vazio
             setLinhas(prevLinhas => {
-                if (prevLinhas.length === 0) return linhasServidor; // Primeira carga
+                if (prevLinhas.length === 0) return linhasServidor;
                 
-                // Mapeia os dados do servidor e funde com os dados locais frescos
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
-                    
-                    // Condição de Fusão:
-                    // Se o servidor não enviou uma previsão (pfn é falsy: null, undefined, "") 
-                    // E nós tínhamos uma previsão fresca localmente, mantemos a previsão local.
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
-                    
-                    // Caso contrário, usamos o que o servidor enviou
                     return serverLinha;
                 });
             });
@@ -64,9 +56,7 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // 2. --- FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (BACKGROUND) ---
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
-        // Filtra apenas linhas que estão rodando e não estão encerradas/desligadas
         const linhasAtivas = linhas.filter(l => 
             l.ri && l.ri !== 'N/D' && 
             l.c !== 'Carro desligado' && 
@@ -75,12 +65,9 @@ const Dashboard: React.FC = () => {
 
         if (linhasAtivas.length === 0) return;
 
-        console.log(`Atualizando previsões em tempo real de ${linhasAtivas.length} veículos...`);
-
-        // Processa as atualizações em paralelo (com segurança contra falhas individuais)
         await Promise.allSettled(linhasAtivas.map(async (linha) => {
             try {
-                // Endpoint que faz o cálculo real (TomTom/Mapa)
+                // Chama o endpoint de cálculo (ajuste se necessário)
                 const res = await api.get(`/rota/final/${linha.v}`, { 
                     params: { idLinha: linha.id } 
                 });
@@ -88,29 +75,29 @@ const Dashboard: React.FC = () => {
                 const novaPrevisao = res.data.previsao_chegada;
 
                 if (novaPrevisao) {
-                    // Atualiza o estado usando o callback para garantir que pega o estado mais recente (prevLinhas)
                     setLinhas(prevLinhas => prevLinhas.map(item => 
                         item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
                     ));
                 }
             } catch (err) {
-                // Ignora falhas de rede/API para um carro específico
+                // Silencioso
             }
         }));
     }, [linhas]);
 
-    // 3. Loops de Refresh
+    // Loop Principal (Lista)
     useEffect(() => {
         fetchData();
         const intervalPrincipal = setInterval(fetchData, 30000); 
         return () => clearInterval(intervalPrincipal);
     }, []);
 
+    // Loop Secundário (Previsão TomTom)
     useEffect(() => {
         if (!loading && linhas.length > 0) {
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
-            }, 60000); // 60 segundos para atualização das previsões de tráfego
+            }, 60000);
             
             return () => clearInterval(intervalPrevisao);
         }
@@ -169,9 +156,27 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="container-fluid pt-3">
-            {/* ... (JSX de Filtros e KPIs omitido) ... */}
-            <div className="row g-3 mb-4">{/* KPIs */}</div>
-            
+            {/* Header */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota ({horaServidor})</h4>
+                <div className="position-relative w-25">
+                    <input type="text" className="form-control" placeholder="Busca..." value={busca} onChange={e => setBusca(e.target.value)} />
+                </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="row g-2 mb-3">{/* ... Filtros ... */}</div>
+
+            {/* KPIs */}
+            <div className="row g-3 mb-4">
+                <div className="col-md-2"><div className="card-summary card-blue"><h5>{kpis.total}</h5><small>Total</small></div></div>
+                <div className="col-md-2"><div className="card-summary card-red"><h5>{kpis.atrasados}</h5><small>Atrasados</small></div></div>
+                <div className="col-md-2"><div className="card-summary card-green"><h5>{kpis.pontual}</h5><small>Pontual</small></div></div>
+                <div className="col-md-2"><div className="card-summary bg-gradient-secondary"><h5>{kpis.desligados}</h5><small>Desligados</small></div></div>
+                <div className="col-md-2"><div className="card-summary bg-gradient-info"><h5>{kpis.deslocamento}</h5><small>Em Rota</small></div></div>
+                <div className="col-md-2"><div className="card-summary bg-gradient-warning"><h5>{kpis.semInicio}</h5><small>Ñ Iniciou</small></div></div>
+            </div>
+
             {/* Tabela */}
             <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
@@ -194,30 +199,50 @@ const Dashboard: React.FC = () => {
                             {loading ? (
                                 <tr><td colSpan={10} className="text-center py-3">Carregando dados da frota...</td></tr>
                             ) : dadosFiltrados.map((l, idx) => {
+                                const jaSaiu = l.ri && l.ri !== 'N/D';
                                 const previsao = getPrevisaoInteligente(l);
+                                const valSentido = Number(l.s);
+
+                                let statusBadge;
+                                if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary badge-pill">Desligado</span>;
+                                else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge bg-danger badge-pill">Atrasado (Ini)</span> : <span className="badge bg-light text-dark border">Aguardando</span>;
+                                else statusBadge = isLineAtrasada(l) ? <span className="badge bg-danger badge-pill">Atrasado</span> : <span className="badge bg-success badge-pill">Pontual</span>;
 
                                 return (
                                     <tr key={`${l.id}-${idx}`}>
                                         <td>{l.e}</td>
-                                        <td>{l.r} {Number(l.s) === 1 ? '➡️' : '⬅️'}</td>
+                                        <td>{l.r} {valSentido === 1 ? '➡️' : '⬅️'}</td>
                                         <td className="fw-bold text-primary">{l.v}</td>
-                                        <td>{l.pi}</td>
+                                        <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
                                         
                                         <td className="text-muted small">{l.pf}</td>
 
-                                        {/* Prev. Fim (Real) - Célula que mostra os dados injetados */}
                                         <td className={previsao.classe}>
                                             {previsao.horario || 'N/D'}
-                                            {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon"></i>}
+                                            {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon" title="Cálculo em Tempo Real (TomTom)"></i>}
                                         </td>
 
                                         <td className="small">{l.u}</td>
-                                        <td>{l.c}</td> {/* Status Badge omitido para brevidade */}
+                                        <td>{statusBadge}</td>
                                         <td className="text-center">
-                                            {/* Botão Mapa */}
+                                            
+                                            {/* --- NOVO/RESTAURADO: BOTÃO CALCULAR INÍCIO (Clock) --- */}
+                                            <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({
+                                                placa: l.v, 
+                                                idLinha: l.id, 
+                                                tipo: 'inicial', 
+                                                pf: l.pi || '--:--' // Passa o Programado Inicial
+                                            })}>
+                                                <i className="bi bi-clock" style={{fontSize: 10}}></i>
+                                            </button>
+                                            
+                                            {/* Botão Mapa (Final) */}
                                             <button className="btn btn-primary btn-sm rounded-circle shadow-sm" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf // Passa o PF original para o modal comparar
+                                                placa: l.v, 
+                                                idLinha: l.id, 
+                                                tipo: 'final', 
+                                                pf: l.pf // Passa o PF original para o Modal comparar com o TomTom
                                             })}>
                                                 <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                             </button>
