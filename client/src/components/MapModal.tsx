@@ -3,8 +3,8 @@ import { GoogleMap, LoadScript, Polyline, Marker } from '@react-google-maps/api'
 import api from '../services/api'; 
 import { findNearestPointIndex, Coordenada } from '../utils/geo';
 
+// CORREÇÃO: Evita erro de build 'google is not defined'
 declare var google: any;
-
 
 const containerStyle = { width: '100%', height: '500px' };
 const centerDefault = { lat: -23.55052, lng: -46.633308 };
@@ -13,7 +13,7 @@ interface MapModalProps {
     placa: string;
     idLinha: string;
     tipo: 'inicial' | 'final';
-    pf?: string; // Previsão (vem da tabela)
+    pf?: string; 
     onClose: () => void;
 }
 
@@ -22,45 +22,50 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, pf, onClose }) => {
     const [posicaoVeiculo, setPosicaoVeiculo] = useState<Coordenada | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Carrega dados da API
     useEffect(() => {
         const carregarDados = async () => {
             try {
                 setLoading(true);
-                // Ajuste os endpoints conforme sua API real
                 const [resRota, resVeiculo] = await Promise.all([
                     api.get(`/rotas/${idLinha}/shape`), 
                     api.get(`/veiculos/${placa}/localizacao`)
                 ]);
 
-                setRotaFixa(resRota.data || []); 
+                // Garante que é array
+                setRotaFixa(Array.isArray(resRota.data) ? resRota.data : []); 
                 setPosicaoVeiculo(resVeiculo.data || null); 
             } catch (error) {
                 console.error("Erro ao carregar mapa", error);
+                setRotaFixa([]);
             } finally {
                 setLoading(false);
             }
         };
-
         carregarDados();
     }, [idLinha, placa]);
 
-    // Lógica de fatiar a rota (Azul vs Cinza)
+    // CORREÇÃO CRÍTICA DO ERRO 't.push is not a function'
     const { caminhoPercorrido, caminhoFuturo } = useMemo(() => {
-        if (!rotaFixa.length || !posicaoVeiculo) {
-            return { caminhoPercorrido: [], caminhoFuturo: rotaFixa };
+        // Validação de segurança
+        if (!Array.isArray(rotaFixa) || rotaFixa.length === 0 || !posicaoVeiculo) {
+            return { 
+                caminhoPercorrido: [], 
+                caminhoFuturo: Array.isArray(rotaFixa) ? rotaFixa : [] 
+            };
         }
 
         const indexCorte = findNearestPointIndex(rotaFixa, posicaoVeiculo);
 
-        // Azul: Do início até o veículo (incluindo a posição real dele para conectar)
-        const azul = rotaFixa.slice(0, indexCorte + 1);
-        azul.push(posicaoVeiculo);
+        // USAMOS SPREAD (...) AO INVÉS DE PUSH PARA EVITAR ERRO DE IMUTABILIDADE
+        const azul = [
+            ...rotaFixa.slice(0, indexCorte + 1), // Pedaço da rota
+            posicaoVeiculo                        // Conecta ao veículo
+        ];
 
-        // Cinza: Do veículo até o fim
         const cinza = rotaFixa.slice(indexCorte);
 
         return { caminhoPercorrido: azul, caminhoFuturo: cinza };
+
     }, [rotaFixa, posicaoVeiculo]);
 
     return (
@@ -80,23 +85,23 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, pf, onClose }) => {
                                 <span className="spinner-border text-primary"></span>
                             </div>
                         ) : (
-                            <LoadScript googleMapsApiKey="SUA_API_KEY_AQUI">
+                            <LoadScript googleMapsApiKey="SUA_CHAVE_GOOGLE_AQUI">
                                 <GoogleMap
                                     mapContainerStyle={containerStyle}
                                     center={posicaoVeiculo || centerDefault}
                                     zoom={14}
                                 >
-                                    {/* Rota Futura (Cinza) - Fundo */}
+                                    {/* Rota Futura (Cinza) - Camada 1 */}
                                     <Polyline
                                         path={caminhoFuturo}
                                         options={{ strokeColor: "#B0B0B0", strokeOpacity: 0.6, strokeWeight: 5, zIndex: 1 }}
                                     />
-                                    {/* Rota Percorrida (Azul) - Frente */}
+                                    {/* Rota Percorrida (Azul) - Camada 2 */}
                                     <Polyline
                                         path={caminhoPercorrido}
                                         options={{ strokeColor: "#0d6efd", strokeOpacity: 1.0, strokeWeight: 6, zIndex: 2 }}
                                     />
-                                    {/* Ícone do Ônibus */}
+                                    {/* Veículo */}
                                     {posicaoVeiculo && (
                                         <Marker
                                             position={posicaoVeiculo}
