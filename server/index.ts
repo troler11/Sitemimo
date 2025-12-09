@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import routes from './routes'; // Importa o arquivo acima
 import { getDashboardData } from './controllers/dashboardController';
 import { verifyToken } from './middleware/auth';
 import { login } from './controllers/authController'; // Você precisa criar este baseado no login.php
@@ -10,6 +11,8 @@ app.use(express.json());
 
 // Rotas Publicas
 app.post('/api/login', login);
+
+app.use('/api', routes); // Prefixo /api para tudo
 
 // Rotas Protegidas
 app.get('/api/dashboard', verifyToken, getDashboardData);
