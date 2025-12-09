@@ -89,17 +89,12 @@ const Dashboard: React.FC = () => {
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
         } catch (error: any) {
-            console.error("ERRO COMPLETO:", error); // <--- Vai mostrar o erro no console
+            console.error("Erro ao buscar dados do dashboard", error);
             
-            // SE O ERRO FOR 401/403, COMENTE AS LINHAS ABAIXO TEMPORARIAMENTE:
+            // [SEGURANÇA ATIVADA] Se a API retornar 401/403, faz Logout e manda pro login
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                
-                console.log("EU IRIA DESLOGAR AGORA, MAS ESTOU EM DEBUG");
-                // logout();          // <--- COMENTE ISSO
-                // navigate('/login'); // <--- COMENTE ISSO
-            
-            } else {
-                console.error("Erro ao buscar dados do dashboard", error);
+                logout(); 
+                navigate('/login'); 
             }
         }
     }, [isLoggedIn, logout, navigate]);
@@ -224,8 +219,6 @@ const Dashboard: React.FC = () => {
         }
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
-
-    
 
     // Se estiver inicializando ou não logado, não renderiza nada (evita flash de conteúdo)
     if (isInitializing || !isLoggedIn) {
