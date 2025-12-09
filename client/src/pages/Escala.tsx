@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 
 // Interface que espelha o retorno do backend
@@ -20,22 +20,44 @@ interface ItemEscala {
 const Escala: React.FC = () => {
     const [dados, setDados] = useState<ItemEscala[]>([]);
     const [loading, setLoading] = useState(true);
+    // Inicializa com a data de hoje, mas permite edição
     const [filtroData, setFiltroData] = useState(new Date().toLocaleDateString('pt-BR'));
     
     // Filtros
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState(''); // 'confirmado', 'pendente', 'manutencao', 'cobrir'
+    const [filtroStatus, setFiltroStatus] = useState(''); 
     const [busca, setBusca] = useState('');
 
-    const fetchData = async () => {
-        setLoading(true);
+    // --- FUNÇÃO DE BUSCA (Estável com useCallback) ---
+    const fetchData = useCallback(async (isAutoUpdate = false) => {
+        // Se for atualização automática, não mostra o loading para não piscar a tela
+        if (!isAutoUpdate) setLoading(true);
+        
         try {
             const res = await api.get('/escala', { params: { data: filtroData } });
             setDados(res.data);
-        } catch (err) { console.error(err); } finally { setLoading(false); }
-    };
+        } catch (err) { 
+            console.error("Erro ao carregar escala:", err); 
+        } finally { 
+            setLoading(false); 
+        }
+    }, [filtroData]); // Recria a função se a data mudar
 
-    useEffect(() => { fetchData(); }, []);
+    // --- EFEITO 1: Carrega ao abrir ou mudar a data ---
+    useEffect(() => {
+        fetchData(); 
+    }, [fetchData]);
+
+    // --- EFEITO 2: Atualização Automática (A CADA 1 MINUTO) ---
+    useEffect(() => {
+        const intervalo = setInterval(() => {
+            console.log("Atualizando escala automaticamente...");
+            fetchData(true); // Passa true para não ativar o spinner de loading
+        }, 60000); // 60000 ms = 1 minuto
+
+        // Limpa o intervalo quando o usuário sai da página
+        return () => clearInterval(intervalo);
+    }, [fetchData]);
 
     // 1. Lista de Empresas para o Select
     const empresasUnicas = useMemo(() => {
@@ -77,13 +99,10 @@ const Escala: React.FC = () => {
         });
     }, [dados, filtroEmpresa, filtroStatus, busca]);
 
-    // 3. Cálculo de KPIs (Baseado sempre no TOTAL da busca, não apenas no filtro de status)
+    // 3. Cálculo de KPIs
     const kpis = useMemo(() => {
         let k = { total: 0, confirmados: 0, pendentes: 0, manutencao: 0, aguardando: 0, cobrir: 0 };
         
-        // Calculamos sobre 'dados' filtrados apenas por empresa/data, para os KPIs serem úteis
-        // Se usarmos 'dadosFiltrados' aqui, ao selecionar 'Confirmado', os outros viram zero.
-        // Vamos usar a lista completa 'dados' mas respeitando o filtro de empresa se houver.
         const baseCalculo = filtroEmpresa ? dados.filter(d => d.empresa === filtroEmpresa) : dados;
 
         baseCalculo.forEach(row => {
@@ -110,7 +129,7 @@ const Escala: React.FC = () => {
                 <div>
                     <h4 className="fw-bold text-dark mb-1">Escala de Frota</h4>
                     <p className="text-muted small mb-0">
-                        <span className="badge bg-success border me-2">Online</span>
+                        <span className="badge bg-success border me-2">Atualização Automática (1m)</span>
                         Dados de: <strong>{filtroData}</strong>
                     </p>
                 </div>
@@ -123,7 +142,7 @@ const Escala: React.FC = () => {
                         placeholder="dd/mm/aaaa"
                         style={{width: '120px'}}
                     />
-                    <button className="btn btn-dark" onClick={fetchData} title="Atualizar">
+                    <button className="btn btn-dark" onClick={() => fetchData(false)} title="Atualizar Agora">
                         <i className="bi bi-arrow-clockwise"></i>
                     </button>
                 </div>
@@ -231,22 +250,18 @@ const Escala: React.FC = () => {
                                 <tr><td colSpan={6} className="text-center py-5 text-muted">Nenhum registro encontrado.</td></tr>
                             ) : (
                                 dadosFiltrados.map((row, i) => {
-                                    // Helpers Visuais
                                     const divergencia = row.frota_escala != row.frota_enviada && row.frota_enviada !== '---';
                                     const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
                                     const isCobrir = (row.obs || '').toLowerCase().includes('cobrir');
                                     
                                     return (
                                         <tr key={i} className={row.manutencao ? 'table-danger' : ''}>
-                                            {/* 1. Empresa e Rota */}
                                             <td>
                                                 <div className="fw-bold text-dark" style={{fontSize: '0.9rem'}}>{row.empresa}</div>
                                                 <div className="text-muted small text-truncate" style={{maxWidth: '280px'}} title={row.rota}>
                                                     {row.rota}
                                                 </div>
                                             </td>
-
-                                            {/* 2. Frota (Comparativo) */}
                                             <td className="text-center">
                                                 <div className="d-flex flex-column align-items-center">
                                                     <span className="badge bg-light text-dark border mb-1">{row.frota_escala}</span>
@@ -257,8 +272,6 @@ const Escala: React.FC = () => {
                                                     )}
                                                 </div>
                                             </td>
-
-                                            {/* 3. Motorista */}
                                             <td>
                                                 <div className="d-flex align-items-center">
                                                     <div className="bg-light rounded-circle p-2 me-2 text-secondary">
@@ -270,14 +283,11 @@ const Escala: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </td>
-
-                                            {/* 4. Detalhes e Obs */}
                                             <td>
                                                 <div className="d-flex flex-column">
                                                     {row.manutencao && <span className="text-danger fw-bold small"><i className="bi bi-exclamation-octagon me-1"></i>EM MANUTENÇÃO</span>}
                                                     {row.aguardando && <span className="text-warning fw-bold small"><i className="bi bi-hourglass-split me-1"></i>AGUARDANDO CARRO</span>}
                                                     
-                                                    {/* Obs com destaque para COBRIR */}
                                                     {row.obs && (
                                                         <small className="fst-italic mt-1" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
                                                             {isCobrir && <i className="bi bi-arrow-repeat me-1"></i>}
@@ -288,16 +298,12 @@ const Escala: React.FC = () => {
                                                     {realizou && <small className="text-success fw-bold mt-1"><i className="bi bi-check-all me-1"></i>RA: {row.ra_val}</small>}
                                                 </div>
                                             </td>
-
-                                            {/* 5. Badge de Status */}
                                             <td className="text-center">
                                                 {row.manutencao ? <span className="badge rounded-pill bg-danger px-3">Manutenção</span> :
                                                  realizou ? <span className="badge rounded-pill bg-success px-3">Confirmado</span> :
                                                  row.aguardando ? <span className="badge rounded-pill bg-warning text-dark px-3">Aguardando</span> :
                                                  <span className="badge rounded-pill bg-secondary bg-opacity-50 text-dark px-3">Pendente</span>}
                                             </td>
-
-                                            {/* 6. Horários */}
                                             <td className="text-end">
                                                 <div className="small">Prog: <strong>{row.h_prog}</strong></div>
                                                 {(row.h_real && row.h_real.length > 2) && (
