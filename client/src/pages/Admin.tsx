@@ -19,6 +19,7 @@ const SISTEMA_MENUS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'rotas', label: 'Rotas' },
     { key: 'escala', label: 'Escala' },
+     { key: 'relatorios', label: 'Power B.I' },
     { key: 'usuarios', label: 'Usuários' }
 ];
 
