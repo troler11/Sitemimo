@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider } from './hooks/useAuth'; // Contexto é obrigatório
+import { AuthProvider } from './hooks/useAuth'; 
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
 
@@ -10,10 +10,9 @@ import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
 import AdminPage from './pages/Admin';
 import EscalaPage from './pages/Escala';
-// import Relatorios from './pages/Relatorios';
 import AcessoNegadoPage from './pages/AcessoNegadoPage';
 
-// --- 1. LAYOUT ATUALIZADO (Usando Outlet) ---
+// Layout (Sidebar + Conteúdo)
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -29,7 +28,6 @@ const Layout = () => {
             <Sidebar isOpen={isSidebarOpen} />
             <div style={contentStyle} className="w-100">
                 <div className="p-3">
-                    {/* Outlet renderiza a página filha da rota atual (Dashboard, Rotas, etc) */}
                     <Outlet context={{ toggleSidebar: () => setIsSidebarOpen(!isSidebarOpen) }} />
                 </div>
             </div>
@@ -39,39 +37,34 @@ const Layout = () => {
 
 const App: React.FC = () => {
     return (
-        // 2. IMPORTANTE: O AuthProvider deve envolver TUDO
         <AuthProvider>
             <BrowserRouter>
                 <Routes>
-                    {/* --- ROTAS PÚBLICAS (Sem Sidebar) --- */}
+                    {/* --- ROTAS PÚBLICAS --- */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/unauthorized" element={<AcessoNegadoPage />} />
                     
-                    {/* --- ROTAS PRIVADAS (Com Sidebar) --- */}
-                    
-                    {/* O Layout envolve todas as rotas abaixo */}
+                    {/* --- ROTAS PROTEGIDAS (Com Layout) --- */}
                     <Route element={<Layout />}>
                         
-                        {/* AQUI APLICAMOS AS REGRAS DE SEGURANÇA (AuthGuard) */}
-                        
-                        {/* OBS: Se você removeu a lógica de 'requiredMenu' no passo anterior, 
-                            remova a prop requiredMenu="..." abaixo e deixe apenas <Route element={<AuthGuard />}> */}
+                        {/* 1. Dashboard */}
+                        <Route element={<AuthGuard requiredMenu="dashboard" />}>
+                            <Route path="/" element={<DashboardPage />} />
+                        </Route>
 
+                        {/* 2. Rotas */}
                         <Route element={<AuthGuard requiredMenu="rotas" />}>
                             <Route path="/rotas" element={<RotasPage />} />
                         </Route>
 
+                        {/* 3. Escala */}
                         <Route element={<AuthGuard requiredMenu="escala" />}>
                             <Route path="/escala" element={<EscalaPage />} />
                         </Route>
 
+                        {/* 4. Usuários (Admin) */}
                         <Route element={<AuthGuard requiredMenu="usuarios" />}>
                             <Route path="/admin/usuarios" element={<AdminPage />} />
-                        </Route>
-
-                        {/* Dashboard (Permissão básica ou específica) */}
-                        <Route element={<AuthGuard requiredMenu="dashboard" />}>
-                            <Route path="/" element={<DashboardPage />} />
                         </Route>
 
                     </Route>
