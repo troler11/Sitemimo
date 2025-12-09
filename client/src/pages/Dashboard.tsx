@@ -1,22 +1,23 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- Importação necessária
 import api from '../services/api';
 import MapModal from '../components/MapModal';
+import { useAuth } from '../hooks/useAuth'; // <--- Importação necessária
 
 interface Linha {
     id: string;
-    e: string; // empresa
-    r: string; // rota
-    v: string; // veiculo
-    s: number; // sentido
-    pi: string; // prog inicio
-    ri: string; // real inicio
-    pf: string; // prog fim (Tabela Fixa)
-    pfn?: string; // Previsão TomTom
-    u: string;  // update
-    c: string;  // status
+    e: string; 
+    r: string; 
+    v: string; 
+    s: number; 
+    pi: string; 
+    ri: string; 
+    pf: string; 
+    pfn?: string; 
+    u: string;  
+    c: string;  
 }
 
-// Helper: Checa se a linha saiu atrasada (tolerância de 10 minutos)
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
@@ -33,6 +34,11 @@ function isLineAtrasada(l: Linha): boolean {
 }
 
 const Dashboard: React.FC = () => {
+    // --- SEGURANÇA: Hooks de Autenticação e Navegação ---
+    const { isLoggedIn, isInitializing, logout } = useAuth();
+    const navigate = useNavigate();
+    // ----------------------------------------------------
+
     const [linhas, setLinhas] = useState<Linha[]>([]);
     const [loading, setLoading] = useState(true);
     const [horaServidor, setHoraServidor] = useState('00:00');
@@ -43,27 +49,30 @@ const Dashboard: React.FC = () => {
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    // Estado do Modal
     const [selectedMap, setSelectedMap] = useState<{
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
-    // --- SOLUÇÃO CRÍTICA: Estabiliza a função de atualização para evitar loop ---
     const linhasRef = useRef(linhas);
     useEffect(() => {
-        linhasRef.current = linhas; // Mantém a referência atualizada
+        linhasRef.current = linhas; 
     }, [linhas]);
 
-    // 1. CARREGAMENTO PRINCIPAL COM PRESERVAÇÃO DE ESTADO
+    // 0. EFEITO DE SEGURANÇA (Redireciona se não estiver logado)
+    useEffect(() => {
+        if (!isInitializing && !isLoggedIn) {
+            navigate('/login');
+        }
+    }, [isInitializing, isLoggedIn, navigate]);
+
+    // 1. CARREGAMENTO PRINCIPAL
     const fetchData = async () => {
         try {
             const res = await api.get('/dashboard');
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
             
-            // Fusão: Preserva o PFN local se o servidor enviar cache vazio
             setLinhas(prevLinhas => {
                 if (prevLinhas.length === 0) return linhasServidor;
-                
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
@@ -75,79 +84,83 @@ const Dashboard: React.FC = () => {
 
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro dashboard", error);
+            
+            // --- SEGURANÇA: Se a API retornar 401 (Token inválido/expirado), faz Logout ---
+            if (error.response && error.response.status === 401) {
+                logout(); // Limpa o estado global
+                navigate('/login'); // Força o redirecionamento
+            }
         }
     };
 
-    // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (ESTÁVEL)
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
         const BATCH_SIZE = 5;
-        
-        // Lê o estado de 'linhas' através da referência estável
         const linhasAtivas = linhasRef.current.filter(l => 
-            l.ri && l.ri !== 'N/D' && 
-            l.c !== 'Carro desligado' && 
-            l.c !== 'Encerrado'
+            l.ri && l.ri !== 'N/D' && l.c !== 'Carro desligado' && l.c !== 'Encerrado'
         );
 
         if (linhasAtivas.length === 0) return;
 
-        // Processamento em lotes (batching)
         for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
             const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
-
             const promises = batch.map(async (linha) => {
                 try {
                     const cacheBuster = Date.now();
-                    
                     const res = await api.get(`/rota/final/${linha.v}`, { 
                         params: { idLinha: linha.id, cache: cacheBuster } 
                     });
 
                     const novaPrevisao: string = res.data.previsao_chegada;
-
                     if (novaPrevisao && novaPrevisao !== 'N/D') {
                         setLinhas(prevLinhas => prevLinhas.map(item => 
                             item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
                         ));
                     }
-                } catch (err) {
-                    // Silencioso
+                } catch (err: any) {
+                    // Se falhar validação de token no loop automático, também desloga
+                    if (err.response && err.response.status === 401) {
+                        logout();
+                        navigate('/login');
+                    }
                 }
             });
-
             await Promise.allSettled(promises);
         }
-    }, []); // A dependência 'linhas' foi removida, usando linhasRef.current
+    }, [logout, navigate]); // Adicionado dependências
 
-    // 3. Loops de Refresh
+    // 3. Loops de Refresh (Só inicia se estiver logado)
     useEffect(() => {
-        fetchData();
-        const intervalPrincipal = setInterval(fetchData, 30000); // Atualiza lista base (30s)
-        return () => clearInterval(intervalPrincipal);
-    }, []);
+        if (isLoggedIn) {
+            fetchData();
+            const intervalPrincipal = setInterval(fetchData, 30000); 
+            return () => clearInterval(intervalPrincipal);
+        }
+    }, [isLoggedIn]); // Dependência isLoggedIn garante que só roda autenticado
 
     useEffect(() => {
-        // Estabelece o intervalo de previsão (60s) apenas quando a lista inicial carregar
-        if (!loading && linhas.length > 0) {
+        if (isLoggedIn && !loading && linhas.length > 0) {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
             }, 60000);
             
-            return () => clearInterval(intervalPrevisao); // Limpa o intervalo antes de recriar
+            return () => clearInterval(intervalPrevisao);
         }
-    }, [loading, linhas.length]); // Não depende da função, logo não entra em loop.
+    }, [isLoggedIn, loading, linhas.length]); 
 
-
-    // --- LÓGICA DE EXIBIÇÃO E FILTRAGEM ---
-
+    // --- LÓGICA DE EXIBIÇÃO ---
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
-            if (busca && !`${l.e} ${l.r} ${l.v}`.toLowerCase().includes(busca.toLowerCase())) return false;
+            if (busca) {
+                const termo = busca.toLowerCase();
+                // Correção de segurança para includes
+                const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
+                if (!textoLinha.includes(termo)) return false;
+            }
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             if (filtroSentido) {
                 const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
@@ -191,6 +204,12 @@ const Dashboard: React.FC = () => {
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
+    // --- RENDERIZAÇÃO CONDICIONAL DE SEGURANÇA ---
+    // Se não estiver logado ou estiver inicializando, não mostra o dashboard
+    if (isInitializing || !isLoggedIn) {
+        return null; // ou um spinner <div className="spinner-border"></div>
+    }
+
     return (
         <div className="container-fluid pt-3">
             {/* --- HEADER E BUSCA --- */}
@@ -225,7 +244,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- KPIs (Key Performance Indicators) --- */}
+            {/* --- KPIs --- */}
             <div className="row g-3 mb-4">
                 <div className="col-md-2"><div className="card-summary card-blue"><h5>{kpis.total}</h5><small>Total</small></div></div>
                 <div className="col-md-2"><div className="card-summary card-red"><h5>{kpis.atrasados}</h5><small>Atrasados</small></div></div>
@@ -235,7 +254,7 @@ const Dashboard: React.FC = () => {
                 <div className="col-md-2"><div className="card-summary bg-gradient-warning"><h5>{kpis.semInicio}</h5><small>Ñ Iniciou</small></div></div>
             </div>
 
-            {/* --- TABELA PRINCIPAL --- */}
+            {/* --- TABELA --- */}
             <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
                     <table className="table table-hover table-sm table-ultra-compact align-middle mb-0">
@@ -273,32 +292,21 @@ const Dashboard: React.FC = () => {
                                         <td className="fw-bold text-primary">{l.v}</td>
                                         <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
-                                        
                                         <td className="text-muted small">{l.pf}</td>
-
-                                        {/* Prev. Fim (Real) - Célula que mostra os dados injetados */}
                                         <td className={previsao.classe}>
                                             {previsao.horario || 'N/D'}
                                             {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon" title="Cálculo em Tempo Real (TomTom)"></i>}
                                         </td>
-
                                         <td className="small">{l.u}</td>
                                         <td>{statusBadge}</td>
                                         <td className="text-center">
-                                            
-                                            {/* BOTÃO CALCULAR INÍCIO (Clock) */}
                                             <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({
                                                 placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--'
                                             })}>
                                                 <i className="bi bi-clock" style={{fontSize: 10}}></i>
                                             </button>
-                                            
-                                            {/* BOTÃO MAPA (Final) */}
                                             <button className="btn btn-primary btn-sm rounded-circle shadow-sm" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, 
-                                                idLinha: l.id, 
-                                                tipo: 'final', 
-                                                pf: previsao.horario || 'N/D' // Passa a Previsão Inteligente
+                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: previsao.horario || 'N/D' 
                                             })}>
                                                 <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                             </button>
@@ -311,7 +319,6 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal */}
             {selectedMap && (
                 <MapModal 
                     placa={selectedMap.placa} 
