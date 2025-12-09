@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
-import Login from './pages/Login';
+import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
 import AdminPage from './pages/Admin';
