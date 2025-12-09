@@ -18,6 +18,26 @@ const headersAbm = {
     "User-Agent": "MimoBusBot/2.0"
 };
 
+// --- FUNÇÃO HAVERSINE (Cálculo de Distância em KM) ---
+// Usada para descobrir qual é o ponto mais próximo do ônibus agora
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Raio da terra em km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distância em km
+  return d;
+}
+
+function deg2rad(deg: number) {
+  return deg * (Math.PI / 180);
+}
+// -----------------------------------------------------
+
 const getVeiculoPosicao = async (placa: string) => {
     const cleanPlaca = placa.replace(/[^A-Z0-9]/g, '');
     try {
@@ -118,19 +138,33 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const destinoFinal = tipo === 'inicial' ? pontosMapa[0] : pontosMapa[pontosMapa.length - 1];
         if (!destinoFinal) return res.status(400).json({ message: "Sem paradas definidas" });
 
-        // Filtra waypoints para TomTom
+        // --- NOVA LÓGICA DE FILTRO INTELIGENTE (CORREÇÃO DE DESVIO) ---
         let waypointsTomTom = [];
+
         if (tipo !== 'inicial') {
-            let inicioValido = false;
-            for (const p of pontosMapa) {
-                if (p.passou) continue;
-                if (!inicioValido) inicioValido = true;
-                if (inicioValido) {
-                    waypointsTomTom.push(p);
-                    if (p.lat === destinoFinal.lat && p.lng === destinoFinal.lng) break;
-                }
+            // 1. Pega apenas os pontos que o sistema diz que NÃO passou
+            const pontosPendentes = pontosMapa.filter((p: any) => !p.passou);
+
+            if (pontosPendentes.length > 0) {
+                // 2. Descobre qual é o ponto mais próximo geograficamente do ônibus AGORA
+                let indexMaisProximo = 0;
+                let menorDistancia = Infinity;
+
+                pontosPendentes.forEach((p: any, index: number) => {
+                    const dist = getDistanceFromLatLonInKm(latAtual, lngAtual, p.lat, p.lng);
+                    if (dist < menorDistancia) {
+                        menorDistancia = dist;
+                        indexMaisProximo = index;
+                    }
+                });
+
+                // 3. Ignora todos os pontos ANTERIORES ao ponto mais próximo.
+                // Isso assume que se o ônibus está perto do Ponto 5, ele já pulou o 1, 2, 3 e 4,
+                // mesmo que o sistema não tenha marcado como "passou".
+                waypointsTomTom = pontosPendentes.slice(indexMaisProximo);
             }
         }
+        // --------------------------------------------------------------
         
         const waypointsEnvio = waypointsTomTom.slice(0, 15);
         let coordsString = `${latAtual},${lngAtual}`; 
@@ -148,7 +182,7 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const segundos = summary.travelTimeInSeconds;
         const metros = summary.lengthInMeters;
 
-        // --- CORREÇÃO PRINCIPAL: Extrair geometria detalhada da TomTom ---
+        // Extração de Geometria
         let rastroTomTom: number[][] = [];
         if (route && route.legs) {
             route.legs.forEach((leg: any) => {
@@ -159,11 +193,9 @@ export const calculateRoute = async (req: Request, res: Response) => {
                 }
             });
         }
-        // Se a TomTom não devolver geometry, usamos os waypoints como fallback (linha reta)
         if (rastroTomTom.length === 0) {
             rastroTomTom = [[latAtual, lngAtual], ...waypointsEnvio.map(p => [p.lat, p.lng])];
         }
-        // ----------------------------------------------------------------
 
         const agora = moment().tz('America/Sao_Paulo');
         const chegadaEstimada = agora.clone().add(segundos, 'seconds');
@@ -185,8 +217,8 @@ export const calculateRoute = async (req: Request, res: Response) => {
             veiculo_pos: [latAtual, lngAtual],
             rastro_oficial: simplificarRota(rastroOficial), 
             rastro_real: simplificarRota(rastroExecutado),
-            rastro_tomtom: simplificarRota(rastroTomTom), // Enviamos o rastro detalhado
-            todos_pontos_visual: pontosMapa // Enviamos todos os pontos para desenhar as bolinhas
+            rastro_tomtom: simplificarRota(rastroTomTom), 
+            todos_pontos_visual: pontosMapa 
         });
 
     } catch (error: any) {
