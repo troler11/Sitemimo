@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AuthProvider } from './hooks/useAuth';
 import AuthGuard from './components/AuthGuard';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
