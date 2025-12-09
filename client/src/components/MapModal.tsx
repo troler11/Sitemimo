@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLngBoundsExpression } from 'leaflet';
-// 1. CORREÇÃO: Importar api centralizada
 import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 
-// --- ÍCONES PERSONALIZADOS (Mesmos do original) ---
+// --- ÍCONES (Mantidos) ---
 const iconBus = new L.Icon({
     iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
     iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -30]
@@ -19,11 +18,10 @@ const iconEnd = new L.Icon({
     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
 });
 
-// --- TIPAGEM ---
 interface MapModalProps {
     placa: string;
     idLinha: string;
-    tipo: 'inicial' | 'final'; // Previsão inicial ou final
+    tipo: 'inicial' | 'final';
     onClose: () => void;
 }
 
@@ -33,15 +31,14 @@ interface RotaData {
     tempo: string;
     distancia: string;
     duracaoSegundos: number;
-    rastro_oficial: [number, number][]; // [lng, lat] do backend
+    rastro_oficial: [number, number][]; 
     rastro_real: [number, number][];
     waypoints_usados: [number, number][];
     origem_endereco: string;
     destino_endereco: string;
-    veiculo_pos: [number, number]; // [lat, lng]
+    veiculo_pos: [number, number];
 }
 
-// --- COMPONENTE AUXILIAR PARA AJUSTAR ZOOM (FITBOUNDS) ---
 const MapAdjuster = ({ bounds }: { bounds: LatLngBoundsExpression }) => {
     const map = useMap();
     useEffect(() => {
@@ -62,42 +59,29 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, onClose }) =>
             setLoading(true);
             setError('');
             try {
-                // 2. CORREÇÃO:
-                // - Removemos 'http://localhost:3000/api'
-                // - Removemos o 'token' manual (o api.ts cuida disso)
-                
                 const url = tipo === 'inicial' 
                     ? `/rota/inicial/${placa}` 
                     : `/rota/final/${placa}`;
 
-                // Chamada limpa
-                const res = await api.get(url, {
-                    params: { idLinha }
-                });
-                
+                const res = await api.get(url, { params: { idLinha } });
                 setData(res.data);
             } catch (err: any) {
                 console.error(err);
-                setError('Erro ao carregar dados da rota. ' + (err.response?.data?.message || ''));
+                setError('Erro ao carregar dados da rota.');
             } finally {
                 setLoading(false);
             }
         };
-
         if (placa) fetchRoute();
     }, [placa, idLinha, tipo]);
 
-    // Helpers para inverter coords se necessário (GeoJSON [lng, lat] -> Leaflet [lat, lng])
-    const fixCoords = (coords: number[][]): LatLngExpression[] => {
-        return coords.map(c => [c[1], c[0]] as LatLngExpression); 
-    };
-
-    // Calcula limites do mapa para zoom automático
+    // O Backend já manda [lat, lng], então NÃO invertemos mais nada.
     const getBounds = (): LatLngBoundsExpression => {
         if (!data) return [];
         const points: any[] = [];
         if (data.veiculo_pos) points.push(data.veiculo_pos);
-        if (data.rastro_oficial?.length) points.push([data.rastro_oficial[0][1], data.rastro_oficial[0][0]]); // Inverte lng/lat
+        // Pega o primeiro ponto da rota oficial como referência
+        if (data.rastro_oficial?.length) points.push(data.rastro_oficial[0]); 
         return points;
     };
 
@@ -121,13 +105,10 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, onClose }) =>
                             </div>
                         )}
 
-                        {error && (
-                            <div className="alert alert-danger m-3">{error}</div>
-                        )}
+                        {error && <div className="alert alert-danger m-3">{error}</div>}
 
                         {!loading && data && (
                             <>
-                                {/* --- PAINEL DE INFORMAÇÕES (Topo) --- */}
                                 <div className="p-3 bg-light border-bottom">
                                     <div className="row g-2">
                                         <div className="col-md-6">
@@ -148,66 +129,50 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, onClose }) =>
                                             <span className="badge bg-primary me-2">Estimativa TomTom</span>
                                             <span className="fw-bold fs-5">{data.tempo}</span>
                                         </div>
-                                        <div className="text-muted">
-                                            Distância: <strong>{data.distancia}</strong>
-                                        </div>
+                                        <div className="text-muted">Distância: <strong>{data.distancia}</strong></div>
                                     </div>
                                 </div>
 
-                                {/* --- MAPA LEAFLET --- */}
                                 <div style={{ height: '500px', width: '100%' }}>
                                     <MapContainer center={data.veiculo_pos as LatLngExpression} zoom={13} style={{ height: '100%', width: '100%' }}>
                                         <TileLayer
                                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                            attribution='&copy; OpenStreetMap contributors'
+                                            attribution='&copy; OpenStreetMap'
                                         />
-
-                                        {/* Ajusta Zoom */}
                                         <MapAdjuster bounds={getBounds()} />
 
-                                        {/* Rota Oficial (Vermelho Fundo) */}
+                                        {/* ROTA OFICIAL (Vermelho) - Sem inverter coords */}
                                         {data.rastro_oficial && (
                                             <Polyline 
-                                                positions={fixCoords(data.rastro_oficial as any)} 
-                                                color="#ff0505" 
-                                                weight={6} 
-                                                opacity={0.3} 
+                                                positions={data.rastro_oficial as LatLngExpression[]} 
+                                                color="#ff0505" weight={6} opacity={0.3} 
                                             />
                                         )}
 
-                                        {/* Rota Real Executada (Preto Pontilhado) */}
+                                        {/* ROTA REAL (Preto) - Sem inverter coords */}
                                         {data.rastro_real && (
                                             <Polyline 
-                                                positions={fixCoords(data.rastro_real as any)} 
-                                                color="#000" 
-                                                weight={3} 
-                                                dashArray="5, 10" 
-                                                opacity={0.7} 
+                                                positions={data.rastro_real as LatLngExpression[]} 
+                                                color="#000" weight={3} dashArray="5, 10" opacity={0.7} 
                                             />
                                         )}
 
-                                        {/* Rota Calculada/Waypoints (Azul) */}
+                                        {/* ROTA CALCULADA (Azul) - Sem inverter coords */}
                                         {data.waypoints_usados && (
                                             <Polyline 
-                                                positions={fixCoords(data.waypoints_usados as any)} 
-                                                color="#0d6efd" 
-                                                weight={4} 
-                                                opacity={0.9} 
+                                                positions={data.waypoints_usados as LatLngExpression[]} 
+                                                color="#0d6efd" weight={4} opacity={0.9} 
                                             />
                                         )}
 
-                                        {/* Marcador do Veículo */}
                                         <Marker position={data.veiculo_pos as LatLngExpression} icon={iconBus}>
                                             <Popup><b>{placa}</b><br/>Atualizado agora</Popup>
                                         </Marker>
 
-                                        {/* Marcador Destino */}
+                                        {/* Marcador de Destino - Corrigido índice */}
                                         {data.waypoints_usados && data.waypoints_usados.length > 0 && (
                                             <Marker 
-                                                position={[
-                                                    data.waypoints_usados[data.waypoints_usados.length - 1][1],
-                                                    data.waypoints_usados[data.waypoints_usados.length - 1][0]
-                                                ] as LatLngExpression} 
+                                                position={data.waypoints_usados[data.waypoints_usados.length - 1] as LatLngExpression} 
                                                 icon={iconEnd}
                                             >
                                                 <Popup>Destino</Popup>
@@ -216,7 +181,6 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, onClose }) =>
                                     </MapContainer>
                                 </div>
                                 
-                                {/* Legenda */}
                                 <div className="d-flex justify-content-center gap-3 py-2 small bg-white border-top">
                                     <span className="d-flex align-items-center"><i className="bi bi-circle-fill text-dark me-1" style={{opacity:0.5}}></i> Executado</span>
                                     <span className="d-flex align-items-center"><i className="bi bi-circle-fill text-danger me-1" style={{opacity:0.5}}></i> Oficial</span>
