@@ -133,7 +133,7 @@ const Admin: React.FC = () => {
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">Senha {editingUser && '(Deixe em branco para manter)'}</label>
-                                        <input type="password" class="form-control" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                        <input type="password" className="form-control" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">Nível</label>
