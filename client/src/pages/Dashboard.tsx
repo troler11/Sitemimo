@@ -74,8 +74,10 @@ const Dashboard: React.FC = () => {
             }
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             if (filtroSentido) {
-                const sentidoStr = l.s ? 'ida' : 'volta';
-                if (filtroSentido !== sentidoStr) return false;
+                const val = Number(l.s);
+                
+              const sentidoItem = val === 1 ? 'ida' : 'volta';
+              if (filtroSentido !== sentidoItem) return false;
             }
             if (filtroStatus) {
                 const atrasado = isLineAtrasada(l);
@@ -209,8 +211,12 @@ const Dashboard: React.FC = () => {
                                     <tr><td colSpan={11} className="text-center py-4 text-muted">Nenhum veículo encontrado.</td></tr>
                                 ) : (
                                     dadosFiltrados.map((l, idx) => {
+                                        const valSentido = Number(l.s); // Garante conversão
+                                        
                                         const atrasado = isLineAtrasada(l);
-                                        const iconSentido = l.s ? <i className="bi bi-arrow-right-circle-fill text-primary ms-1"></i> : <i className="bi bi-arrow-left-circle-fill text-warning ms-1"></i>;
+                                       const iconSentido = valSentido === 1 
+    ? <i className="bi bi-arrow-right-circle-fill text-primary ms-1" title="Ida"></i> 
+    : <i className="bi bi-arrow-left-circle-fill text-warning ms-1" title="Volta"></i>;
                                         const classPrevFim = getCorPrevisao(l.pfn, l.pf);
                                         const jaSaiu = l.ri && l.ri !== 'N/D';
                                         
