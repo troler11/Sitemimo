@@ -88,7 +88,7 @@ const Dashboard: React.FC = () => {
 
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
-        } } catch (error: any) {
+        } catch (error: any) {
             console.error("ERRO COMPLETO:", error); // <--- Vai mostrar o erro no console
             
             // SE O ERRO FOR 401/403, COMENTE AS LINHAS ABAIXO TEMPORARIAMENTE:
