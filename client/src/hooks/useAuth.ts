@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, createContext, useMemo } from 'react';
 
-// --- 1. Interfaces de Dados e Contexto ---
+// --- Interfaces ---
 interface UserData {
     username: string;
     full_name: string;
@@ -11,12 +11,12 @@ interface UserData {
 interface AuthContextType {
     isLoggedIn: boolean;
     currentUser: UserData | null;
-    isInitializing: boolean; 
+    isInitializing: boolean;
     login: (token: string, user: UserData) => void;
     logout: () => void;
 }
 
-// Valores iniciais antes da carga
+// Valores padrão
 const defaultAuthContext: AuthContextType = {
     isLoggedIn: false,
     currentUser: null,
@@ -25,10 +25,9 @@ const defaultAuthContext: AuthContextType = {
     logout: () => {},
 };
 
-// Criação do Contexto
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
-// --- 2. Provedor de Contexto (AuthProvider) ---
+// --- AuthProvider ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -48,7 +47,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // EFEITO DE INICIALIZAÇÃO
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
@@ -59,25 +57,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsLoggedIn(true);
                 setCurrentUser(userData);
             } catch (e) {
-                console.error("Dados do usuário corrompidos no storage:", e);
+                console.error(e);
                 logout();
             }
         }
-        
-        // Define inicialização como concluída
-        setIsInitializing(false); 
+        setIsInitializing(false);
     }, []);
 
-    // Memoiza o valor do contexto
+    // OBSERVE AQUI: O fechamento correto do useMemo
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
         isInitializing,
         login,
         logout,
-    }), [isLoggedIn, currentUser, isInitializing]);
+    }), [isLoggedIn, currentUser, isInitializing]); 
 
-    // --- CORREÇÃO DO BLOCO DE RETORNO ---
+    // OBSERVE AQUI: A sintaxe exata do return
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
@@ -85,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
-// --- 3. Hook de Consumo (useAuth) ---
+// --- Hook ---
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
