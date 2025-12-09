@@ -3,9 +3,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: './src/index.tsx',
-  output: {
-    path: path.resolve(__dirname, 'dist'),
+  ooutput: {
+    // Muda o output para a pasta dist/client na raiz do projeto
+    path: path.resolve(__dirname, '../dist/client'), 
     filename: 'bundle.js',
+    publicPath: '/', // Importante para rotas do React funcionarem
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js'],
