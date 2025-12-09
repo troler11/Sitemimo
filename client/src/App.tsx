@@ -5,6 +5,7 @@ import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
 
 // Páginas
+import Relatorios from './pages/Relatorios';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
@@ -61,6 +62,12 @@ const App: React.FC = () => {
                         <Route element={<AuthGuard requiredMenu="escala" />}>
                             <Route path="/escala" element={<EscalaPage />} />
                         </Route>
+
+                        {/* --- ADICIONE ESTA PARTE AQUI --- */}
+    <Route element={<AuthGuard requiredMenu="relatorios" />}>
+        <Route path="/relatorios" element={<Relatorios />} />
+    </Route>
+    {/* -------------------------------- */}
 
                         {/* 4. Usuários (Admin) */}
                         <Route element={<AuthGuard requiredMenu="usuarios" />}>
