@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { calcularDistanciaRapida, simplificarRota } from '../utils/geometry';
+// 1. NOVOS IMPORTS
+import { predictionCache } from '../utils/sharedCache'; 
+import moment from 'moment-timezone';
 
 // Cache para evitar spam na API da ABM (Dashboard)
 const apiCache = new NodeCache({ stdTTL: 60 });
@@ -198,6 +201,18 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const segundos = summary.travelTimeInSeconds;
         const metros = summary.lengthInMeters;
 
+        // --- 2. NOVA LÓGICA: SALVAR NO CACHE COMPARTILHADO ---
+        const agora = moment().tz('America/Sao_Paulo');
+        const chegadaEstimada = agora.clone().add(segundos, 'seconds');
+        const horarioChegadaFmt = chegadaEstimada.format('HH:mm');
+
+        // Salva: CHAVE=PLACA, VALOR={horario, timestamp}
+        predictionCache.set(cleanPlaca, {
+            horario: horarioChegadaFmt,
+            timestamp: Date.now()
+        });
+        // -----------------------------------------------------
+
         // Formata Texto
         const horas = Math.floor(segundos / 3600);
         const minutos = Math.floor((segundos % 3600) / 60);
@@ -208,6 +223,7 @@ export const calculateRoute = async (req: Request, res: Response) => {
             tempo: tempoTxt,
             distancia: (metros / 1000).toFixed(2) + " km",
             duracaoSegundos: segundos,
+            previsao_chegada: horarioChegadaFmt, // Retorna também aqui
             origem_endereco: veiculoData.endereco || `Lat: ${latAtual.toFixed(4)}, Lng: ${lngAtual.toFixed(4)}`,
             destino_endereco: destinoFinal.nome,
             
