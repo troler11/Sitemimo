@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         { key: 'motoristas', label: 'Motoristas', icon: 'bi-person-vcard', link: '/motoristas' },
         { key: 'escala', label: 'Escala', icon: 'bi-calendar-week', link: '/escala' },
         { key: 'relatorios', label: 'Power BI', icon: 'bi-file-earmark-text', link: '/relatorios' },
-        { key: 'usuarios', label: 'Usuários', icon: 'bi-people-fill', link: '/admin' }
+        { key: 'usuarios', label: 'Usuários', icon: 'bi-people-fill', link: '/admin/usuarios' }
     ];
 
     // A classe 'toggled' é adicionada se isOpen for falso
