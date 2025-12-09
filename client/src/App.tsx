@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Admin from './pages/Admin';
+import DashboardPage from './pages/Dashboard';
+import RotasPage from './pages/Rotas';
+import AdminPage from './pages/Admin';
 import Escala from './pages/Escala';
 import Relatorios from './pages/Relatorios';
 import Placeholder from './pages/Placeholder';
 import Sidebar from './components/Sidebar';
 
 // Layout Global com Sidebar e Área de Conteúdo
+// Exemplo Simulado de Páginas de Fallback
+const LoginPage = () => <h1>Login</h1>;
+const UnauthorizedPage = () => <h1>🚫 Acesso Não Autorizado</h1>;
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
     // Estado para controlar se a sidebar está aberta ou fechada
