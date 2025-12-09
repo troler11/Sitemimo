@@ -28,7 +28,14 @@ const Dashboard: React.FC = () => {
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    const [selectedMap, setSelectedMap] = useState<{placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string} | null>(null);
+    // --- CORREÇÃO 1: Adicionado 'pf' na tipagem do state ---
+    const [selectedMap, setSelectedMap] = useState<{
+        placa: string, 
+        idLinha: string, 
+        tipo: 'inicial'|'final',
+        pf: string 
+    } | null>(null);
+
     const navigate = useNavigate();
 
     const fetchData = async () => {
@@ -76,14 +83,12 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
-    // --- CORREÇÃO: LÓGICA DE KPIS IDÊNTICA AO PHP ---
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         
         linhas.forEach(l => {
             counts.total++;
 
-            // 1. Categoria: Carro Desligado
             if (l.c === 'Carro desligado') { 
                 counts.desligados++; 
                 return; 
@@ -91,22 +96,16 @@ const Dashboard: React.FC = () => {
             
             const jaSaiu = l.ri && l.ri !== 'N/D';
             
-            // 2. Se JÁ SAIU (Verifica Atraso vs Pontual)
             if (jaSaiu) {
                 if (isLineAtrasada(l)) {
                     counts.atrasados++;
                 } else {
                     counts.pontual++;
                 }
-            } 
-            // 3. Se NÃO SAIU (Verifica Sem Início vs Deslocamento)
-            else {
-                // Compara Strings "HH:mm" (Funciona bem no formato 24h)
-                // Se Programado < Agora = Atrasado na Saída (Sem Início)
+            } else {
                 if (l.pi < horaServidor) {
                     counts.semInicio++;
                 } else {
-                    // Se Programado >= Agora = Está indo para o ponto (Deslocamento)
                     counts.deslocamento++;
                 }
             }
@@ -211,11 +210,9 @@ const Dashboard: React.FC = () => {
                                         const classPrevFim = getCorPrevisao(l.pfn, l.pf);
                                         const jaSaiu = l.ri && l.ri !== 'N/D';
                                         
-                                        // Lógica visual do Status na Tabela
                                         let statusBadge;
                                         if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary badge-pill">Desligado</span>;
                                         else if (!jaSaiu) {
-                                            // Se não saiu, verifica se está atrasado (passou do horário) ou aguardando
                                             if (l.pi < horaServidor) statusBadge = <span className="badge bg-danger badge-pill blink-animation">Atrasado (Inicial)</span>;
                                             else statusBadge = <span className="badge bg-light text-dark border badge-pill">Aguardando</span>;
                                         }
@@ -235,10 +232,32 @@ const Dashboard: React.FC = () => {
                                                 <td className="small">{l.u}</td>
                                                 <td>{statusBadge}</td>
                                                 <td className="text-center">
-                                                    <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'inicial'})}>
+                                                    
+                                                    {/* --- CORREÇÃO 2: Botões passando a propriedade 'pf' --- */}
+                                                    
+                                                    <button 
+                                                        className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" 
+                                                        style={{width:24, height:24}} 
+                                                        onClick={() => setSelectedMap({
+                                                            placa: l.v, 
+                                                            idLinha: l.id, 
+                                                            tipo: 'inicial',
+                                                            pf: l.pi // Para mapa inicial, usamos PI como referência (opcional) ou PF
+                                                        })}
+                                                    >
                                                         <i className="bi bi-clock" style={{fontSize: 10}}></i>
                                                     </button>
-                                                    <button className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf})}>
+                                                    
+                                                    <button 
+                                                        className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" 
+                                                        style={{width:24, height:24}} 
+                                                        onClick={() => setSelectedMap({
+                                                            placa: l.v, 
+                                                            idLinha: l.id, 
+                                                            tipo: 'final',
+                                                            pf: l.pf // AQUI: Passando o Programado Final
+                                                        })}
+                                                    >
                                                         <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                                     </button>
                                                 </td>
@@ -251,27 +270,31 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
-            {selectedMap && <MapModal placa={selectedMap.placa} idLinha={selectedMap.idLinha} tipo={selectedMap.tipo} onClose={() => setSelectedMap(null)} />}
+
+            {/* --- CORREÇÃO 3: Passando 'pf' para o Componente MapModal --- */}
+            {selectedMap && (
+                <MapModal 
+                    placa={selectedMap.placa} 
+                    idLinha={selectedMap.idLinha} 
+                    tipo={selectedMap.tipo}
+                    pf={selectedMap.pf} // O ERRO ESTAVA AQUI (Faltava essa prop)
+                    onClose={() => setSelectedMap(null)} 
+                />
+            )}
         </div>
     );
 };
 
 // Função auxiliar baseada em tolerância de 10 min
-// Recebe a linha, converte horários para minutos e compara
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
-    
-    // Se não tem horário programado ou real, não dá pra calcular atraso de viagem
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
 
     const [hP, mP] = l.pi.split(':').map(Number);
     const [hR, mR] = l.ri.split(':').map(Number);
-    
     const progMin = hP * 60 + mP;
     const realMin = hR * 60 + mR;
 
-    // Diferença simples: Real - Programado
-    // Se Real (10:15) - Prog (10:00) = 15 min (> 10) -> Atrasado
     return (realMin - progMin) > tolerancia;
 }
 
