@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import MapModal from '../components/MapModal';
 import { useNavigate } from 'react-router-dom';
 
 interface Linha {
@@ -16,6 +17,7 @@ const Dashboard: React.FC = () => {
     const [linhas, setLinhas] = useState<Linha[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const [selectedMap, setSelectedMap] = useState<{placa: string, idLinha: string, tipo: 'inicial'|'final'} | null>(null);
 
     const fetchData = async () => {
         try {
@@ -54,11 +56,12 @@ const Dashboard: React.FC = () => {
                             <th>Prog. Início</th>
                             <th>Real Início</th>
                             <th>Status</th>
+                            <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {linhas.map((l, idx) => (
-                            <tr key={`${l.id}-${idx}`}>
+                       {linhas.map((l, idx) => (
+                           <tr key={idx}>
                                 <td>{l.e}</td>
                                 <td>{l.r}</td>
                                 <td className="fw-bold text-primary">{l.v}</td>
@@ -72,10 +75,35 @@ const Dashboard: React.FC = () => {
                                         <span className="badge bg-success">Pontual</span>
                                     )}
                                 </td>
+                               <td>
+                                <button 
+                                    className="btn btn-sm btn-outline-primary rounded-circle me-1"
+                                    onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial' })}
+                                    title="Previsão Chegada Inicial"
+                                >
+                                    <i className="bi bi-clock"></i>
+                                </button>
+                                <button 
+                                    className="btn btn-sm btn-primary rounded-circle"
+                                    onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final' })}
+                                    title="Previsão Destino Final"
+                                >
+                                    <i className="bi bi-geo-alt-fill"></i>
+                                </button>
+                            </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+                {/* Renderização Condicional do Modal */}
+            {selectedMap && (
+                <MapModal 
+                    placa={selectedMap.placa} 
+                    idLinha={selectedMap.idLinha} 
+                    tipo={selectedMap.tipo} 
+                    onClose={() => setSelectedMap(null)} 
+                />
+            )}
             </div>
         </div>
     );
