@@ -12,7 +12,7 @@ interface Linha {
     pi: string; // prog inicio
     ri: string; // real inicio
     pf: string; // prog fim
-    pfn?: string; // Previsão Fim Nova
+    pfn?: string; // Previsão Fim Nova (Vem do Backend)
     u: string;  // ultima atualizacao
     c: string;  // categoria (status)
 }
@@ -28,18 +28,19 @@ const Dashboard: React.FC = () => {
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    // --- CORREÇÃO 1: Adicionado 'pf' na tipagem do state ---
+    // Estado do Modal de Mapa
     const [selectedMap, setSelectedMap] = useState<{
         placa: string, 
         idLinha: string, 
         tipo: 'inicial'|'final',
-        pf: string 
+        pf: string // Armazena o Programado para exibir no modal
     } | null>(null);
 
     const navigate = useNavigate();
 
     const fetchData = async () => {
         try {
+            // Chama o backend (que gerencia o cache de 5min da previsão)
             const res = await api.get('/dashboard');
             setLinhas(res.data.todas_linhas);
             if(res.data.hora) setHoraServidor(res.data.hora);
@@ -51,6 +52,8 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         fetchData();
+        // RECARGA AUTOMÁTICA: 30 segundos
+        // Isso garante que puxamos a informação nova assim que o cache de 5 min vence
         const interval = setInterval(fetchData, 30000); 
         return () => clearInterval(interval);
     }, []);
@@ -103,6 +106,7 @@ const Dashboard: React.FC = () => {
                     counts.pontual++;
                 }
             } else {
+                // Comparação de string HH:mm funciona bem aqui
                 if (l.pi < horaServidor) {
                     counts.semInicio++;
                 } else {
@@ -233,31 +237,12 @@ const Dashboard: React.FC = () => {
                                                 <td>{statusBadge}</td>
                                                 <td className="text-center">
                                                     
-                                                    {/* --- CORREÇÃO 2: Botões passando a propriedade 'pf' --- */}
-                                                    
-                                                    <button 
-                                                        className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" 
-                                                        style={{width:24, height:24}} 
-                                                        onClick={() => setSelectedMap({
-                                                            placa: l.v, 
-                                                            idLinha: l.id, 
-                                                            tipo: 'inicial',
-                                                            pf: l.pi // Para mapa inicial, usamos PI como referência (opcional) ou PF
-                                                        })}
-                                                    >
+                                                    {/* Botões atualizam o estado do mapa */}
+                                                    <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi})}>
                                                         <i className="bi bi-clock" style={{fontSize: 10}}></i>
                                                     </button>
                                                     
-                                                    <button 
-                                                        className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" 
-                                                        style={{width:24, height:24}} 
-                                                        onClick={() => setSelectedMap({
-                                                            placa: l.v, 
-                                                            idLinha: l.id, 
-                                                            tipo: 'final',
-                                                            pf: l.pf // AQUI: Passando o Programado Final
-                                                        })}
-                                                    >
+                                                    <button className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf})}>
                                                         <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                                     </button>
                                                 </td>
@@ -271,13 +256,13 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- CORREÇÃO 3: Passando 'pf' para o Componente MapModal --- */}
+            {/* Modal - Passando todas as props necessárias */}
             {selectedMap && (
                 <MapModal 
                     placa={selectedMap.placa} 
                     idLinha={selectedMap.idLinha} 
                     tipo={selectedMap.tipo}
-                    pf={selectedMap.pf} // O ERRO ESTAVA AQUI (Faltava essa prop)
+                    pf={selectedMap.pf}
                     onClose={() => setSelectedMap(null)} 
                 />
             )}
@@ -285,7 +270,6 @@ const Dashboard: React.FC = () => {
     );
 };
 
-// Função auxiliar baseada em tolerância de 10 min
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
