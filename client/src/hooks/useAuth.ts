@@ -53,22 +53,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
         
-        if (token && userDataString) {
+       if (token && userDataString) {
             try {
-                const userData = JSON.parse(userDataString);
+               const userData = JSON.parse(userDataString);
                 setIsLoggedIn(true);
                 setCurrentUser(userData);
             } catch (e) {
-                console.error("Dados do usuário corrompidos no storage:", e);
+               console.error("Erro ao parsear dados do usuário:", e);
                 logout();
             }
         }
         
         // CRÍTICO: Define como false APÓS a leitura do storage, permitindo o AuthGuard agir.
-        setIsInitializing(false); 
+     setIsInitializing(false);
     }, []);
 
     // Memoiza o valor do contexto
