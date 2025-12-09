@@ -4,7 +4,9 @@ import NodeCache from 'node-cache';
 import moment from 'moment-timezone';
 import { predictionCache } from '../utils/sharedCache'; 
 
+// Cache do Dashboard (Dados gerais da ABM) - Atualiza a cada 30 segundos
 const appCache = new NodeCache({ stdTTL: 30 }); 
+
 const URL_DASHBOARD_MAIN = "https://abmbus.com.br:8181/api/dashboard/mongo/95?naoVerificadas=false&agrupamentos=";
 const HEADERS_DASHBOARD_MAIN = {
     "Accept": "application/json, text/plain, */*",
@@ -12,7 +14,7 @@ const HEADERS_DASHBOARD_MAIN = {
 };
 const TIMEZONE = 'America/Sao_Paulo';
 
-// Formatos aceitos (O primeiro é o que você confirmou que vem da API)
+// Formatos de data aceitos (Prioridade para o Brasileiro)
 const INPUT_FORMATS = [
     "DD/MM/YYYY HH:mm:ss", 
     "DD/MM/YYYY HH:mm", 
@@ -21,13 +23,11 @@ const INPUT_FORMATS = [
     moment.ISO_8601
 ];
 
-// Helper seguro para parsear datas
+// Helper para limpar data e parsear com segurança
 const parseDateSafe = (dateInput: any): moment.Moment | null => {
     if (!dateInput) return null;
-    // Converte para string e remove espaços em branco (trim)
     const cleanStr = String(dateInput).trim();
-    // Tenta parsear
-    const m = moment(cleanStr, INPUT_FORMATS); // Remove o 'true' (strict) para ser mais tolerante, mas respeitando a ordem
+    const m = moment(cleanStr, INPUT_FORMATS); 
     return m.isValid() ? m : null;
 };
 
@@ -53,42 +53,38 @@ export const getDashboardData = async (req: Request, res: Response) => {
             if (!lista) return;
             
             for (const l of lista) {
+                // Filtro Empresa
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
                 if (allowedNorm.length > 0 && !allowedNorm.includes(empNome)) continue;
 
+                // Filtro Finalizada
                 const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
                 if (finalizada) continue;
 
-                // --- VARIÁVEIS BASE ---
-                let pi = "N/D"; 
-                let ri = "N/D"; 
-                let pf = "N/D"; 
-                let pfn = "N/D"; 
+                // --- VARIÁVEIS INICIAIS ---
+                let pi = "N/D"; // Prog. Início
+                let ri = "N/D"; // Real Início
+                let pf = "N/D"; // Prog. Fim
+                let pfn = "N/D"; // Prev. Fim (Calculado)
                 let li = "N/D";
                 let lf = "N/D";
                 
-                // --- 1. LÓGICA DE ÚLTIMO REPORTE (u) ---
+                // 1. LÓGICA DO ÚLTIMO REPORTE (GPS Real)
                 let u = "N/D";
                 let rawDate = null;
-
                 // Prioridade: dataHora (GPS) > dataComunicacao > ultimaData
-                if (l.veiculo && l.veiculo.dataHora) {
-                    rawDate = l.veiculo.dataHora;
-                } else if (l.veiculo && l.veiculo.dataComunicacao) {
-                    rawDate = l.veiculo.dataComunicacao;
-                } else {
-                    rawDate = l.ultimaData;
-                }
+                if (l.veiculo && l.veiculo.dataHora) rawDate = l.veiculo.dataHora;
+                else if (l.veiculo && l.veiculo.dataComunicacao) rawDate = l.veiculo.dataComunicacao;
+                else rawDate = l.ultimaData;
 
                 const mReporte = parseDateSafe(rawDate);
-                if (mReporte) {
-                    u = mReporte.tz(TIMEZONE).format('HH:mm');
-                }
-                // ---------------------------------------
+                if (mReporte) u = mReporte.tz(TIMEZONE).format('HH:mm');
                 
+                // Variáveis de Saída
                 let diffMinutosSaida = 0; 
                 let saiu = false;
 
+                // 2. EXTRAÇÃO DE DADOS DOS PONTOS
                 if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
@@ -100,6 +96,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             if (p.passou && p.horario) {
                                 saiu = true;
                                 if (p.tempoDiferenca) {
+                                    // Cálculo seguro do Real Início
                                     const hojeStr = moment().format('YYYY-MM-DD');
                                     const baseTime = moment.tz(`${hojeStr} ${p.horario}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                     
@@ -117,7 +114,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     else baseTime.subtract(dm, 'minutes');
                                     ri = baseTime.format('HH:mm');
                                 } 
-                                // Fallback usando a função segura
                                 else if (p.dataPassouGmt3) {
                                     const mPassou = parseDateSafe(p.dataPassouGmt3);
                                     if (mPassou) ri = mPassou.tz(TIMEZONE).format('HH:mm');
@@ -132,18 +128,23 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     }
                 }
 
+                // 3. LÓGICA DE PREVISÃO DE CHEGADA (Prev. Fim)
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+                
+                // (A) Cache da TomTom (Validade 5 Minutos)
+                // Se você clicou no botão há menos de 5 min, usa esse valor preciso.
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
-                // --- LÓGICA DE PREVISÃO ---
                 if (cachedPred && cachedPred.horario) {
                     pfn = cachedPred.horario;
                 } 
+                // (B) Se JÁ SAIU e sem cache: Projeta o atraso da saída na chegada
                 else if (pf !== "N/D" && saiu) {
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     progFimObj.add(diffMinutosSaida, 'minutes');
                     pfn = progFimObj.format('HH:mm');
                 }
+                // (C) Se NÃO SAIU: Retorna traços (Não calcula previsão)
                 else if (pf !== "N/D" && !saiu) {
                      pfn = "--:--"; 
                 }
