@@ -9,6 +9,7 @@ import EscalaPage from './pages/Escala';
 import Relatorios from './pages/Relatorios';
 import Placeholder from './pages/Placeholder';
 import Sidebar from './components/Sidebar';
+import AcessoNegadoPage from './pages/AcessoNegadoPage'; // <-- ADICIONE ESTA LINHA
 
 // Layout Global com Sidebar e Área de Conteúdo
 // Exemplo Simulado de Páginas de Fallback
