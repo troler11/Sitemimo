@@ -4,7 +4,7 @@
   "scripts": {
     "start": "node dist/server/index.js",
     "build:server": "tsc -p server/tsconfig.json",
-    "build:client": "webpack --mode production",
+   "build:client": "webpack --config client/webpack.config.js --mode production",
     "build": "npm run build:server && npm run build:client",
     "dev:server": "ts-node-dev --respawn --transpile-only server/index.ts",
     "dev:client": "webpack serve --mode development",
