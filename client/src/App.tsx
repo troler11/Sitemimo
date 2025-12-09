@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import AuthGuard from './components/AuthGuard'; // Seu novo componente
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
@@ -9,6 +10,7 @@ import Placeholder from './pages/Placeholder';
 import Sidebar from './components/Sidebar';
 
 // Layout Global com Sidebar e Área de Conteúdo
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
     // Estado para controlar se a sidebar está aberta ou fechada
     // No PHP você usava localStorage 'mimo_menu_state', podemos manter a lógica se quiser
@@ -57,22 +59,39 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
     return auth ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 };
 
-const App = () => {
-    return (
-        <Router>
+const AppRouter: React.FC = () => {
+   return (
+        <BrowserRouter>
             <Routes>
-                <Route path="/login" element={<Login />} />
+                {/* Rotas Públicas */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/unauthorized" element={<AcessoNegadoPage />} />
                 
-                <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-                <Route path="/escala" element={<PrivateRoute><Escala /></PrivateRoute>} />
-                <Route path="/relatorios" element={<PrivateRoute><Relatorios /></PrivateRoute>} />
-                <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
+                {/* --- ROTAS PROTEGIDAS POR MENU --- */}
                 
-                <Route path="/rotas" element={<PrivateRoute><Placeholder title="Rotas" /></PrivateRoute>} />
-                <Route path="/veiculos" element={<PrivateRoute><Placeholder title="Veículos" /></PrivateRoute>} />
-                <Route path="/motoristas" element={<PrivateRoute><Placeholder title="Motoristas" /></PrivateRoute>} />
+                {/* 1. Protegendo a página de Rotas (requiredMenu="rotas") */}
+                <Route element={<AuthGuard requiredMenu="rotas" />}>
+                    <Route path="/rotas" element={<RotasPage />} />
+                </Route>
+
+                {/* 2. Protegendo a página de Escala (requiredMenu="escala") */}
+                <Route element={<AuthGuard requiredMenu="escala" />}>
+                    <Route path="/escala" element={<EscalaPage />} />
+                </Route>
+
+                {/* 3. Protegendo o Painel de Usuários (requiredMenu="usuarios") */}
+                <Route element={<AuthGuard requiredMenu="usuarios" />}>
+                    <Route path="/admin/usuarios" element={<AdminPage />} />
+                </Route>
+
+                {/* 4. Protegendo o Dashboard (Acesso básico) */}
+                {/* Embora o Dashboard seja comum, se for necessário ter permissão, você a define aqui: */}
+                <Route element={<AuthGuard requiredMenu="dashboard" />}>
+                    <Route path="/" element={<DashboardPage />} />
+                </Route>
+
             </Routes>
-        </Router>
+        </BrowserRouter>
     );
 };
 
