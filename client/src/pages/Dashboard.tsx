@@ -28,7 +28,7 @@ const Dashboard: React.FC = () => {
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    const [selectedMap, setSelectedMap] = useState<{placa: string, idLinha: string, tipo: 'inicial'|'final'} | null>(null);
+    const [selectedMap, setSelectedMap] = useState<{placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string} | null>(null);
     const navigate = useNavigate();
 
     const fetchData = async () => {
