@@ -26,6 +26,25 @@ const Layout = () => {
 
     return (
         <div className="d-flex">
+            {/* --- ATUALIZAÇÃO AQUI --- */}
+            {/* Passamos a função toggle para a Sidebar */}
+            <Sidebar 
+                isOpen={isSidebarOpen} 
+                toggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+            />
+            {/* ------------------------ */}
+            
+            <div style={contentStyle} className="w-100">
+                <div className="p-3">
+                    <Outlet context={{ toggleSidebar: () => setIsSidebarOpen(!isSidebarOpen) }} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+    return (
+        <div className="d-flex">
             <Sidebar isOpen={isSidebarOpen} />
             <div style={contentStyle} className="w-100">
                 <div className="p-3">
