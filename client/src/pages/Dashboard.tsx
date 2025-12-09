@@ -12,9 +12,9 @@ interface Linha {
     pi: string; // prog inicio
     ri: string; // real inicio
     pf: string; // prog fim
+    pfn?: string; // Previsão Fim Nova (Calculada pelo Backend)
     u: string;  // ultima atualizacao
     c: string;  // categoria (status)
-    status_tempo?: string; // calculado no backend ou aqui
 }
 
 const Dashboard: React.FC = () => {
@@ -52,13 +52,11 @@ const Dashboard: React.FC = () => {
 
     // --- LÓGICA DE DADOS (KPIs e Filtros) ---
     
-    // 1. Extrair lista única de empresas para o select
     const empresasUnicas = useMemo(() => {
         const lista = new Set(linhas.map(l => l.e).filter(Boolean));
         return Array.from(lista).sort();
     }, [linhas]);
 
-    // 2. Filtrar dados
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
             // Busca Texto
@@ -74,7 +72,7 @@ const Dashboard: React.FC = () => {
                 const sentidoStr = l.s ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoStr) return false;
             }
-            // Filtro Status (Lógica simplificada visual)
+            // Filtro Status
             if (filtroStatus) {
                 const isAtrasado = isLineAtrasada(l, horaServidor);
                 if (filtroStatus === 'atrasado' && !isAtrasado) return false;
@@ -84,7 +82,6 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, horaServidor]);
 
-    // 3. Calcular KPIs (Baseado nos dados FILTRADOS ou TOTAIS? Geralmente Totais)
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         linhas.forEach(l => {
@@ -94,19 +91,27 @@ const Dashboard: React.FC = () => {
             const atrasado = isLineAtrasada(l, horaServidor);
             if (atrasado) counts.atrasados++;
             else if (l.ri !== 'N/D') counts.pontual++;
-            else counts.semInicio++; // Simplificação
+            else counts.semInicio++;
             
-            // Lógica de deslocamento simplificada
             if (l.ri !== 'N/D') counts.deslocamento++; 
         });
         return counts;
     }, [linhas, horaServidor]);
 
+    // Helper para cor da previsão
+    const getCorPrevisao = (prev?: string, prog?: string) => {
+        if (!prev || prev === 'N/D' || !prog || prog === 'N/D') return '';
+        // Se a previsão é maior que o programado = Atrasado (Vermelho)
+        if (prev > prog) return 'text-danger fw-bold'; 
+        // Se é menor ou igual = No horário (Verde)
+        return 'text-success fw-bold';
+    };
+
     // --- RENDERIZAÇÃO ---
 
     return (
         <div className="container-fluid pt-3">
-            {/* 1. Header (Título e Busca) */}
+            {/* 1. Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota</h4>
@@ -185,6 +190,7 @@ const Dashboard: React.FC = () => {
                                     <th>Prog. Início</th>
                                     <th>Real Início</th>
                                     <th>Prog. Fim</th>
+                                    <th title="Previsão de Chegada">Prev. Fim</th> {/* Coluna Restaurada */}
                                     <th>Ult. Reporte</th>
                                     <th>Status</th>
                                     <th className="text-center">Ações</th>
@@ -192,19 +198,21 @@ const Dashboard: React.FC = () => {
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    // Skeleton Loader
                                     Array.from({ length: 5 }).map((_, i) => (
                                         <tr key={i}>
-                                            <td colSpan={10}><div className="skeleton skeleton-text"></div></td>
+                                            <td colSpan={11}><div className="skeleton skeleton-text"></div></td>
                                         </tr>
                                     ))
                                 ) : dadosFiltrados.length === 0 ? (
-                                    <tr><td colSpan={10} className="text-center py-4 text-muted">Nenhum veículo encontrado.</td></tr>
+                                    <tr><td colSpan={11} className="text-center py-4 text-muted">Nenhum veículo encontrado.</td></tr>
                                 ) : (
                                     dadosFiltrados.map((l, idx) => {
                                         const atrasado = isLineAtrasada(l, horaServidor);
                                         const iconSentido = l.s ? <i className="bi bi-arrow-right-circle-fill text-primary ms-1" title="IDA"></i> : <i className="bi bi-arrow-left-circle-fill text-warning ms-1" title="VOLTA"></i>;
                                         
+                                        // Calcula cor da Previsão Fim
+                                        const classPrevFim = getCorPrevisao(l.pfn, l.pf);
+
                                         return (
                                             <tr key={`${l.id}-${idx}`}>
                                                 <td>{l.e}</td>
@@ -213,7 +221,13 @@ const Dashboard: React.FC = () => {
                                                 <td className="text-muted small">--:--</td>
                                                 <td className={atrasado ? 'text-danger fw-bold' : ''}>{l.pi}</td>
                                                 <td>{l.ri}</td>
+                                                
+                                                {/* Prog Fim */}
                                                 <td><strong>{l.pf}</strong></td>
+                                                
+                                                {/* Prev Fim (Dados do Backend + Cor Lógica) */}
+                                                <td className={classPrevFim}>{l.pfn || 'N/D'}</td>
+                                                
                                                 <td className="small">{l.u}</td>
                                                 <td>
                                                     {l.c === 'Carro desligado' ? <span className="badge bg-secondary badge-pill">Desligado</span> :
@@ -254,7 +268,6 @@ const Dashboard: React.FC = () => {
 };
 
 // Função auxiliar simples para calcular atraso visualmente no Frontend
-// A lógica real pesada deve vir do backend, mas isso ajuda na renderização imediata
 function isLineAtrasada(l: Linha, horaServidor: string): boolean {
     const tolerancia = 10; // minutos
     const timeToMin = (t: string) => {
