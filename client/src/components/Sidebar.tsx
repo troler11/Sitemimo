@@ -1,75 +1,113 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import './Sidebar.css'; // Importa o visual original
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Importe useLocation para destacar menu ativo
+import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
-    isOpen: boolean; // Controla se está expandida (250px) ou recolhida (80px)
+    isOpen: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
-    const location = useLocation();
+    const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
-    
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const role = user.role || '';
-    const permissoes = user.menus || [];
+    const location = useLocation(); // Para saber em qual página estamos
 
-    const handleLogout = (e: React.MouseEvent) => {
-        e.preventDefault();
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
+    const handleLogout = () => {
+        logout(); // Limpa token e estado
+        navigate('/login', { replace: true }); // Força ida para o login
     };
 
-    const menus = [
-        { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', link: '/' },
-        { key: 'rotas', label: 'Rotas', icon: 'bi-map', link: '/rotas' },
-        { key: 'veiculos', label: 'Veículos', icon: 'bi-bus-front', link: '/veiculos' },
-        { key: 'motoristas', label: 'Motoristas', icon: 'bi-person-vcard', link: '/motoristas' },
-        { key: 'escala', label: 'Escala', icon: 'bi-calendar-week', link: '/escala' },
-        { key: 'relatorios', label: 'Power BI', icon: 'bi-file-earmark-text', link: '/relatorios' },
-        { key: 'usuarios', label: 'Usuários', icon: 'bi-people-fill', link: '/admin/usuarios' }
-    ];
-
-    // A classe 'toggled' é adicionada se isOpen for falso
-    const sidebarClass = isOpen ? 'sidebar' : 'sidebar toggled';
+    // Função para verificar se o link está ativo
+    const isActive = (path: string) => location.pathname === path ? 'active-link' : '';
 
     return (
-        <div className={sidebarClass} id="sidebar">
-            {/* Logo */}
-            <div className="logo-container">
-                <img 
-                    src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Background-12-1.png" 
-                    alt="Logo" 
-                />
+        <div 
+            className="bg-white shadow-sm d-flex flex-column justify-content-between"
+            style={{
+                width: isOpen ? '250px' : '80px',
+                height: '100vh',
+                position: 'fixed',
+                transition: 'width 0.3s ease',
+                zIndex: 1000,
+                overflowX: 'hidden' // Evita scroll horizontal na animação
+            }}
+        >
+            {/* Topo: Logo e Links */}
+            <div>
+                <div className="p-3 d-flex align-items-center justify-content-center border-bottom" style={{ height: '70px' }}>
+                     {/* Você pode colocar um Logo aqui */}
+                     <h5 className="m-0 text-primary fw-bold text-nowrap">
+                        {isOpen ? 'SISTEMA FROTA' : 'SF'}
+                     </h5>
+                </div>
+
+                <div className="list-group list-group-flush mt-3 p-2">
+                    {/* Link Dashboard */}
+                    <Link to="/" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/')}`} title="Dashboard">
+                        <i className="bi bi-speedometer2 fs-5 me-3"></i>
+                        {isOpen && <span>Dashboard</span>}
+                    </Link>
+
+                    {/* Link Rotas */}
+                    {/* Exibe se for Admin OU se tiver permissão de rotas */}
+                    {(currentUser?.role === 'admin' || currentUser?.allowed_menus?.includes('rotas')) && (
+                        <Link to="/rotas" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/rotas')}`} title="Rotas">
+                            <i className="bi bi-map fs-5 me-3"></i>
+                            {isOpen && <span>Rotas</span>}
+                        </Link>
+                    )}
+
+                    {/* Link Escala */}
+                    {(currentUser?.role === 'admin' || currentUser?.allowed_menus?.includes('escala')) && (
+                        <Link to="/escala" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/escala')}`} title="Escala">
+                            <i className="bi bi-calendar-week fs-5 me-3"></i>
+                            {isOpen && <span>Escala</span>}
+                        </Link>
+                    )}
+
+                    {/* Link Usuários (Apenas Admin) */}
+                    {currentUser?.role === 'admin' && (
+                        <Link to="/admin/usuarios" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/admin/usuarios')}`} title="Usuários">
+                            <i className="bi bi-people fs-5 me-3"></i>
+                            {isOpen && <span>Usuários</span>}
+                        </Link>
+                    )}
+                </div>
             </div>
 
-            {/* Links */}
-            {menus.map((menu) => {
-                const temPermissao = role === 'admin' || permissoes.includes(menu.key);
-                if (!temPermissao) return null;
+            {/* Rodapé: Botão Sair */}
+            <div className="p-3 border-top">
+                <div className="d-flex align-items-center mb-3 px-2 text-muted" style={{ overflow: 'hidden' }}>
+                    <i className="bi bi-person-circle fs-4 me-3"></i>
+                    {isOpen && (
+                        <div className="d-flex flex-column" style={{ lineHeight: '1.2' }}>
+                            <small className="fw-bold text-truncate" style={{ maxWidth: '140px' }}>
+                                {currentUser?.full_name?.split(' ')[0]} {/* Primeiro nome */}
+                            </small>
+                            <small style={{ fontSize: '0.75rem' }}>{currentUser?.role}</small>
+                        </div>
+                    )}
+                </div>
 
-                // Verifica se é a página atual para pintar de azul
-                const isActive = location.pathname === menu.link;
+                <button 
+                    onClick={handleLogout} 
+                    className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center"
+                    title="Sair do Sistema"
+                >
+                    <i className="bi bi-box-arrow-left fs-5"></i>
+                    {isOpen && <span className="ms-2">Sair</span>}
+                </button>
+            </div>
 
-                return (
-                    <Link 
-                        to={menu.link} 
-                        key={menu.key} 
-                        className={isActive ? 'active' : ''}
-                        title={menu.label}
-                    >
-                        <i className={`bi ${menu.icon} me-2`}></i>
-                        <span>{menu.label}</span>
-                    </Link>
-                );
-            })}
-
-            {/* Botão Sair */}
-            <a href="#" onClick={handleLogout} className="mt-auto logout-link" title="Sair">
-                <i className="bi bi-box-arrow-right me-2"></i>
-                <span>Sair</span>
-            </a>
+            {/* CSS inline para o link ativo (pode mover para um arquivo .css) */}
+            <style>
+                {`
+                .active-link {
+                    background-color: #e9ecef !important;
+                    color: #0d6efd !important;
+                    font-weight: 500;
+                }
+                `}
+            </style>
         </div>
     );
 };
