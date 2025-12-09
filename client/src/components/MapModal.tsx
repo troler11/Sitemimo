@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLngBoundsExpression } from 'leaflet';
@@ -31,7 +30,6 @@ interface RotaData {
     lat: number;
     lng: number;
     tempo: string;
-    pf: string;
     distancia: string;
     previsao_chegada: string; // Vem do Backend (Cálculo TomTom)
     rastro_oficial: [number, number][]; 
