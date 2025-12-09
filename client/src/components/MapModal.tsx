@@ -4,20 +4,23 @@ import L, { LatLngExpression, LatLngBoundsExpression } from 'leaflet';
 import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 
-// --- CONFIGURAÇÃO DE ÍCONES DO LEAFLET ---
-import iconMarker from 'leaflet/dist/images/marker-icon.png';
-import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// --- CORREÇÃO DO ERRO TS2307 ---
+// Removemos os 'import' de .png locais e usamos URLs diretas (CDN)
+// Isso impede que o TypeScript reclame que não acha o módulo da imagem.
 
 const DefaultIcon = L.icon({
-    iconUrl: iconMarker,
-    iconRetinaUrl: iconRetina,
-    shadowUrl: iconShadow,
+    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    tooltipAnchor: [16, -28],
+    shadowSize: [41, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// --- ÍCONES PERSONALIZADOS ---
 const iconBus = new L.Icon({
     iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png',
     iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -30]
@@ -31,20 +34,7 @@ const iconEnd = new L.Icon({
     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
 });
 
-// --- CACHE GLOBAL (Persiste enquanto a página não for recarregada) ---
-// Estrutura: { "IDLINHA-PLACA": { timestamp: 123456789, data: RotaData } }
-const ROTA_CACHE: Record<string, { timestamp: number, data: RotaData }> = {};
-const CACHE_LIMIT_MS = 2 * 60 * 1000; // 2 Minutos
-
-// --- INTERFACES ---
-interface MapModalProps {
-    placa: string;
-    idLinha: string;
-    tipo: 'inicial' | 'final';
-    pf: string;
-    onClose: () => void;
-}
-
+// --- CACHE GLOBAL ---
 interface RotaData {
     lat: number;
     lng: number;
@@ -60,7 +50,19 @@ interface RotaData {
     veiculo_pos: [number, number];
 }
 
-// --- SUBCOMPONENTE DE ZOOM (Memoizado) ---
+const ROTA_CACHE: Record<string, { timestamp: number, data: RotaData }> = {};
+const CACHE_LIMIT_MS = 2 * 60 * 1000; // 2 Minutos
+
+// --- INTERFACES ---
+interface MapModalProps {
+    placa: string;
+    idLinha: string;
+    tipo: 'inicial' | 'final';
+    pf: string;
+    onClose: () => void;
+}
+
+// --- SUBCOMPONENTE DE ZOOM ---
 const MapAdjuster = React.memo(({ bounds }: { bounds: LatLngBoundsExpression }) => {
     const map = useMap();
     useEffect(() => {
@@ -83,7 +85,6 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
 
     useEffect(() => {
         const fetchRoute = async () => {
-            // Se já tiver dados na tela (atualização automática), não mostra spinner
             if (!data) setLoading(true);
             setError('');
             
@@ -96,29 +97,17 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                 const cacheKey = `${idLinha}-${placa}-${tipo}`;
                 const cachedEntry = ROTA_CACHE[cacheKey];
 
-                // --- LÓGICA DE OTIMIZAÇÃO (CACHE 2 MINUTOS) ---
                 if (cachedEntry && (now - cachedEntry.timestamp < CACHE_LIMIT_MS)) {
-                    // console.log("♻️ Usando Cache para linhas (Atualizando apenas veículo)");
-                    
-                    // MERGE INTELIGENTE:
-                    // 1. Pega dados novos leves (posição do veículo, tempo, dist, previsão)
-                    // 2. Mantém dados pesados do cache (rastro_oficial, rastro_real, pontos)
+                    // Merge inteligente usando cache para as linhas pesadas
                     const mergedData: RotaData = {
-                        ...newData, // Sobrescreve dados simples com os novos da API
-                        
-                        // Força o uso das listas antigas para o React não renderizar polylines de novo
+                        ...newData, 
                         rastro_oficial: cachedEntry.data.rastro_oficial,
                         rastro_real: cachedEntry.data.rastro_real, 
                         todos_pontos_visual: cachedEntry.data.todos_pontos_visual,
-                        
-                        // rastro_tomtom pode mudar muito rápido, então usamos o novo se preferir, 
-                        // ou o antigo para performance extrema. Aqui vou usar o cache também.
                         rastro_tomtom: cachedEntry.data.rastro_tomtom 
                     };
-                    
                     setData(mergedData);
                 } else {
-                    // console.log("⬇️ Cache expirado ou inexistente. Salvando novo cache.");
                     ROTA_CACHE[cacheKey] = { timestamp: now, data: newData };
                     setData(newData);
                 }
@@ -132,14 +121,12 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
         };
 
         fetchRoute();
-
-        // Atualiza a posição a cada 30s enquanto o modal estiver aberto
         const interval = setInterval(fetchRoute, 30000);
         return () => clearInterval(interval);
 
     }, [placa, idLinha, tipo]);
 
-    // 1. Cálculo de Limites (Bounds)
+    // 1. Limites do Mapa
     const bounds = useMemo((): LatLngBoundsExpression => {
         if (!data) return [];
         const points: any[] = [];
@@ -156,7 +143,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
         return points;
     }, [data]);
 
-    // 2. Otimização de Polylines (Reduz resolução se tiver muitos pontos)
+    // 2. Otimização de Rota Real
     const rastroRealOtimizado = useMemo(() => {
         if (!data?.rastro_real) return [];
         if (data.rastro_real.length > 500) {
@@ -250,53 +237,36 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                 <div className="flex-grow-1 position-relative bg-light" style={{ minHeight: '400px' }}>
                                     {data.veiculo_pos && data.veiculo_pos[0] !== 0 ? (
                                         <MapContainer 
-                                            // A Key composta pela posição força o React a atualizar o marcador instantaneamente
                                             key={`${data.veiculo_pos[0]}-${data.veiculo_pos[1]}`}
                                             center={data.veiculo_pos as LatLngExpression} 
                                             zoom={13} 
                                             style={{ height: '100%', width: '100%', minHeight: '400px' }}
                                         >
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                                            
                                             <MapAdjuster bounds={bounds} />
 
-                                            {/* CAMADAS DE ROTA (Estabilizadas pelo Cache) */}
                                             {data.rastro_oficial && <Polyline positions={data.rastro_oficial as LatLngExpression[]} color="#adb5bd" weight={6} opacity={0.4} />}
-                                            
                                             {rastroRealOtimizado && <Polyline positions={rastroRealOtimizado as LatLngExpression[]} color="#212529" weight={3} dashArray="5, 10" opacity={0.8} />}
-                                            
                                             {data.rastro_tomtom && <Polyline positions={data.rastro_tomtom as LatLngExpression[]} color="#0d6efd" weight={5} opacity={0.9} />}
                                             
-                                            {/* Conector Veículo -> TomTom */}
                                             {data.rastro_tomtom && data.rastro_tomtom.length > 0 && (
                                                 <Polyline positions={[data.veiculo_pos, data.rastro_tomtom[0]] as LatLngExpression[]} color="#0d6efd" weight={2} dashArray="5, 5" opacity={0.6} />
                                             )}
 
-                                            {/* PONTOS DE PARADA */}
                                             {tipo === 'final' && data.todos_pontos_visual && data.todos_pontos_visual.map((p, i) => {
                                                 const isFirst = i === 0;
                                                 const isLast = i === data.todos_pontos_visual.length - 1;
-                                                
                                                 if (isFirst || isLast) {
                                                     return <Marker key={i} position={[p.lat, p.lng]} icon={isFirst ? iconStart : iconEnd}><Popup>{p.nome}</Popup></Marker>;
                                                 }
-                                                return (
-                                                    <CircleMarker key={i} center={[p.lat, p.lng]} radius={5} pathOptions={{ fillColor: p.passou ? '#6c757d' : '#0d6efd', color: '#fff', weight: 1, fillOpacity: 1 }}>
-                                                        <Popup><b>{p.nome}</b><br/>{p.passou ? 'Já passou' : 'Vai passar'}</Popup>
-                                                    </CircleMarker>
-                                                );
+                                                return <CircleMarker key={i} center={[p.lat, p.lng]} radius={5} pathOptions={{ fillColor: p.passou ? '#6c757d' : '#0d6efd', color: '#fff', weight: 1, fillOpacity: 1 }}><Popup>{p.nome}</Popup></CircleMarker>;
                                             })}
 
-                                            {/* POSIÇÃO DO VEÍCULO (Atualizada) */}
                                             <Marker position={data.veiculo_pos as LatLngExpression} icon={iconBus} zIndexOffset={9999}>
                                                 <Popup>
-                                                    <div className="text-center">
-                                                        <strong className="d-block">{placa}</strong>
-                                                        <span className="text-success small">Online</span>
-                                                    </div>
+                                                    <div className="text-center"><strong className="d-block">{placa}</strong><span className="text-success small">Online</span></div>
                                                 </Popup>
                                             </Marker>
-
                                         </MapContainer>
                                     ) : (
                                         <div className="d-flex align-items-center justify-content-center h-100 text-muted">
@@ -305,7 +275,6 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                     )}
                                 </div>
 
-                                {/* LEGENDA */}
                                 <div className="bg-white border-top py-2 px-3 d-flex justify-content-center gap-4 small text-muted">
                                     <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#212529'}}></span> Histórico Real</div>
                                     <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#0d6efd'}}></span> Previsão</div>
