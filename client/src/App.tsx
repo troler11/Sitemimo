@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import AuthGuard from './components/AuthGuard'; // Seu novo componente
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import AuthGuard from './components/AuthGuard';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
@@ -59,7 +59,7 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
     return auth ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 };
 
-const AppRouter: React.FC = () => {
+const App: React.FC = () => {
    return (
         <BrowserRouter>
             <Routes>
