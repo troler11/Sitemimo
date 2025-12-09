@@ -1,21 +1,20 @@
-import React, { useState, useEffect, useContext, createContext } from 'react';
+import React, { useState, useEffect, useContext, createContext, useMemo } from 'react';
 
-// --- Interfaces de Dados ---
+// --- 1. Interfaces de Dados e Contexto ---
 interface UserData {
     username: string;
     full_name: string;
     role: string;
     allowed_menus: string[];
-    // Adicione outros campos necessários aqui
+    // Adicione outros campos necessários
 }
 
 interface AuthContextType {
     isLoggedIn: boolean;
     currentUser: UserData | null;
-    isInitializing: boolean; // 🛑 CRÍTICO: Flag que indica se o app terminou de ler o token do storage
+    isInitializing: boolean; // Flag para prevenir a condição de corrida no AuthGuard
     login: (token: string, user: UserData) => void;
     logout: () => void;
-    // ... outras funções de autenticação
 }
 
 // Valores iniciais antes da carga
@@ -27,10 +26,10 @@ const defaultAuthContext: AuthContextType = {
     logout: () => {},
 };
 
-// 1. Criação do Contexto
+// Criação do Contexto
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
-// 2. Provedor de Contexto
+// --- 2. Provedor de Contexto (AuthProvider) ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -52,37 +51,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // 3. EFEITO DE INICIALIZAÇÃO (Resolve o Loop de Login)
+    // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
     useEffect(() => {
-        console.log("Iniciando verificação de sessão...");
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
         
         if (token && userDataString) {
             try {
                 const userData = JSON.parse(userDataString);
-                // Duração do Token e Validação poderiam ser verificadas aqui
                 setIsLoggedIn(true);
                 setCurrentUser(userData);
             } catch (e) {
-                console.error("Erro ao parsear dados do usuário:", e);
-                logout(); // Limpa dados corrompidos
+                console.error("Dados do usuário corrompidos no storage:", e);
+                logout();
             }
         }
         
-        // 🛑 ESTE É O PASSO MAIS IMPORTANTE: Muda o flag DEPOIS da checagem.
-        // O AuthGuard aguarda este estado ser false antes de tomar decisões de redirecionamento.
+        // CRÍTICO: Define como false APÓS a leitura do storage, permitindo o AuthGuard agir.
         setIsInitializing(false); 
-        console.log("Sessão verificada. isInitializing: false");
     }, []);
 
-    const contextValue = {
+    // Memoiza o valor do contexto
+    const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
         isInitializing,
         login,
         logout,
-    };
+    }), [isLoggedIn, currentUser, isInitializing]);
 
     return (
         <AuthContext.Provider value={contextValue}>
@@ -91,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
-// 4. Hook de Consumo
+// --- 3. Hook de Consumo (useAuth) ---
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
