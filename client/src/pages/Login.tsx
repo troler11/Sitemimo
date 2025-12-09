@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+// 1. IMPORTANTE: Não importe 'axios' direto. Importe nossa instância 'api'
+import api from '../services/api'; 
 import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
@@ -11,9 +12,10 @@ const Login: React.FC = () => {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:3000/api/login', { username, password });
+            // 2. IMPORTANTE: Use 'api.post' e coloque apenas o final da rota ('/login')
+            // O arquivo api.ts já sabe que deve adicionar '/api' antes.
+            const res = await api.post('/login', { username, password });
             
-            // Salva o Token e os dados do usuário
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
             
