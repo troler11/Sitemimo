@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useContext, createContext, useMemo } from 'react';
 
-// --- 1. Interfaces ---
+// --- 1. Interface (O formato ideal que o App usa) ---
 interface UserData {
     username: string;
     full_name: string;
     role: string;
     allowed_companies: string[];
-    // O backend pode mandar 'menus' ou 'allowed_menus', aceitamos os dois
-    allowed_menus?: string[]; 
-    menus?: string[];         
+    allowed_menus: string[];
+    menus?: string[]; // Mantemos opcional para compatibilidade
 }
 
 interface AuthContextType {
     isLoggedIn: boolean;
     currentUser: UserData | null;
-    isInitializing: boolean; 
-    login: (token: string, user: UserData) => void;
+    isInitializing: boolean;
+    login: (token: string, backendUser: any) => void; // Aceita 'any' para tratar o que vier
     logout: () => void;
 }
 
-// Valores padrão
 const defaultAuthContext: AuthContextType = {
     isLoggedIn: false,
     currentUser: null,
@@ -30,27 +28,41 @@ const defaultAuthContext: AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
-// --- 2. Provedor (AuthProvider) ---
+// --- 2. Provedor ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
 
-    // --- FUNÇÃO DE LOGIN COM ADAPTADOR ---
-    const login = (token: string, user: UserData) => {
+    // --- LOGIN COM ADAPTADOR DE DADOS ---
+    const login = (token: string, backendUser: any) => {
         
-        // A MÁGICA ACONTECE AQUI:
-        // Normaliza os dados para garantir que 'allowed_menus' sempre exista
-        const userNormalizado = {
-            ...user,
-            allowed_menus: user.allowed_menus || user.menus || [] 
+        console.log("Recebido do Backend:", backendUser); // Debug
+
+        // Aqui nós "traduzimos" o que o backend manda para o que o React entende
+        const userNormalizado: UserData = {
+            // 1. Username: Se não vier, usamos o 'name' ou 'admin' como fallback
+            username: backendUser.username || backendUser.name || 'Usuario',
+            
+            // 2. Nome Completo: O backend manda 'name', nós queremos 'full_name'
+            full_name: backendUser.full_name || backendUser.name || 'Sem Nome',
+            
+            // 3. Role: Esse geralmente vem certo
+            role: backendUser.role || 'user',
+
+            // 4. Empresas: Se não vier, garante array vazio
+            allowed_companies: backendUser.allowed_companies || [],
+
+            // 5. Menus: O backend manda 'menus', nós copiamos para 'allowed_menus'
+            allowed_menus: backendUser.allowed_menus || backendUser.menus || [],
+            menus: backendUser.menus || []
         };
 
-        // Salva no navegador
+        console.log("Usuário Normalizado (Salvo):", userNormalizado); // Debug
+
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(userNormalizado));
         
-        // Atualiza o estado da aplicação
         setIsLoggedIn(true);
         setCurrentUser(userNormalizado);
     };
@@ -62,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // --- EFEITO DE INICIALIZAÇÃO (Carrega ao abrir o site) ---
+    // --- INICIALIZAÇÃO ---
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
@@ -70,19 +82,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (token && userDataString) {
             try {
                 const userData = JSON.parse(userDataString);
-                setIsLoggedIn(true);
-                setCurrentUser(userData);
+                // Verifica se os dados salvos são válidos
+                if (userData && userData.role) {
+                    setIsLoggedIn(true);
+                    setCurrentUser(userData);
+                } else {
+                    // Dados corrompidos no storage
+                    logout();
+                }
             } catch (e) {
-                console.error("Erro ao restaurar sessão:", e);
+                console.error("Erro ao ler dados:", e);
                 logout();
             }
         }
-        
-        // Finaliza o carregamento
-        setIsInitializing(false); 
+        setIsInitializing(false);
     }, []);
 
-    // Memoiza o valor para performance
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
@@ -98,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
-// --- 3. Hook para usar em outros arquivos ---
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
