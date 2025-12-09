@@ -31,6 +31,7 @@ interface RotaData {
     lat: number;
     lng: number;
     tempo: string;
+    pf: string;
     distancia: string;
     previsao_chegada: string; // Vem do Backend (Cálculo TomTom)
     rastro_oficial: [number, number][]; 
