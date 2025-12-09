@@ -12,12 +12,11 @@ interface UserData {
 interface AuthContextType {
     isLoggedIn: boolean;
     currentUser: UserData | null;
-    isInitializing: boolean; // Flag para prevenir a condição de corrida no AuthGuard
+    isInitializing: boolean; 
     login: (token: string, user: UserData) => void;
     logout: () => void;
 }
 
-// Valores iniciais antes da carga
 const defaultAuthContext: AuthContextType = {
     isLoggedIn: false,
     currentUser: null,
@@ -26,7 +25,6 @@ const defaultAuthContext: AuthContextType = {
     logout: () => {},
 };
 
-// Criação do Contexto
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 // --- 2. Provedor de Contexto (AuthProvider) ---
@@ -35,7 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
 
-    // Função para salvar token e dados do usuário
     const login = (token: string, user: UserData) => {
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
@@ -43,7 +40,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(user);
     };
 
-    // Função de logout
     const logout = () => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userData');
@@ -53,25 +49,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
     useEffect(() => {
-      const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
         
-       if (token && userDataString) {
+        if (token && userDataString) {
             try {
-               const userData = JSON.parse(userDataString);
+                const userData = JSON.parse(userDataString);
                 setIsLoggedIn(true);
                 setCurrentUser(userData);
             } catch (e) {
-               console.error("Erro ao parsear dados do usuário:", e);
+                console.error("Dados do usuário corrompidos no storage:", e);
                 logout();
             }
         }
         
-        // CRÍTICO: Define como false APÓS a leitura do storage, permitindo o AuthGuard agir.
-     setIsInitializing(false);
+        // Esta é a linha CRÍTICA que encerra a checagem sem comparações inválidas
+        setIsInitializing(false); 
     }, []);
 
-    // Memoiza o valor do contexto
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
