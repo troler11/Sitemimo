@@ -88,11 +88,16 @@ const Dashboard: React.FC = () => {
 
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
-        } catch (error: any) {
-            // [SEGURANÇA] Se der erro 401/403 (Token inválido), faz logout
+        } } catch (error: any) {
+            console.error("ERRO COMPLETO:", error); // <--- Vai mostrar o erro no console
+            
+            // SE O ERRO FOR 401/403, COMENTE AS LINHAS ABAIXO TEMPORARIAMENTE:
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                logout();
-                navigate('/login');
+                
+                console.log("EU IRIA DESLOGAR AGORA, MAS ESTOU EM DEBUG");
+                // logout();          // <--- COMENTE ISSO
+                // navigate('/login'); // <--- COMENTE ISSO
+            
             } else {
                 console.error("Erro ao buscar dados do dashboard", error);
             }
