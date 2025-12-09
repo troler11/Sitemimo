@@ -3,6 +3,9 @@ import { GoogleMap, LoadScript, Polyline, Marker } from '@react-google-maps/api'
 import api from '../services/api'; 
 import { findNearestPointIndex, Coordenada } from '../utils/geo';
 
+declare var google: any;
+
+
 const containerStyle = { width: '100%', height: '500px' };
 const centerDefault = { lat: -23.55052, lng: -46.633308 };
 
