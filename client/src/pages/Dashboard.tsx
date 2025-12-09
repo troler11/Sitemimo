@@ -1,21 +1,21 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- Importação necessária
+import { useNavigate } from 'react-router-dom'; 
 import api from '../services/api';
 import MapModal from '../components/MapModal';
-import { useAuth } from '../hooks/useAuth'; // <--- Importação necessária
+import { useAuth } from '../hooks/useAuth'; 
 
 interface Linha {
     id: string;
-    e: string; 
-    r: string; 
-    v: string; 
-    s: number; 
-    pi: string; 
-    ri: string; 
-    pf: string; 
-    pfn?: string; 
-    u: string;  
-    c: string;  
+    e: string; // empresa
+    r: string; // rota
+    v: string; // veiculo
+    s: number; // sentido
+    pi: string; // prog inicio
+    ri: string; // real inicio
+    pf: string; // prog fim (Tabela Fixa)
+    pfn?: string; // Previsão TomTom
+    u: string;  // update
+    c: string;  // status
 }
 
 function isLineAtrasada(l: Linha): boolean {
@@ -37,13 +37,12 @@ const Dashboard: React.FC = () => {
     // --- SEGURANÇA: Hooks de Autenticação e Navegação ---
     const { isLoggedIn, isInitializing, logout } = useAuth();
     const navigate = useNavigate();
-    // ----------------------------------------------------
-
+    
     const [linhas, setLinhas] = useState<Linha[]>([]);
     const [loading, setLoading] = useState(true);
     const [horaServidor, setHoraServidor] = useState('00:00');
     
-    // Estados de Filtro
+    // Filtros
     const [busca, setBusca] = useState('');
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
@@ -53,6 +52,7 @@ const Dashboard: React.FC = () => {
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
+    // Ref para evitar loop de dependência nos intervalos
     const linhasRef = useRef(linhas);
     useEffect(() => {
         linhasRef.current = linhas; 
@@ -66,7 +66,10 @@ const Dashboard: React.FC = () => {
     }, [isInitializing, isLoggedIn, navigate]);
 
     // 1. CARREGAMENTO PRINCIPAL
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
+        // [SEGURANÇA] Se o usuário deslogou, aborta a requisição imediatamente
+        if (!isLoggedIn) return;
+
         try {
             const res = await api.get('/dashboard');
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
@@ -75,6 +78,7 @@ const Dashboard: React.FC = () => {
                 if (prevLinhas.length === 0) return linhasServidor;
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
+                    // Preserva previsão TomTom se o servidor não mandou update novo
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
@@ -85,17 +89,21 @@ const Dashboard: React.FC = () => {
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
         } catch (error: any) {
-            console.error("Erro dashboard", error);
-            
-            // --- SEGURANÇA: Se a API retornar 401 (Token inválido/expirado), faz Logout ---
-            if (error.response && error.response.status === 401) {
-                logout(); // Limpa o estado global
-                navigate('/login'); // Força o redirecionamento
+            // [SEGURANÇA] Se der erro 401/403 (Token inválido), faz logout
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                logout();
+                navigate('/login');
+            } else {
+                console.error("Erro ao buscar dados do dashboard", error);
             }
         }
-    };
+    }, [isLoggedIn, logout, navigate]);
 
+    // 2. CÁLCULO DE PREVISÕES TOMTOM (EM LOTES)
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
+        // [SEGURANÇA] Aborta se deslogado
+        if (!isLoggedIn) return;
+
         const BATCH_SIZE = 5;
         const linhasAtivas = linhasRef.current.filter(l => 
             l.ri && l.ri !== 'N/D' && l.c !== 'Carro desligado' && l.c !== 'Encerrado'
@@ -104,6 +112,9 @@ const Dashboard: React.FC = () => {
         if (linhasAtivas.length === 0) return;
 
         for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
+            // Verifica novamente login antes de cada lote (para parar rápido ao sair)
+            if (!useAuth().isLoggedIn) break; 
+
             const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
             const promises = batch.map(async (linha) => {
                 try {
@@ -119,7 +130,6 @@ const Dashboard: React.FC = () => {
                         ));
                     }
                 } catch (err: any) {
-                    // Se falhar validação de token no loop automático, também desloga
                     if (err.response && err.response.status === 401) {
                         logout();
                         navigate('/login');
@@ -128,36 +138,42 @@ const Dashboard: React.FC = () => {
             });
             await Promise.allSettled(promises);
         }
-    }, [logout, navigate]); // Adicionado dependências
+    }, [isLoggedIn, logout, navigate]);
 
-    // 3. Loops de Refresh (Só inicia se estiver logado)
+    // 3. LOOPS DE ATUALIZAÇÃO (Intervals)
     useEffect(() => {
+        // Só inicia o intervalo se estiver logado
         if (isLoggedIn) {
-            fetchData();
-            const intervalPrincipal = setInterval(fetchData, 30000); 
+            fetchData(); // Carga inicial
+            
+            const intervalPrincipal = setInterval(() => {
+                // Checagem dupla dentro do intervalo
+                if (isLoggedIn) fetchData();
+            }, 30000); 
+
             return () => clearInterval(intervalPrincipal);
         }
-    }, [isLoggedIn]); // Dependência isLoggedIn garante que só roda autenticado
+    }, [isLoggedIn, fetchData]);
 
     useEffect(() => {
+        // Intervalo do TomTom (60s)
         if (isLoggedIn && !loading && linhas.length > 0) {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
-                carregarPrevisoesAutomaticamente();
+                if (isLoggedIn) carregarPrevisoesAutomaticamente();
             }, 60000);
             
             return () => clearInterval(intervalPrevisao);
         }
-    }, [isLoggedIn, loading, linhas.length]); 
+    }, [isLoggedIn, loading, linhas.length, carregarPrevisoesAutomaticamente]);
 
-    // --- LÓGICA DE EXIBIÇÃO ---
+    // --- FILTRAGEM E VISUALIZAÇÃO ---
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
             if (busca) {
                 const termo = busca.toLowerCase();
-                // Correção de segurança para includes
                 const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
                 if (!textoLinha.includes(termo)) return false;
             }
@@ -204,15 +220,16 @@ const Dashboard: React.FC = () => {
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
-    // --- RENDERIZAÇÃO CONDICIONAL DE SEGURANÇA ---
-    // Se não estiver logado ou estiver inicializando, não mostra o dashboard
+    
+
+    // Se estiver inicializando ou não logado, não renderiza nada (evita flash de conteúdo)
     if (isInitializing || !isLoggedIn) {
-        return null; // ou um spinner <div className="spinner-border"></div>
+        return null; 
     }
 
     return (
         <div className="container-fluid pt-3">
-            {/* --- HEADER E BUSCA --- */}
+            {/* Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota ({horaServidor})</h4>
                 <div className="position-relative w-25">
@@ -220,7 +237,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- FILTROS --- */}
+            {/* Filtros */}
             <div className="row g-2 mb-3">
                 <div className="col-md-3">
                     <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
@@ -244,7 +261,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- KPIs --- */}
+            {/* KPIs */}
             <div className="row g-3 mb-4">
                 <div className="col-md-2"><div className="card-summary card-blue"><h5>{kpis.total}</h5><small>Total</small></div></div>
                 <div className="col-md-2"><div className="card-summary card-red"><h5>{kpis.atrasados}</h5><small>Atrasados</small></div></div>
@@ -254,7 +271,7 @@ const Dashboard: React.FC = () => {
                 <div className="col-md-2"><div className="card-summary bg-gradient-warning"><h5>{kpis.semInicio}</h5><small>Não Iniciou</small></div></div>
             </div>
 
-            {/* --- TABELA --- */}
+            {/* Tabela */}
             <div className="card border-0 shadow-sm">
                 <div className="table-responsive">
                     <table className="table table-hover table-sm table-ultra-compact align-middle mb-0">
