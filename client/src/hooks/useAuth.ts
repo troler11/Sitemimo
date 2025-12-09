@@ -17,6 +17,7 @@ interface AuthContextType {
     logout: () => void;
 }
 
+// Valores iniciais antes da carga
 const defaultAuthContext: AuthContextType = {
     isLoggedIn: false,
     currentUser: null,
@@ -25,6 +26,7 @@ const defaultAuthContext: AuthContextType = {
     logout: () => {},
 };
 
+// Criação do Contexto
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 // --- 2. Provedor de Contexto (AuthProvider) ---
@@ -33,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
 
+    // Funções login e logout
     const login = (token: string, user: UserData) => {
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
@@ -47,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(null);
     };
 
-    // EFEITO DE INICIALIZAÇÃO: Lógica para ler o storage e definir o flag isInitializing
+    // EFEITO DE INICIALIZAÇÃO
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userDataString = localStorage.getItem('userData');
@@ -63,10 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         }
         
-        // Esta é a linha CRÍTICA que encerra a checagem sem comparações inválidas
+        // Esta linha CRÍTICA deve ser o último passo da checagem
         setIsInitializing(false); 
     }, []);
 
+    // Memoiza o valor do contexto
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
@@ -75,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
     }), [isLoggedIn, currentUser, isInitializing]);
 
+    // O Retorno JSX (Corrigido da confusão de sintaxe)
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
