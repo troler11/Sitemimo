@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLngBoundsExpression } from 'leaflet';
-import axios from 'axios';
+// 1. CORREÇÃO: Importar api centralizada
+import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 
 // --- ÍCONES PERSONALIZADOS (Mesmos do original) ---
@@ -61,19 +62,19 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, onClose }) =>
             setLoading(true);
             setError('');
             try {
-                const token = localStorage.getItem('token');
-                // Chama a rota do Backend Node (que internamente chama ABM/TomTom/Render)
+                // 2. CORREÇÃO:
+                // - Removemos 'http://localhost:3000/api'
+                // - Removemos o 'token' manual (o api.ts cuida disso)
+                
                 const url = tipo === 'inicial' 
-                    ? `http://localhost:3000/api/rota/inicial/${placa}` 
-                    : `http://localhost:3000/api/rota/final/${placa}`;
+                    ? `/rota/inicial/${placa}` 
+                    : `/rota/final/${placa}`;
 
-                const res = await axios.get(url, {
-                    params: { idLinha },
-                    headers: { Authorization: `Bearer ${token}` }
+                // Chamada limpa
+                const res = await api.get(url, {
+                    params: { idLinha }
                 });
                 
-                // O Backend deve retornar coordenadas [lat, lng] para Leaflet.
-                // Se o seu backend retornar [lng, lat] (GeoJSON), inverta aqui.
                 setData(res.data);
             } catch (err: any) {
                 console.error(err);
