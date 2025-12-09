@@ -206,6 +206,11 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                         </Marker>
                                     </MapContainer>
                                 </div>
+                                <div className="d-flex justify-content-center gap-3 py-2 small bg-light border-top">
+                                    <span className="d-flex align-items-center"><i className="bi bi-circle-fill text-dark me-1" style={{opacity:0.5}}></i> Percorrida</span>
+                                    <span className="d-flex align-items-center"><i className="bi bi-circle-fill text-danger me-1" style={{opacity:0.5}}></i> Fixa</span>
+                                    <span className="d-flex align-items-center"><i className="bi bi-circle-fill text-primary me-1"></i> Previsão</span>
+                                </div>
                             </>
                         )}
                     </div>
