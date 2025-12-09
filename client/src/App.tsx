@@ -12,9 +12,6 @@ import Sidebar from './components/Sidebar';
 import AcessoNegadoPage from './pages/AcessoNegadoPage'; // <-- ADICIONE ESTA LINHA
 
 // Layout Global com Sidebar e Área de Conteúdo
-// Exemplo Simulado de Páginas de Fallback
-const LoginPage = () => <h1>Login</h1>;
-const UnauthorizedPage = () => <h1>🚫 Acesso Não Autorizado</h1>;
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
     // Estado para controlar se a sidebar está aberta ou fechada
