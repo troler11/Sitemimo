@@ -2,41 +2,108 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 
-const escalaCache = new NodeCache({ stdTTL: 60 }); // Cache 60s
+const escalaCache = new NodeCache({ stdTTL: 60 });
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpJjRQ0KhIQtHA36CD_cugZyQD1GrftfIahwqxV9Nqxx1jnF5T2bt0tQgNM0kWfRArrQ/exec';
+
+// --- FUNÇÃO DE PROCESSAMENTO (PORTADA DO PHP) ---
+const processarDados = (rows: any[]) => {
+    if (!Array.isArray(rows) || rows.length < 2) return [];
+
+    // 1. Normaliza Cabeçalho
+    const header = rows[0].map((col: string) => String(col).trim().toLowerCase());
+
+    // 2. Helper para achar colunas dinamicamente
+    const findCol = (keywords: string[]) => {
+        for (let i = 0; i < header.length; i++) {
+            for (const key of keywords) {
+                if (header[i].includes(key)) return i;
+            }
+        }
+        return -1;
+    };
+
+    // 3. Mapeamento (Igual ao PHP)
+    const map = {
+        empresa: findCol(['clientes', 'cliente', 'empresa', 'clientes']),
+        rota: findCol(['rota', 'linha', 'itinerario']),
+        motorista: findCol(['motorista', 'condutor', 'mot']),
+        reserva: findCol(['reserva']),
+        escala: findCol(['escala', 'veiculo escala']),
+        enviada: findCol(['enviada', 'veiculo enviado']),
+        prog: findCol(['ini', 'inicio', 'prog']),
+        real: findCol(['real', 'realizado', 'chegada']),
+        obs: findCol(['observação', 'obs', 'ocorrencia']),
+        manut: findCol(['manutenção', 'manut']),
+        carro: findCol(['aguardando', 'carro']),
+        ra: findCol(['ra', 'r.a', 'registro'])
+    };
+
+    const dadosProcessados: any[] = [];
+    const limparHorario = (val: any) => (!val ? '' : String(val).trim().substring(0, 5));
+
+    // 4. Loop de Processamento
+    for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        
+        // Pula linhas vazias
+        if (!r[map.empresa] && !r[map.rota]) continue;
+
+        const empresa = r[map.empresa] ? String(r[map.empresa]).trim() : '---';
+        const rota = r[map.rota] ? String(r[map.rota]).trim() : '---';
+
+        // Lógica de Bloqueio (Termos Proibidos)
+        const empresaLimpa = empresa.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+        const termosBloqueados = ['VIACAO MIMO VARZEA', 'VIACAO MIMO', 'GARAGEM'];
+        if (termosBloqueados.some(termo => empresaLimpa.includes(termo))) continue;
+
+        const valManut = r[map.manut] ? String(r[map.manut]).toLowerCase() : '';
+        const valCarro = r[map.carro] ? String(r[map.carro]).toLowerCase() : '';
+
+        dadosProcessados.push({
+            empresa,
+            rota,
+            motorista: r[map.motorista] || 'Não Definido',
+            reserva: r[map.reserva] || '',
+            frota_escala: r[map.escala] || '---',
+            frota_enviada: r[map.enviada] || '---',
+            h_prog: limparHorario(r[map.prog]),
+            h_real: limparHorario(r[map.real]),
+            obs: r[map.obs] || '',
+            ra_val: r[map.ra] || '',
+            manutencao: (valManut.includes('sim') || valManut.includes('manuten')),
+            aguardando: (valCarro.includes('sim') || valCarro.includes('aguard')),
+        });
+    }
+
+    // Ordenação Padrão (Por Horário)
+    return dadosProcessados.sort((a, b) => {
+        if (a.h_prog === b.h_prog) return 0;
+        return a.h_prog < b.h_prog ? -1 : 1;
+    });
+};
 
 export const getEscala = async (req: Request, res: Response) => {
     const dataFiltro = req.query.data as string || new Date().toLocaleDateString('pt-BR');
-    const cacheKey = `escala_${dataFiltro}`;
+    const cacheKey = `escala_v2_${dataFiltro}`;
 
-    // 1. Tenta Cache
     const cached = escalaCache.get(cacheKey);
     if (cached) return res.json(cached);
 
     try {
-        // 2. Chama Google Script (Seguindo seu PHP: action=read&data=...)
         const response = await axios.get(GOOGLE_SCRIPT_URL, {
             params: { action: 'read', data: dataFiltro },
-            headers: { 'User-Agent': 'Mozilla/5.0' }, // Google as vezes bloqueia sem UA
-            timeout: 15000
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            timeout: 20000
         });
 
-        // 3. Processamento de Dados (Traduzindo sua lógica PHP "processarDados")
-        // No PHP você mapeava colunas. Aqui assumimos que o Google já retorna JSON.
-        // Se retornar array de arrays, precisaria do mapeador aqui.
-        // Assumindo que o Google Script já retorna JSON limpo ou array de arrays:
-        
-        let dadosLimpos = response.data; // Adapte aqui se precisar da lógica de map do PHP
+        // Processa os dados brutos aqui no servidor
+        const dadosLimpos = processarDados(response.data);
 
-        if (dadosLimpos && !dadosLimpos.error) {
-            escalaCache.set(cacheKey, dadosLimpos);
-            return res.json(dadosLimpos);
-        }
-        
-        return res.json([]);
+        escalaCache.set(cacheKey, dadosLimpos);
+        return res.json(dadosLimpos);
 
     } catch (error) {
-        console.error("Erro Escala Google:", error);
-        return res.status(500).json({ error: "Erro ao buscar escala externa" });
+        console.error("Erro Escala:", error);
+        return res.status(500).json({ error: "Erro ao buscar dados externos" });
     }
 };
