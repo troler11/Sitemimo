@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+// 1. IMPORTANTE: Usamos nosso serviço api configurado, não o axios direto
+import api from '../services/api';
 
 // Interfaces
 interface User {
@@ -12,7 +13,7 @@ interface User {
     password?: string;
 }
 
-const LISTA_EMPRESAS = ['AAM', "AD'ORO", 'B. BOSCH', 'BOLLHOFF', 'CPQ', 'DROGA RAIA', 'MERCADO LIVRE GRU I', 'RED BULL', 'USP']; // Adicione todas aqui
+const LISTA_EMPRESAS = ['AAM', "AD'ORO", 'B. BOSCH', 'BOLLHOFF', 'CPQ', 'DROGA RAIA', 'MERCADO LIVRE GRU I', 'RED BULL', 'USP']; 
 const SISTEMA_MENUS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'rotas', label: 'Rotas' },
@@ -22,7 +23,7 @@ const SISTEMA_MENUS = [
 
 const Admin: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
-    const [editingUser, setEditingUser] = useState<User | null>(null); // Se null, é modo criação
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showModal, setShowModal] = useState(false);
 
     // Estado do formulário
@@ -30,39 +31,50 @@ const Admin: React.FC = () => {
         username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: ''
     });
 
-    const token = localStorage.getItem('token');
-
+    // 2. BUSCA DE DADOS (GET)
     const fetchUsers = async () => {
-        const res = await axios.get('http://localhost:3000/api/users', { headers: { Authorization: `Bearer ${token}` } });
-        setUsers(res.data);
+        try {
+            // Usa rota relativa e o interceptor do api.ts já manda o token
+            const res = await api.get('/users');
+            setUsers(res.data);
+        } catch (error) {
+            console.error("Erro ao carregar usuários", error);
+        }
     };
 
     useEffect(() => { fetchUsers(); }, []);
 
+    // 3. SALVAR (POST/PUT)
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const headers = { Authorization: `Bearer ${token}` };
             if (editingUser && editingUser.id) {
-                await axios.put(`http://localhost:3000/api/users/${editingUser.id}`, formData, { headers });
+                await api.put(`/users/${editingUser.id}`, formData);
             } else {
-                await axios.post('http://localhost:3000/api/users', formData, { headers });
+                await api.post('/users', formData);
             }
             setShowModal(false);
             fetchUsers();
-        } catch (err) { alert('Erro ao salvar'); }
+        } catch (err) { 
+            alert('Erro ao salvar usuário'); 
+        }
     };
 
+    // 4. DELETAR (DELETE)
     const handleDelete = async (id: number) => {
         if (!confirm('Tem certeza?')) return;
-        await axios.delete(`http://localhost:3000/api/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        fetchUsers();
+        try {
+            await api.delete(`/users/${id}`);
+            fetchUsers();
+        } catch (err) { 
+            alert('Erro ao excluir usuário'); 
+        }
     };
 
     const openModal = (user?: User) => {
         if (user) {
             setEditingUser(user);
-            setFormData({ ...user, password: '' }); // Limpa senha ao editar
+            setFormData({ ...user, password: '' }); // Limpa senha ao editar para não sobrescrever com hash antigo
         } else {
             setEditingUser(null);
             setFormData({ username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: '' });
@@ -112,7 +124,7 @@ const Admin: React.FC = () => {
                 </table>
             </div>
 
-            {/* Modal Simplificado (Bootstrap Style) */}
+            {/* Modal */}
             {showModal && (
                 <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-lg">
@@ -133,7 +145,8 @@ const Admin: React.FC = () => {
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">Senha {editingUser && '(Deixe em branco para manter)'}</label>
-                                        <input type="password" className="form-control" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                        {/* CORREÇÃO DO CLASS -> CLASSNAME */}
+                                        <input type="password" className="form-control" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} />
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">Nível</label>
