@@ -5,7 +5,7 @@ import Login from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
 import AdminPage from './pages/Admin';
-import Escala from './pages/Escala';
+import EscalaPage from './pages/Escala';
 import Relatorios from './pages/Relatorios';
 import Placeholder from './pages/Placeholder';
 import Sidebar from './components/Sidebar';
