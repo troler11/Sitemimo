@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import MapModal from '../components/MapModal';
@@ -8,11 +8,11 @@ interface Linha {
     e: string; // empresa
     r: string; // rota
     v: string; // veiculo
-    s: number; // sentido (1=ida, 0=volta)
+    s: number; // sentido
     pi: string; // prog inicio
     ri: string; // real inicio
-    pf: string; // prog fim (Tabela Fixa)
-    pfn?: string; // Previsão Fim Nova (Cálculo TomTom/Mapa vindo do Backend)
+    pf: string; // prog fim
+    pfn?: string; // Previsão Fim Nova (TomTom)
     u: string;  // ultima atualizacao
     c: string;  // status
 }
@@ -28,19 +28,19 @@ const Dashboard: React.FC = () => {
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    // Estado do Modal
     const [selectedMap, setSelectedMap] = useState<{
-        placa: string, 
-        idLinha: string, 
-        tipo: 'inicial'|'final',
-        pf: string 
+        placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
+    // 1. Carrega a lista geral (Rápido / Cacheado)
     const fetchData = async () => {
         try {
-            // O backend precisa entregar o 'pfn' (cálculo do mapa) neste endpoint para que a tabela já carregue atualizada
             const res = await api.get('/dashboard');
+            
+            // DICA: Se o usuário já tiver previsões carregadas localmente mais recentes que o servidor,
+            // poderíamos fazer um merge aqui. Por enquanto, substituímos.
             setLinhas(res.data.todas_linhas);
+            
             if(res.data.hora) setHoraServidor(res.data.hora);
             setLoading(false);
         } catch (error) {
@@ -48,24 +48,75 @@ const Dashboard: React.FC = () => {
         }
     };
 
+    // 2. --- NOVA FUNÇÃO: Carrega Previsões Automaticamente (TomTom) ---
+    const carregarPrevisoesAutomaticamente = useCallback(async () => {
+        // Filtra apenas linhas que estão rodando (Tem inicio real, não tem fim, não está desligado)
+        // Isso evita chamadas desnecessárias para a API de Mapas ($$$)
+        const linhasAtivas = linhas.filter(l => 
+            l.ri && l.ri !== 'N/D' && 
+            l.c !== 'Carro desligado' && 
+            l.c !== 'Encerrado'
+        );
+
+        if (linhasAtivas.length === 0) return;
+
+        console.log(`Atualizando previsões de ${linhasAtivas.length} veículos...`);
+
+        // Processa em paralelo (Cuidado com rate limit da API)
+        // Usamos Promise.allSettled para que se um falhar, os outros funcionem
+        await Promise.allSettled(linhasAtivas.map(async (linha) => {
+            try {
+                // Chama o endpoint que calcula a rota (mesmo usado no Modal)
+                // Ajuste a URL conforme seu backend real
+                const res = await api.get(`/rota/final/${linha.v}`, { 
+                    params: { idLinha: linha.id } 
+                });
+
+                const novaPrevisao = res.data.previsao_chegada; // Certifique-se que o backend retorna isso
+
+                if (novaPrevisao) {
+                    // Atualiza o estado local apenas desta linha
+                    setLinhas(prevLinhas => prevLinhas.map(item => 
+                        item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
+                    ));
+                }
+            } catch (err) {
+                // Silencioso para não poluir o console se um carro falhar
+                // console.warn(`Falha ao atualizar ${linha.v}`, err);
+            }
+        }));
+    }, [linhas]);
+
+    // Loop Principal: Carrega lista a cada 30s
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 30000); 
         return () => clearInterval(interval);
     }, []);
 
-    // --- LÓGICA DE DADOS ---
-    const empresasUnicas = useMemo(() => {
-        const lista = new Set(linhas.map(l => l.e).filter(Boolean));
-        return Array.from(lista).sort();
-    }, [linhas]);
+    // Loop Secundário: Atualiza previsões a cada 60s (ou após carregar a lista)
+    useEffect(() => {
+        // Só roda se já tiver linhas carregadas
+        if (!loading && linhas.length > 0) {
+            // Opcional: Rodar imediatamente uma vez após carregar a lista principal
+            // carregarPrevisoesAutomaticamente(); 
+
+            const intervalPrevisao = setInterval(() => {
+                carregarPrevisoesAutomaticamente();
+            }, 60000); // 60 segundos para não sobrecarregar
+            
+            return () => clearInterval(intervalPrevisao);
+        }
+    }, [loading, linhas.length, carregarPrevisoesAutomaticamente]);
+
+
+    // --- RESTANTE DO CÓDIGO (Lógica de exibição e JSX) ---
+
+    const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
-            if (busca) {
-                const termo = busca.toLowerCase();
-                if (!`${l.e} ${l.r} ${l.v}`.toLowerCase().includes(termo)) return false;
-            }
+            if (busca && !`${l.e} ${l.r} ${l.v}`.toLowerCase().includes(busca.toLowerCase())) return false;
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             if (filtroSentido) {
                 const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
@@ -87,48 +138,30 @@ const Dashboard: React.FC = () => {
             if (l.c === 'Carro desligado') { counts.desligados++; return; }
             const jaSaiu = l.ri && l.ri !== 'N/D';
             if (jaSaiu) {
-                if (isLineAtrasada(l)) counts.atrasados++;
-                else counts.pontual++;
+                if (isLineAtrasada(l)) counts.atrasados++; else counts.pontual++;
             } else {
-                if (l.pi < horaServidor) counts.semInicio++;
-                else counts.deslocamento++;
+                if (l.pi < horaServidor) counts.semInicio++; else counts.deslocamento++;
             }
         });
         return counts;
     }, [linhas, horaServidor]);
 
-    // --- LÓGICA CENTRAL: CALCULA QUAL HORÁRIO MOSTRAR ---
     const getPrevisaoInteligente = (linha: Linha) => {
-        // Verifica se existe cálculo do mapa (TomTom) válido vindo do backend
-        const temTomTom = linha.pfn && linha.pfn !== 'N/D' && linha.pfn !== '--:--' && linha.pfn !== '';
-        
-        // Se tiver TomTom, usa ele. Se não, usa o Programado.
+        const temTomTom = linha.pfn && linha.pfn !== 'N/D';
         const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
-        
-        // Define a cor baseada na comparação
-        let classeCor = 'text-dark'; // Padrão
+        let classeCor = 'text-dark';
         
         if (temTomTom && linha.pf) {
-            // Se a previsão do mapa for maior que o programado -> Atraso (Vermelho)
-            if (linha.pfn! > linha.pf) {
-                classeCor = 'text-danger fw-bold'; 
-            } else {
-                classeCor = 'text-success fw-bold';
-            }
+            if (linha.pfn! > linha.pf) classeCor = 'text-danger fw-bold'; 
+            else classeCor = 'text-success fw-bold';
         } else if (!temTomTom) {
-            classeCor = 'text-muted'; // Cor de "apenas programado"
+            classeCor = 'text-muted';
         }
-
-        return { 
-            horario: horarioExibicao, 
-            classe: classeCor,
-            origem: temTomTom ? 'TomTom' : 'Tabela'
-        };
+        return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
     return (
         <div className="container-fluid pt-3">
-            {/* Header e Filtros (Resumido para focar na lógica) */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota</h4>
                 <div className="position-relative w-25">
@@ -136,7 +169,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filtros Dropdown */}
+            {/* Filtros */}
             <div className="row g-2 mb-3">
                 <div className="col-md-3">
                     <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
@@ -179,13 +212,10 @@ const Dashboard: React.FC = () => {
                                 <th>Empresa</th>
                                 <th>Rota</th>
                                 <th>Veículo</th>
-                                <th className="col-narrow">Prev. Ini</th>
+                                <th>Prev. Ini</th>
                                 <th>Real Início</th>
-                                
-                                {/* AQUI: Removemos "Prog. Fim" separado e deixamos apenas uma coluna final inteligente */}
                                 <th title="Horário Programado Original">Prog. Fim</th>
-                                <th title="Considera trânsito (TomTom)">Prev. Fim (Real)</th>
-                                
+                                <th title="Calculado Automaticamente">Prev. Fim (Real)</th>
                                 <th>Ult. Reporte</th>
                                 <th>Status</th>
                                 <th className="text-center">Ações</th>
@@ -193,15 +223,12 @@ const Dashboard: React.FC = () => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={10} className="text-center py-3">Carregando dados da frota...</td></tr>
+                                <tr><td colSpan={10} className="text-center py-3">Carregando...</td></tr>
                             ) : dadosFiltrados.map((l, idx) => {
                                 const jaSaiu = l.ri && l.ri !== 'N/D';
                                 const atrasado = isLineAtrasada(l);
-                                const valSentido = Number(l.s);
-                                
-                                // --- O PULO DO GATO ---
-                                // Calculamos qual horário mostrar com base na existência do TomTom
                                 const previsao = getPrevisaoInteligente(l);
+                                const valSentido = Number(l.s);
 
                                 let statusBadge;
                                 if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary badge-pill">Desligado</span>;
@@ -215,30 +242,19 @@ const Dashboard: React.FC = () => {
                                         <td className="fw-bold text-primary">{l.v}</td>
                                         <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
-                                        
-                                        {/* Coluna Programada (Fixo) */}
                                         <td className="text-muted small">{l.pf}</td>
-
-                                        {/* Coluna Prev. Fim (Inteligente) */}
-                                        {/* Aqui mostramos o valor do TomTom se existir */}
+                                        
+                                        {/* Célula que atualiza automaticamente */}
                                         <td className={previsao.classe}>
                                             {previsao.horario || 'N/D'}
-                                            {previsao.origem === 'TomTom' && (
-                                                <i className="bi bi-broadcast ms-1 small" title="Cálculo em Tempo Real (TomTom)"></i>
-                                            )}
+                                            {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon"></i>}
                                         </td>
 
                                         <td className="small">{l.u}</td>
                                         <td>{statusBadge}</td>
                                         <td className="text-center">
-                                            {/* Botão Mapa */}
                                             <button className="btn btn-primary btn-sm rounded-circle shadow-sm" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, 
-                                                idLinha: l.id, 
-                                                tipo: 'final', 
-                                                // IMPORTANTE: Passamos o Programado Original para o Modal comparar
-                                                // O Modal vai buscar o Real novamente, mas visualmente eles vão bater
-                                                pf: l.pf 
+                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf 
                                             })}>
                                                 <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                             </button>
