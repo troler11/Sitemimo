@@ -1,47 +1,85 @@
-/* --- ESTILOS DA TELA DE LOGIN (Portado do PHP) --- */
+/* client/src/pages/Login.css */
 
-/* Wrapper para simular o body do PHP antigo apenas nesta tela */
-.login-wrapper {
+/* Remove margens padrões que podem criar faixas brancas */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+/* O fundo degradê que ocupa toda a tela */
+.login-bg-wrapper {
     background: linear-gradient(135deg, #0b1f3a 0%, #1e3a8a 100%);
     min-height: 100vh;
+    width: 100vw;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Segoe UI', sans-serif;
+    position: fixed; /* Garante que fique fixo no fundo */
+    top: 0;
+    left: 0;
 }
 
-.card-login {
+/* O Cartão de Login */
+.card-login-custom {
     width: 100%;
-    max-width: 400px;
+    max-width: 400px; /* Tamanho fixo original */
+    background-color: #fff;
     border-radius: 15px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     overflow: hidden;
     border: none;
+    z-index: 10; /* Garante que fique acima do fundo */
+    margin: 20px; /* Margem para mobile */
 }
 
-.card-login .card-header {
+/* Cabeçalho do Card */
+.card-login-header {
     background-color: #ffffff;
-    border-bottom: none;
     padding-top: 30px;
     padding-bottom: 10px;
     text-align: center;
 }
 
-.btn-login {
+/* Imagem do Logo */
+.logo-login {
+    max-width: 180px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+/* Botão de Login */
+.btn-login-custom {
     background-color: #0b1f3a;
     border: none;
     padding: 12px;
     font-weight: 600;
     letter-spacing: 0.5px;
     color: white;
+    width: 100%;
+    border-radius: 6px;
+    text-transform: uppercase;
+    transition: background-color 0.3s;
 }
 
-.btn-login:hover {
+.btn-login-custom:hover {
     background-color: #163a6e;
     color: white;
 }
 
-.logo-img {
-    max-width: 180px;
-    margin-bottom: 10px;
+/* Labels e Inputs */
+.login-label {
+    font-size: 0.75rem; /* small */
+    font-weight: 700;   /* fw-bold */
+    color: #6c757d;     /* text-secondary */
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.login-footer {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
 }
