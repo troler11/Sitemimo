@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth'; 
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
 
 // Páginas
-import Relatorios from './pages/Relatorios';
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
 import AdminPage from './pages/Admin';
 import EscalaPage from './pages/Escala';
+import Relatorios from './pages/Relatorios';
 import AcessoNegadoPage from './pages/AcessoNegadoPage';
 
-// Layout (Sidebar + Conteúdo)
+// --- LAYOUT (Sidebar + Conteúdo) ---
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -26,26 +26,12 @@ const Layout = () => {
 
     return (
         <div className="d-flex">
-            {/* --- ATUALIZAÇÃO AQUI --- */}
-            {/* Passamos a função toggle para a Sidebar */}
+            {/* CORREÇÃO: Passamos a propriedade toggle obrigatória */}
             <Sidebar 
                 isOpen={isSidebarOpen} 
                 toggle={() => setIsSidebarOpen(!isSidebarOpen)} 
             />
-            {/* ------------------------ */}
             
-            <div style={contentStyle} className="w-100">
-                <div className="p-3">
-                    <Outlet context={{ toggleSidebar: () => setIsSidebarOpen(!isSidebarOpen) }} />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-    return (
-        <div className="d-flex">
-            <Sidebar isOpen={isSidebarOpen} />
             <div style={contentStyle} className="w-100">
                 <div className="p-3">
                     <Outlet context={{ toggleSidebar: () => setIsSidebarOpen(!isSidebarOpen) }} />
@@ -67,28 +53,22 @@ const App: React.FC = () => {
                     {/* --- ROTAS PROTEGIDAS (Com Layout) --- */}
                     <Route element={<Layout />}>
                         
-                        {/* 1. Dashboard */}
                         <Route element={<AuthGuard requiredMenu="dashboard" />}>
                             <Route path="/" element={<DashboardPage />} />
                         </Route>
 
-                        {/* 2. Rotas */}
                         <Route element={<AuthGuard requiredMenu="rotas" />}>
                             <Route path="/rotas" element={<RotasPage />} />
                         </Route>
 
-                        {/* 3. Escala */}
                         <Route element={<AuthGuard requiredMenu="escala" />}>
                             <Route path="/escala" element={<EscalaPage />} />
                         </Route>
 
-                        {/* --- ADICIONE ESTA PARTE AQUI --- */}
-    <Route element={<AuthGuard requiredMenu="relatorios" />}>
-        <Route path="/relatorios" element={<Relatorios />} />
-    </Route>
-    {/* -------------------------------- */}
+                        <Route element={<AuthGuard requiredMenu="relatorios" />}>
+                            <Route path="/relatorios" element={<Relatorios />} />
+                        </Route>
 
-                        {/* 4. Usuários (Admin) */}
                         <Route element={<AuthGuard requiredMenu="usuarios" />}>
                             <Route path="/admin/usuarios" element={<AdminPage />} />
                         </Route>
