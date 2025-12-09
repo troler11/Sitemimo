@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // URL base da API (pode vir de variáveis de ambiente depois)
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: isLocal ? 'http://localhost:3000/api' : '/api',
 });
 
 // Interceptador de Requisição (Anexa o Token automaticamente)
