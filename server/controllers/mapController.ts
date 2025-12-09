@@ -19,7 +19,6 @@ const headersAbm = {
 };
 
 // --- FUNÇÃO HAVERSINE (Cálculo de Distância em KM) ---
-// Usada para descobrir qual é o ponto mais próximo do ônibus agora
 function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371; // Raio da terra em km
   const dLat = deg2rad(lat2 - lat1);
@@ -138,15 +137,13 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const destinoFinal = tipo === 'inicial' ? pontosMapa[0] : pontosMapa[pontosMapa.length - 1];
         if (!destinoFinal) return res.status(400).json({ message: "Sem paradas definidas" });
 
-        // --- NOVA LÓGICA DE FILTRO INTELIGENTE (CORREÇÃO DE DESVIO) ---
-        let waypointsTomTom = [];
+        // --- NOVA LÓGICA DE FILTRO INTELIGENTE ---
+        let waypointsTomTom: any[] = [];
 
         if (tipo !== 'inicial') {
-            // 1. Pega apenas os pontos que o sistema diz que NÃO passou
             const pontosPendentes = pontosMapa.filter((p: any) => !p.passou);
 
             if (pontosPendentes.length > 0) {
-                // 2. Descobre qual é o ponto mais próximo geograficamente do ônibus AGORA
                 let indexMaisProximo = 0;
                 let menorDistancia = Infinity;
 
@@ -158,17 +155,15 @@ export const calculateRoute = async (req: Request, res: Response) => {
                     }
                 });
 
-                // 3. Ignora todos os pontos ANTERIORES ao ponto mais próximo.
-                // Isso assume que se o ônibus está perto do Ponto 5, ele já pulou o 1, 2, 3 e 4,
-                // mesmo que o sistema não tenha marcado como "passou".
                 waypointsTomTom = pontosPendentes.slice(indexMaisProximo);
             }
         }
-        // --------------------------------------------------------------
         
         const waypointsEnvio = waypointsTomTom.slice(0, 15);
         let coordsString = `${latAtual},${lngAtual}`; 
-        waypointsEnvio.forEach(p => { coordsString += `:${p.lat},${p.lng}`; });
+        
+        // --- CORREÇÃO 1: Adicionado tipo explícito (p: any) ---
+        waypointsEnvio.forEach((p: any) => { coordsString += `:${p.lat},${p.lng}`; });
 
         const ultimoWP = waypointsEnvio[waypointsEnvio.length - 1];
         if (!ultimoWP || (ultimoWP.lat !== destinoFinal.lat)) {
@@ -182,7 +177,6 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const segundos = summary.travelTimeInSeconds;
         const metros = summary.lengthInMeters;
 
-        // Extração de Geometria
         let rastroTomTom: number[][] = [];
         if (route && route.legs) {
             route.legs.forEach((leg: any) => {
@@ -194,7 +188,8 @@ export const calculateRoute = async (req: Request, res: Response) => {
             });
         }
         if (rastroTomTom.length === 0) {
-            rastroTomTom = [[latAtual, lngAtual], ...waypointsEnvio.map(p => [p.lat, p.lng])];
+            // --- CORREÇÃO 2: Adicionado tipo explícito (p: any) ---
+            rastroTomTom = [[latAtual, lngAtual], ...waypointsEnvio.map((p: any) => [p.lat, p.lng])];
         }
 
         const agora = moment().tz('America/Sao_Paulo');
