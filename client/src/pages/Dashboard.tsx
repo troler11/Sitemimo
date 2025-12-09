@@ -271,14 +271,20 @@ const Dashboard: React.FC = () => {
                                                     </button>
                                                     
                                                     {/* Botão de Mapa: Envia EXATAMENTE o mesmo horário da tabela */}
-                                                    <button className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                        placa: l.v, 
-                                                        idLinha: l.id, 
-                                                        tipo: 'final', 
-                                                        pf: previsao.horario // <--- Sincronia Garantida
-                                                    })}>
-                                                        <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
-                                                    </button>
+                                                   <button 
+    className="btn btn-primary btn-sm rounded-circle shadow-sm p-0" 
+    style={{width:24, height:24}} 
+    onClick={() => setSelectedMap({
+        placa: l.v, 
+        idLinha: l.id, 
+        tipo: 'final', 
+        // ERRO ESTAVA AQUI: pf: previsao.horario
+        // CORREÇÃO: Adicione "|| ''" ou "|| 'N/D'" para garantir que é string
+        pf: previsao.horario || 'N/D' 
+    })}
+>
+    <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
+</button>
                                                 </td>
                                             </tr>
                                         );
