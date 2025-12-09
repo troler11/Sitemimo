@@ -12,13 +12,12 @@ const HEADERS_DASHBOARD_MAIN = {
 };
 const TIMEZONE = 'America/Sao_Paulo';
 
-// --- CORREÇÃO DEFINITIVA DE DATA ---
-// Lista de formatos que o sistema aceita tentar ler
+// Formatos aceitos para parsing
 const INPUT_FORMATS = [
     "DD/MM/YYYY HH:mm:ss", 
     "DD/MM/YYYY HH:mm", 
     "YYYY-MM-DD HH:mm:ss",
-    "YYYY-MM-DDTHH:mm:ss", // ISO com T
+    "YYYY-MM-DDTHH:mm:ss",
     moment.ISO_8601
 ];
 
@@ -58,7 +57,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 let li = "N/D";
                 let lf = "N/D";
                 
-                // 1. CORREÇÃO: Passando INPUT_FORMATS explicitamente
                 let u = "N/D";
                 if (l.ultimaData) {
                     const m = moment(l.ultimaData, INPUT_FORMATS);
@@ -79,8 +77,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             if (p.passou && p.horario) {
                                 saiu = true;
                                 if (p.tempoDiferenca) {
-                                    // Parseia usando a data de HOJE + Horário do ponto
-                                    // Aqui montamos a string manualmente, então é seguro usar formato fixo
                                     const hojeStr = moment().format('YYYY-MM-DD');
                                     const baseTime = moment.tz(`${hojeStr} ${p.horario}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                     
@@ -98,7 +94,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     else baseTime.subtract(dm, 'minutes');
                                     ri = baseTime.format('HH:mm');
                                 } 
-                                // 2. CORREÇÃO: Fallback usando INPUT_FORMATS
                                 else if (p.dataPassouGmt3) {
                                     const m = moment(p.dataPassouGmt3, INPUT_FORMATS);
                                     if (m.isValid()) ri = m.tz(TIMEZONE).format('HH:mm');
@@ -116,27 +111,21 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
-                // Lógica de Previsão Fim
+                // --- LÓGICA DE PREVISÃO ---
+                
+                // 1. Cache (TomTom) - Prioridade Máxima
                 if (cachedPred && cachedPred.horario) {
                     pfn = cachedPred.horario;
                 } 
+                // 2. Se JÁ SAIU: Projeta o atraso da saída na chegada
                 else if (pf !== "N/D" && saiu) {
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     progFimObj.add(diffMinutosSaida, 'minutes');
                     pfn = progFimObj.format('HH:mm');
                 }
+                // 3. Se NÃO SAIU: Retorna traços (Mudança Solicitada)
                 else if (pf !== "N/D" && !saiu) {
-                     const progIniObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                     const agora = moment().tz(TIMEZONE);
-                     
-                     if (agora.isAfter(progIniObj)) {
-                         const atrasoAteAgora = agora.diff(progIniObj, 'minutes');
-                         const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                         progFimObj.add(atrasoAteAgora, 'minutes');
-                         pfn = progFimObj.format('HH:mm');
-                     } else {
-                         pfn = pf;
-                     }
+                     pfn = "--:--"; 
                 }
 
                 todasLinhas.push({
