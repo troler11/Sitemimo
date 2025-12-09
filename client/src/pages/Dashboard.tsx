@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import api from '../services/api';
 import MapModal from '../components/MapModal';
 
@@ -48,6 +48,12 @@ const Dashboard: React.FC = () => {
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
 
+    // --- SOLUÇÃO CRÍTICA: Estabiliza a função de atualização para evitar loop ---
+    const linhasRef = useRef(linhas);
+    useEffect(() => {
+        linhasRef.current = linhas; // Mantém a referência atualizada
+    }, [linhas]);
+
     // 1. CARREGAMENTO PRINCIPAL COM PRESERVAÇÃO DE ESTADO
     const fetchData = async () => {
         try {
@@ -60,7 +66,6 @@ const Dashboard: React.FC = () => {
                 
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
-                    // Se o servidor não mandou um PFN, mas nós temos um fresco localmente, usamos o local.
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
@@ -75,106 +80,79 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (LOTE DE 5)
-    // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (LOTE DE 5)
-const carregarPrevisoesAutomaticamente = useCallback(async () => {
-    const BATCH_SIZE = 5;
-    
-    const linhasAtivas = linhas.filter(l => 
-        l.ri && l.ri !== 'N/D' && 
-        l.c !== 'Carro desligado' && 
-        l.c !== 'Encerrado'
-    );
+    // 2. FUNÇÃO DE CÁLCULO DE PREVISÕES INDIVIDUAIS (ESTÁVEL)
+    const carregarPrevisoesAutomaticamente = useCallback(async () => {
+        const BATCH_SIZE = 5;
+        
+        // Lê o estado de 'linhas' através da referência estável
+        const linhasAtivas = linhasRef.current.filter(l => 
+            l.ri && l.ri !== 'N/D' && 
+            l.c !== 'Carro desligado' && 
+            l.c !== 'Encerrado'
+        );
 
-    if (linhasAtivas.length === 0) {
-        console.log("⏱️ PREVISÃO AUTOMÁTICA: Nenhuma linha ativa para calcular.");
-        return;
-    }
-    
-    console.log(`⏱️ PREVISÃO AUTOMÁTICA: Iniciando atualização em lotes de ${BATCH_SIZE} para ${linhasAtivas.length} veículos.`);
+        if (linhasAtivas.length === 0) return;
 
-    for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
-        const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
-        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        // Processamento em lotes (batching)
+        for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
+            const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
 
-        console.log(`\n➡️ Processando LOTE ${batchNumber} (${batch.length} veículos)...`);
-
-        const promises = batch.map(async (linha) => {
-            try {
-                const cacheBuster = Date.now();
-                
-                // LOG: Requisitando (com cache buster)
-                console.log(`   [API REQ] ${linha.v} (ID: ${linha.id}) - Buscando TomTom...`);
-
-                const res = await api.get(`/rota/final/${linha.v}`, { 
-                    params: { idLinha: linha.id, cache: cacheBuster } 
-                });
-
-                const novaPrevisao: string = res.data.previsao_chegada;
-                
-                // LOG: Resultado da Requisição
-                if (novaPrevisao && novaPrevisao !== 'N/D') {
-                    console.log(`   ✅ [SUCESSO] ${linha.v}: Antigo PFN=${linha.pfn || 'N/D'} -> Novo PFN=${novaPrevisao}`);
+            const promises = batch.map(async (linha) => {
+                try {
+                    const cacheBuster = Date.now();
                     
-                    // Atualiza o estado
-                    setLinhas(prevLinhas => prevLinhas.map(item => 
-                        item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
-                    ));
-                } else {
-                    console.log(`   ⚠️ [ATENÇÃO] ${linha.v}: Backend retornou valor vazio ("${novaPrevisao}") ou não retornou TomTom. Mantendo PFN antigo.`);
-                }
-            } catch (err) {
-                console.error(`   ❌ [FALHA DE REDE] Erro ao buscar previsão para ${linha.v}.`, err);
-            }
-        });
+                    const res = await api.get(`/rota/final/${linha.v}`, { 
+                        params: { idLinha: linha.id, cache: cacheBuster } 
+                    });
 
-        await Promise.allSettled(promises);
-        console.log(`   ☑️ LOTE ${batchNumber} finalizado.`);
-    }
-    console.log("⏱️ PREVISÃO AUTOMÁTICA: Ciclo de atualização de lotes concluído.");
-}, [linhas]);
+                    const novaPrevisao: string = res.data.previsao_chegada;
+
+                    if (novaPrevisao && novaPrevisao !== 'N/D') {
+                        setLinhas(prevLinhas => prevLinhas.map(item => 
+                            item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
+                        ));
+                    }
+                } catch (err) {
+                    // Silencioso
+                }
+            });
+
+            await Promise.allSettled(promises);
+        }
+    }, []); // A dependência 'linhas' foi removida, usando linhasRef.current
 
     // 3. Loops de Refresh
     useEffect(() => {
         fetchData();
-        const intervalPrincipal = setInterval(fetchData, 30000); 
+        const intervalPrincipal = setInterval(fetchData, 30000); // Atualiza lista base (30s)
         return () => clearInterval(intervalPrincipal);
     }, []);
 
     useEffect(() => {
+        // Estabelece o intervalo de previsão (60s) apenas quando a lista inicial carregar
         if (!loading && linhas.length > 0) {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
             }, 60000);
             
-            return () => clearInterval(intervalPrevisao);
+            return () => clearInterval(intervalPrevisao); // Limpa o intervalo antes de recriar
         }
-    }, [loading, linhas.length, carregarPrevisoesAutomaticamente]);
+    }, [loading, linhas.length]); // Não depende da função, logo não entra em loop.
 
 
-    // --- LÓGICA DE EXIBIÇÃO E FILTRAGEM (useMemo) ---
+    // --- LÓGICA DE EXIBIÇÃO E FILTRAGEM ---
 
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
-            // Filtro Busca
-            if (busca) {
-                const termo = busca.toLowerCase();
-                const textoLinha = `${l.e} ${l.r} ${l.v}`.toLowerCase();
-                if (!textoLinha.includes(termo)) return false;
-            }
-            // Filtro Empresa
+            if (busca && !`${l.e} ${l.r} ${l.v}`.toLowerCase().includes(busca.toLowerCase())) return false;
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
-            
-            // Filtro Sentido
             if (filtroSentido) {
                 const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoReal) return false;
             }
-            
-            // Filtro Status
             if (filtroStatus) {
                 const atrasado = isLineAtrasada(l);
                 if (filtroStatus === 'atrasado' && !atrasado) return false;
@@ -199,7 +177,6 @@ const carregarPrevisoesAutomaticamente = useCallback(async () => {
         return counts;
     }, [linhas, horaServidor]);
 
-    // Lógica que decide o valor e cor da previsão
     const getPrevisaoInteligente = (linha: Linha) => {
         const temTomTom = linha.pfn && linha.pfn !== 'N/D';
         const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
@@ -270,7 +247,7 @@ const carregarPrevisoesAutomaticamente = useCallback(async () => {
                                 <th>Prev. Ini</th>
                                 <th>Real Início</th>
                                 <th title="Horário Programado Original">Prog. Fim</th>
-                                <th title="Calculado Automaticamente (TomTom)">Prev. Fim (Real)</th>
+                                <th title="Calculado Automaticamente">Prev. Fim (Real)</th>
                                 <th>Ult. Reporte</th>
                                 <th>Status</th>
                                 <th className="text-center">Ações</th>
@@ -299,7 +276,7 @@ const carregarPrevisoesAutomaticamente = useCallback(async () => {
                                         
                                         <td className="text-muted small">{l.pf}</td>
 
-                                        {/* Prev. Fim (Real) */}
+                                        {/* Prev. Fim (Real) - Célula que mostra os dados injetados */}
                                         <td className={previsao.classe}>
                                             {previsao.horario || 'N/D'}
                                             {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon" title="Cálculo em Tempo Real (TomTom)"></i>}
@@ -321,8 +298,7 @@ const carregarPrevisoesAutomaticamente = useCallback(async () => {
                                                 placa: l.v, 
                                                 idLinha: l.id, 
                                                 tipo: 'final', 
-                                                // Passa o horário que está na tela, seja ele PF ou PFN (TomTom)
-                                                pf: previsao.horario || 'N/D' 
+                                                pf: previsao.horario || 'N/D' // Passa a Previsão Inteligente
                                             })}>
                                                 <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                             </button>
