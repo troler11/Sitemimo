@@ -2,22 +2,23 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  // Define o modo (pode ser sobrescrito pelo package.json scripts)
-  mode: 'development', 
+  mode: 'production', // No Render geralmente é production
 
-  // Ponto de entrada do React
+  // --- CORREÇÃO PRINCIPAL: CONTEXTO ---
+  // Define que a base para procurar arquivos é a pasta onde este arquivo está ('client')
+  context: __dirname, 
+
+  // Agora './src/index.tsx' será procurado dentro de 'client/src/index.tsx'
   entry: './src/index.tsx',
 
-  // Configuração de Saída
   output: {
-    // Caminho absoluto para a pasta dist/client na raiz do projeto
+    // Sai da pasta 'client' (..) e vai para 'dist/client' na raiz
     path: path.resolve(__dirname, '../dist/client'), 
     filename: 'bundle.js',
-    publicPath: '/', // Necessário para o React Router funcionar corretamente
-    clean: true, // Limpa a pasta dist antes de cada build (Webpack 5)
+    publicPath: '/', 
+    clean: true,
   },
 
-  // Resolução de extensões
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
   },
@@ -25,18 +26,15 @@ module.exports = {
   module: {
     rules: [
       {
-        // CORREÇÃO: Adicionado 'x?' para aceitar tanto .ts quanto .tsx
         test: /\.tsx?$/, 
         use: 'ts-loader',
         exclude: /node_modules/,
       },
       {
-        // Loader para arquivos CSS
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
       {
-        // Loader para imagens e ícones (opcional, mas recomendado)
         test: /\.(png|svg|jpg|jpeg|gif)$/i,
         type: 'asset/resource',
       },
@@ -45,17 +43,9 @@ module.exports = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/index.html', // O HTML base
+      // --- CORREÇÃO DO HTML ---
+      // Usa path.resolve para garantir que ele ache o arquivo independente de onde o comando rodou
+      template: path.resolve(__dirname, 'src/index.html'), 
     }),
   ],
-
-  // Servidor de Desenvolvimento (npm run dev:client)
-  devServer: {
-    historyApiFallback: true, // Redireciona rotas desconhecidas para o index.html (SPA)
-    port: 8080,
-    hot: true, // Hot Module Replacement
-    static: {
-      directory: path.join(__dirname, 'public'),
-    },
-  },
 };
