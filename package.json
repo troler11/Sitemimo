@@ -22,6 +22,7 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
+    "@react-google-maps/api": "^2.19.3",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.43",
     "node-cache": "^5.1.2",
