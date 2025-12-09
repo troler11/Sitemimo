@@ -7,7 +7,7 @@ export interface Coordenada {
 
 // Calcula a distância aproximada em metros entre dois pontos
 function getDistanciaMetros(p1: Coordenada, p2: Coordenada): number {
-    const R = 6371e3; // Raio da Terra
+    const R = 6371e3; // Raio da Terra em metros
     const lat1 = p1.lat * Math.PI / 180;
     const lat2 = p2.lat * Math.PI / 180;
     const dLat = (p2.lat - p1.lat) * Math.PI / 180;
@@ -21,11 +21,8 @@ function getDistanciaMetros(p1: Coordenada, p2: Coordenada): number {
     return R * c;
 }
 
-/**
- * Encontra o índice do array da rota que está mais próximo geograficamente do veículo.
- */
 export const findNearestPointIndex = (rota: Coordenada[], veiculo: Coordenada): number => {
-    if (!rota || rota.length === 0) return -1;
+    if (!rota || !Array.isArray(rota) || rota.length === 0) return -1;
     
     let minDistance = Infinity;
     let closestIndex = 0;
