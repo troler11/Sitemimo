@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import api from '../services/api';
 import MapModal from '../components/MapModal';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,12 +23,10 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('token');
-            if (!token) return navigate('/login');
+          if (!token) return navigate('/login');
 
-            const res = await axios.get('http://localhost:3000/api/dashboard', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setLinhas(res.data.todas_linhas);
+           const res = await api.get('/dashboard');
+           setLinhas(res.data.todas_linhas);
             setLoading(false);
         } catch (error) {
             console.error("Erro ao carregar dashboard", error);
