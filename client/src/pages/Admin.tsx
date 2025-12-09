@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-// 1. IMPORTANTE: Usamos nosso serviço api configurado, não o axios direto
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../hooks/useAuth'; // <--- Importação do Contexto
 
 // Interfaces
 interface User {
@@ -13,17 +14,44 @@ interface User {
     password?: string;
 }
 
-const LISTA_EMPRESAS = ['AAM',
-    "AD'ORO",'B. BOSCH','BOLLHOFF','CMR INDÚSTRIA - LIZ','CPQ','DROGA RAIA','HELLERMANN','JDE COFFE - JACOBS DOUWE EGBER','MERCADO LIVRE GRU I','MERCADO LIVRE RC01','MERCADO LIVRE SP09/15','MERCADO LIVRE SP10','MERCADOLIVRE SP16','NISSEI','OUTLET','PUCC','RED BULL','SILGAN (ALBEA)','STIHL','THEOTO','USP','WEIR']; 
+const LISTA_EMPRESAS = [
+    'AAM', "AD'ORO", 'B. BOSCH', 'BOLLHOFF', 'CMR INDÚSTRIA - LIZ', 'CPQ', 
+    'DROGA RAIA', 'HELLERMANN', 'JDE COFFE - JACOBS DOUWE EGBER', 
+    'MERCADO LIVRE GRU I', 'MERCADO LIVRE RC01', 'MERCADO LIVRE SP09/15', 
+    'MERCADO LIVRE SP10', 'MERCADOLIVRE SP16', 'NISSEI', 'OUTLET', 'PUCC', 
+    'RED BULL', 'SILGAN (ALBEA)', 'STIHL', 'THEOTO', 'USP', 'WEIR'
+];
+
 const SISTEMA_MENUS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'rotas', label: 'Rotas' },
     { key: 'escala', label: 'Escala' },
-     { key: 'relatorios', label: 'Power B.I' },
+    { key: 'relatorios', label: 'Power B.I' },
     { key: 'usuarios', label: 'Usuários' }
 ];
 
 const Admin: React.FC = () => {
+    // --- 1. LÓGICA DE SEGURANÇA ---
+    const { currentUser, isLoggedIn, isInitializing } = useAuth();
+    const navigate = useNavigate();
+
+    // Redireciona se não for Admin
+    useEffect(() => {
+        if (!isInitializing) {
+            // Se não tá logado -> Login
+            if (!isLoggedIn) {
+                navigate('/login');
+                return;
+            }
+            
+            // Se tá logado mas não é admin -> Acesso Negado
+            if (currentUser?.role !== 'admin') {
+                navigate('/unauthorized');
+            }
+        }
+    }, [isInitializing, isLoggedIn, currentUser, navigate]);
+    // ------------------------------
+
     const [users, setUsers] = useState<User[]>([]);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showModal, setShowModal] = useState(false);
@@ -36,7 +64,6 @@ const Admin: React.FC = () => {
     // 2. BUSCA DE DADOS (GET)
     const fetchUsers = async () => {
         try {
-            // Usa rota relativa e o interceptor do api.ts já manda o token
             const res = await api.get('/users');
             setUsers(res.data);
         } catch (error) {
@@ -44,7 +71,12 @@ const Admin: React.FC = () => {
         }
     };
 
-    useEffect(() => { fetchUsers(); }, []);
+    // Só busca usuários se for admin
+    useEffect(() => { 
+        if (isLoggedIn && currentUser?.role === 'admin') {
+            fetchUsers(); 
+        }
+    }, [isLoggedIn, currentUser]);
 
     // 3. SALVAR (POST/PUT)
     const handleSave = async (e: React.FormEvent) => {
@@ -74,22 +106,20 @@ const Admin: React.FC = () => {
     };
 
     const openModal = (user?: User) => {
-    if (user) {
-        setEditingUser(user);
-        // --- CORREÇÃO DE NORMALIZAÇÃO DE ARRAY ---
-        setFormData({ 
-            ...user, 
-            allowed_companies: user.allowed_companies || [], // Garante que é [] se for null
-            allowed_menus: user.allowed_menus || [],         // Garante que é [] se for null
-            password: '' 
-        });
-        // ------------------------------------------
-    } else {
-        setEditingUser(null);
-        setFormData({ username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: '' });
-    }
-    setShowModal(true);
-};
+        if (user) {
+            setEditingUser(user);
+            setFormData({ 
+                ...user, 
+                allowed_companies: user.allowed_companies || [], 
+                allowed_menus: user.allowed_menus || [],         
+                password: '' 
+            });
+        } else {
+            setEditingUser(null);
+            setFormData({ username: '', full_name: '', role: 'user', allowed_companies: [], allowed_menus: [], password: '' });
+        }
+        setShowModal(true);
+    };
 
     // Helpers de Checkbox
     const toggleArrayItem = (field: 'allowed_companies' | 'allowed_menus', value: string) => {
@@ -97,6 +127,11 @@ const Admin: React.FC = () => {
         const updated = current.includes(value) ? current.filter(i => i !== value) : [...current, value];
         setFormData({ ...formData, [field]: updated });
     };
+
+    // --- BLOQUEIO VISUAL ENQUANTO CARREGA OU SE NÃO FOR ADMIN ---
+    if (isInitializing || !isLoggedIn || currentUser?.role !== 'admin') {
+        return null; // Não renderiza nada enquanto redireciona
+    }
 
     return (
         <div className="container-fluid mt-4">
@@ -154,7 +189,6 @@ const Admin: React.FC = () => {
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">Senha {editingUser && '(Deixe em branco para manter)'}</label>
-                                        {/* CORREÇÃO DO CLASS -> CLASSNAME */}
                                         <input type="password" className="form-control" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} />
                                     </div>
                                     <div className="col-md-6">
