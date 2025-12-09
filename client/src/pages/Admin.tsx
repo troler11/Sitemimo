@@ -13,7 +13,8 @@ interface User {
     password?: string;
 }
 
-const LISTA_EMPRESAS = ['AAM', "AD'ORO", 'B. BOSCH', 'BOLLHOFF', 'CPQ', 'DROGA RAIA', 'MERCADO LIVRE GRU I', 'RED BULL', 'USP']; 
+const LISTA_EMPRESAS = ['AAM',
+    "AD'ORO",'B. BOSCH','BOLLHOFF','CMR INDÚSTRIA - LIZ','CPQ','DROGA RAIA','HELLERMANN','JDE COFFE - JACOBS DOUWE EGBER','MERCADO LIVRE GRU I','MERCADO LIVRE RC01','MERCADO LIVRE SP09/15','MERCADO LIVRE SP10','MERCADOLIVRE SP16','NISSEI','OUTLET','PUCC','RED BULL','SILGAN (ALBEA)','STIHL','THEOTO','USP','WEIR']; 
 const SISTEMA_MENUS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'rotas', label: 'Rotas' },
