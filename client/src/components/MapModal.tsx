@@ -103,17 +103,21 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, pf, onClose }) => {
                                     />
                                     {/* Veículo */}
                                     {posicaoVeiculo && (
-                                        <Marker
-                                            position={posicaoVeiculo}
-                                            icon={{
-                                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                                                scale: 6,
-                                                fillColor: "#0d6efd",
-                                                fillOpacity: 1,
-                                                strokeWeight: 2,
-                                                strokeColor: "#ffffff" 
-                                            }}
-                                        />
+                                       <Marker
+        position={posicaoVeiculo}
+        icon={{
+            // CORREÇÃO AQUI:
+            // Em vez de usar 'google.maps.SymbolPath.FORWARD_CLOSED_ARROW' (que causa o erro),
+            // usamos o desenho SVG manual dessa seta. Assim não dependemos da variável 'google'.
+            path: "M -2,0 0,-2 2,0 0,2 z", 
+            
+            scale: 6,
+            fillColor: "#0d6efd",
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: "#ffffff" 
+        }}
+    />
                                     )}
                                 </GoogleMap>
                             </LoadScript>
