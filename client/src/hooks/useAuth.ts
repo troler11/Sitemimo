@@ -35,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
 
-    // Funções login e logout
     const login = (token: string, user: UserData) => {
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
@@ -70,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsInitializing(false); 
     }, []);
 
-    // Memoiza o valor do contexto
+    // Memoiza o valor do contexto (Usa useMemo para otimizar performance)
     const contextValue = useMemo(() => ({
         isLoggedIn,
         currentUser,
@@ -79,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
     }), [isLoggedIn, currentUser, isInitializing]);
 
-    // O Retorno JSX (Sintaticamente limpo)
+    // O Retorno JSX (Sintaticamente limpo e correto)
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
