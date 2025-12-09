@@ -14,7 +14,6 @@ const HEADERS_DASHBOARD_MAIN = {
 };
 const TIMEZONE = 'America/Sao_Paulo';
 
-// Formatos de data aceitos (Prioridade para o Brasileiro)
 const INPUT_FORMATS = [
     "DD/MM/YYYY HH:mm:ss", 
     "DD/MM/YYYY HH:mm", 
@@ -34,7 +33,14 @@ const parseDateSafe = (dateInput: any): moment.Moment | null => {
 export const getDashboardData = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user; 
-        const allowedCompanies: string[] = user.role === 'admin' ? [] : user.allowed_companies;
+        
+        // --- LÓGICA DE SEGURANÇA CORRIGIDA ---
+        const isAdmin = user.role === 'admin';
+        
+        // Normaliza as empresas permitidas (se houver)
+        const allowedCompanies: string[] = user.allowed_companies || [];
+        const allowedNorm = allowedCompanies.map(c => c.toUpperCase().trim());
+        // -------------------------------------
 
         let dashboardData = appCache.get('dashboard_main');
         if (!dashboardData) {
@@ -47,32 +53,38 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
         const data: any = dashboardData;
         let todasLinhas: any[] = [];
-        const allowedNorm = allowedCompanies.map(c => c.toUpperCase().trim());
 
         const processarGrupo = (lista: any[], categoria: string) => {
             if (!lista) return;
             
             for (const l of lista) {
-                // Filtro Empresa
+                // --- FILTRO DE EMPRESA (LÓGICA MESTRA) ---
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
-                if (allowedNorm.length > 0 && !allowedNorm.includes(empNome)) continue;
+                
+                // Se NÃO for Admin, aplica a checagem rigorosa
+                if (!isAdmin) {
+                    // Se a empresa da linha não estiver na lista permitida do usuário, PULA.
+                    // Isso também resolve o caso de lista vazia: .includes retorna false e bloqueia.
+                    if (!allowedNorm.includes(empNome)) continue;
+                }
+                // Se for Admin, passa direto aqui.
+                // -----------------------------------------
 
                 // Filtro Finalizada
                 const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
                 if (finalizada) continue;
 
                 // --- VARIÁVEIS INICIAIS ---
-                let pi = "N/D"; // Prog. Início
-                let ri = "N/D"; // Real Início
-                let pf = "N/D"; // Prog. Fim
-                let pfn = "N/D"; // Prev. Fim (Calculado)
+                let pi = "N/D"; 
+                let ri = "N/D"; 
+                let pf = "N/D"; 
+                let pfn = "N/D"; 
                 let li = "N/D";
                 let lf = "N/D";
                 
                 // 1. LÓGICA DO ÚLTIMO REPORTE (GPS Real)
                 let u = "N/D";
                 let rawDate = null;
-                // Prioridade: dataHora (GPS) > dataComunicacao > ultimaData
                 if (l.veiculo && l.veiculo.dataHora) rawDate = l.veiculo.dataHora;
                 else if (l.veiculo && l.veiculo.dataComunicacao) rawDate = l.veiculo.dataComunicacao;
                 else rawDate = l.ultimaData;
@@ -96,7 +108,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             if (p.passou && p.horario) {
                                 saiu = true;
                                 if (p.tempoDiferenca) {
-                                    // Cálculo seguro do Real Início
                                     const hojeStr = moment().format('YYYY-MM-DD');
                                     const baseTime = moment.tz(`${hojeStr} ${p.horario}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                     
@@ -128,23 +139,19 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     }
                 }
 
-                // 3. LÓGICA DE PREVISÃO DE CHEGADA (Prev. Fim)
+                // 3. LÓGICA DE PREVISÃO DE CHEGADA
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
                 
-                // (A) Cache da TomTom (Validade 5 Minutos)
-                // Se você clicou no botão há menos de 5 min, usa esse valor preciso.
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
                 if (cachedPred && cachedPred.horario) {
                     pfn = cachedPred.horario;
                 } 
-                // (B) Se JÁ SAIU e sem cache: Projeta o atraso da saída na chegada
                 else if (pf !== "N/D" && saiu) {
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     progFimObj.add(diffMinutosSaida, 'minutes');
                     pfn = progFimObj.format('HH:mm');
                 }
-                // (C) Se NÃO SAIU: Retorna traços (Não calcula previsão)
                 else if (pf !== "N/D" && !saiu) {
                      pfn = "--:--"; 
                 }
