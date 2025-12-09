@@ -1,59 +1,75 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import './Sidebar.css'; // Importa o visual original
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+    isOpen: boolean; // Controla se está expandida (250px) ou recolhida (80px)
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // Recupera dados do usuário salvos no login
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const role = user.role || '';
     const permissoes = user.menus || [];
 
-    const handleLogout = () => {
+    const handleLogout = (e: React.MouseEvent) => {
+        e.preventDefault();
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
     };
 
-    // Definição dos menus (igual ao seu PHP array)
     const menus = [
         { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', link: '/' },
         { key: 'rotas', label: 'Rotas', icon: 'bi-map', link: '/rotas' },
         { key: 'veiculos', label: 'Veículos', icon: 'bi-bus-front', link: '/veiculos' },
+        { key: 'motoristas', label: 'Motoristas', icon: 'bi-person-vcard', link: '/motoristas' },
         { key: 'escala', label: 'Escala', icon: 'bi-calendar-week', link: '/escala' },
         { key: 'relatorios', label: 'Power BI', icon: 'bi-file-earmark-text', link: '/relatorios' },
         { key: 'usuarios', label: 'Usuários', icon: 'bi-people-fill', link: '/admin' }
     ];
 
-    return (
-        <div className="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style={{ width: '250px', minHeight: '100vh' }}>
-            <div className="text-center mb-4">
-               <span className="fs-4">Viação Mimo</span>
-            </div>
-            <hr />
-            <ul className="nav nav-pills flex-column mb-auto">
-                {menus.map((menu) => {
-                    // Lógica de Permissão (Igual ao PHP)
-                    const temPermissao = role === 'admin' || permissoes.includes(menu.key);
-                    
-                    if (!temPermissao) return null;
+    // A classe 'toggled' é adicionada se isOpen for falso
+    const sidebarClass = isOpen ? 'sidebar' : 'sidebar toggled';
 
-                    const isActive = location.pathname === menu.link;
-                    return (
-                        <li className="nav-item" key={menu.key}>
-                            <Link to={menu.link} className={`nav-link text-white ${isActive ? 'active' : ''}`}>
-                                <i className={`bi ${menu.icon} me-2`}></i>
-                                {menu.label}
-                            </Link>
-                        </li>
-                    );
-                })}
-            </ul>
-            <hr />
-            <button onClick={handleLogout} className="btn btn-outline-danger w-100">
-                <i className="bi bi-box-arrow-right me-2"></i> Sair
-            </button>
+    return (
+        <div className={sidebarClass} id="sidebar">
+            {/* Logo */}
+            <div className="logo-container">
+                <img 
+                    src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Background-12-1.png" 
+                    alt="Logo" 
+                />
+            </div>
+
+            {/* Links */}
+            {menus.map((menu) => {
+                const temPermissao = role === 'admin' || permissoes.includes(menu.key);
+                if (!temPermissao) return null;
+
+                // Verifica se é a página atual para pintar de azul
+                const isActive = location.pathname === menu.link;
+
+                return (
+                    <Link 
+                        to={menu.link} 
+                        key={menu.key} 
+                        className={isActive ? 'active' : ''}
+                        title={menu.label}
+                    >
+                        <i className={`bi ${menu.icon} me-2`}></i>
+                        <span>{menu.label}</span>
+                    </Link>
+                );
+            })}
+
+            {/* Botão Sair */}
+            <a href="#" onClick={handleLogout} className="mt-auto logout-link" title="Sair">
+                <i className="bi bi-box-arrow-right me-2"></i>
+                <span>Sair</span>
+            </a>
         </div>
     );
 };
