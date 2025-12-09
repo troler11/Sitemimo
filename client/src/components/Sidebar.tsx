@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // Importe useLocation para destacar menu ativo
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
@@ -9,15 +9,23 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     const { logout, currentUser } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation(); // Para saber em qual página estamos
+    const location = useLocation();
 
     const handleLogout = () => {
-        logout(); // Limpa token e estado
-        navigate('/login', { replace: true }); // Força ida para o login
+        logout();
+        navigate('/login', { replace: true });
     };
 
-    // Função para verificar se o link está ativo
+    // Helper visual: Link Ativo
     const isActive = (path: string) => location.pathname === path ? 'active-link' : '';
+
+    // Helper Lógico: Permissão
+    const hasPermission = (menuKey: string) => {
+        if (!currentUser) return false;
+        // Se for admin, libera tudo. Se não, checa a lista (allowed_menus)
+        if (currentUser.role === 'admin') return true;
+        return currentUser.allowed_menus?.includes(menuKey);
+    };
 
     return (
         <div 
@@ -28,43 +36,65 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 position: 'fixed',
                 transition: 'width 0.3s ease',
                 zIndex: 1000,
-                overflowX: 'hidden' // Evita scroll horizontal na animação
+                overflowX: 'hidden',
+                borderRight: '1px solid #dee2e6'
             }}
         >
-            {/* Topo: Logo e Links */}
+            {/* --- 1. CABEÇALHO COM LOGO --- */}
             <div>
-                <div className="p-3 d-flex align-items-center justify-content-center border-bottom" style={{ height: '70px' }}>
-                     {/* Você pode colocar um Logo aqui */}
-                     <h5 className="m-0 text-primary fw-bold text-nowrap">
-                        {isOpen ? 'SISTEMA FROTA' : 'SF'}
-                     </h5>
+                <div className="d-flex align-items-center justify-content-center border-bottom bg-white" style={{ height: '80px' }}>
+                     {isOpen ? (
+                        // Logo Grande (Aberto)
+                        <img 
+                            src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Logo.png" 
+                            alt="Viação Mimo" 
+                            style={{ maxHeight: '50px', maxWidth: '180px' }} 
+                        />
+                     ) : (
+                        // Logo Pequeno / Texto (Fechado)
+                        <small className="fw-bold text-primary">MIMO</small>
+                     )}
                 </div>
 
-                <div className="list-group list-group-flush mt-3 p-2">
-                    {/* Link Dashboard */}
-                    <Link to="/" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/')}`} title="Dashboard">
-                        <i className="bi bi-speedometer2 fs-5 me-3"></i>
-                        {isOpen && <span>Dashboard</span>}
-                    </Link>
+                {/* --- 2. LISTA DE MENUS --- */}
+                <div className="list-group list-group-flush mt-2 p-2">
+                    
+                    {/* Dashboard */}
+                    {hasPermission('dashboard') && (
+                        <Link to="/" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/')}`} title="Dashboard">
+                            <i className="bi bi-speedometer2 fs-5 me-3"></i>
+                            {isOpen && <span>Dashboard</span>}
+                        </Link>
+                    )}
 
-                    {/* Link Rotas */}
-                    {/* Exibe se for Admin OU se tiver permissão de rotas */}
-                    {(currentUser?.role === 'admin' || currentUser?.allowed_menus?.includes('rotas')) && (
+                    {/* Rotas */}
+                    {hasPermission('rotas') && (
                         <Link to="/rotas" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/rotas')}`} title="Rotas">
                             <i className="bi bi-map fs-5 me-3"></i>
                             {isOpen && <span>Rotas</span>}
                         </Link>
                     )}
 
-                    {/* Link Escala */}
-                    {(currentUser?.role === 'admin' || currentUser?.allowed_menus?.includes('escala')) && (
+                    {/* Escala */}
+                    {hasPermission('escala') && (
                         <Link to="/escala" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/escala')}`} title="Escala">
                             <i className="bi bi-calendar-week fs-5 me-3"></i>
                             {isOpen && <span>Escala</span>}
                         </Link>
                     )}
 
-                    {/* Link Usuários (Apenas Admin) */}
+                    {/* Power B.I (Relatórios) */}
+                    {hasPermission('relatorios') && (
+                        <Link to="/relatorios" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/relatorios')}`} title="Power B.I">
+                            <i className="bi bi-bar-chart-line fs-5 me-3"></i>
+                            {isOpen && <span>Power B.I</span>}
+                        </Link>
+                    )}
+
+                    {/* Divisor Admin */}
+                    {currentUser?.role === 'admin' && isOpen && <hr className="my-2 mx-3 text-muted" />}
+
+                    {/* Usuários (Apenas Admin) */}
                     {currentUser?.role === 'admin' && (
                         <Link to="/admin/usuarios" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/admin/usuarios')}`} title="Usuários">
                             <i className="bi bi-people fs-5 me-3"></i>
@@ -74,37 +104,52 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 </div>
             </div>
 
-            {/* Rodapé: Botão Sair */}
-            <div className="p-3 border-top">
+            {/* --- 3. RODAPÉ (PERFIL + SAIR) --- */}
+            <div className="p-3 border-top bg-light">
                 <div className="d-flex align-items-center mb-3 px-2 text-muted" style={{ overflow: 'hidden' }}>
-                    <i className="bi bi-person-circle fs-4 me-3"></i>
+                    <div className="bg-white rounded-circle p-2 shadow-sm me-3 d-flex align-items-center justify-content-center" style={{width: 40, height: 40}}>
+                        <i className="bi bi-person-fill fs-5 text-secondary"></i>
+                    </div>
+                    
                     {isOpen && (
                         <div className="d-flex flex-column" style={{ lineHeight: '1.2' }}>
-                            <small className="fw-bold text-truncate" style={{ maxWidth: '140px' }}>
-                                {currentUser?.full_name?.split(' ')[0]} {/* Primeiro nome */}
+                            <small className="fw-bold text-dark text-truncate" style={{ maxWidth: '140px' }}>
+                                {currentUser?.full_name?.split(' ')[0]}
                             </small>
-                            <small style={{ fontSize: '0.75rem' }}>{currentUser?.role}</small>
+                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                {currentUser?.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                            </small>
                         </div>
                     )}
                 </div>
 
                 <button 
                     onClick={handleLogout} 
-                    className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center"
+                    className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center btn-sm"
                     title="Sair do Sistema"
                 >
-                    <i className="bi bi-box-arrow-left fs-5"></i>
+                    <i className="bi bi-box-arrow-left fs-6"></i>
                     {isOpen && <span className="ms-2">Sair</span>}
                 </button>
             </div>
 
-            {/* CSS inline para o link ativo (pode mover para um arquivo .css) */}
+            {/* --- ESTILOS CSS INLINE --- */}
             <style>
                 {`
                 .active-link {
-                    background-color: #e9ecef !important;
-                    color: #0d6efd !important;
-                    font-weight: 500;
+                    background-color: #e3f2fd !important; /* Azul bem claro */
+                    color: #0d6efd !important; /* Azul Bootstrap */
+                    font-weight: 600;
+                    border-left: 4px solid #0d6efd !important;
+                }
+                .list-group-item-action {
+                    transition: all 0.2s ease-in-out;
+                    color: #6c757d; /* Cinza suave */
+                }
+                .list-group-item-action:hover {
+                    background-color: #f8f9fa;
+                    color: #0d6efd;
+                    transform: translateX(3px);
                 }
                 `}
             </style>
