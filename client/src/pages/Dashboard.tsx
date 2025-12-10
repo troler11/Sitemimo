@@ -5,7 +5,7 @@ import MapModal from '../components/MapModal';
 import { useAuth } from '../hooks/useAuth'; 
 
 // 1. IMPORTANTE: Importar o CSS específico aqui
-import './Login.css';
+import './Dashboard.css';
 
 interface Linha {
     id: string;
