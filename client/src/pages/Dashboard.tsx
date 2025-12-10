@@ -313,7 +313,7 @@ const Dashboard: React.FC = () => {
                                                 <i className="bi bi-clock" style={{fontSize: 10}}></i>
                                             </button>
                                             <button className="btn btn-primary btn-sm rounded-circle shadow-sm" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: previsao.horario || 'N/D' 
+                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: previsao.horario, pff: l.pf || 'N/D' 
                                             })}>
                                                 <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
                                             </button>
@@ -331,7 +331,7 @@ const Dashboard: React.FC = () => {
                     placa={selectedMap.placa} 
                     idLinha={selectedMap.idLinha} 
                     tipo={selectedMap.tipo}
-                    pf={selectedMap.pf}
+                    pf={selectedMap.pff}
                     onClose={() => setSelectedMap(null)} 
                 />
             )}
