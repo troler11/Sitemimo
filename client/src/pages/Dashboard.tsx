@@ -269,6 +269,7 @@ const Dashboard: React.FC = () => {
                             <tr>
                                 <th>Empresa</th>
                                 <th>Rota</th>
+                                <th>Sentido</th>
                                 <th>Veículo</th>
                                 <th>Prev. Ini</th>
                                 <th>Real Início</th>
@@ -295,7 +296,8 @@ const Dashboard: React.FC = () => {
                                 return (
                                     <tr key={`${l.id}-${idx}`}>
                                         <td>{l.e}</td>
-                                       <td>{l.r} {valSentido === 1 ? '➡️' : '⬅️'}</td>
+                                        <td>{l.r}</td>
+                                        <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                         <td className="fw-bold text-primary">{l.v}</td>
                                         <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
