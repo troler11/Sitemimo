@@ -202,8 +202,8 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                                             <MapAdjuster bounds={bounds} />
 
-                                            {/* 1. ROTA OFICIAL (Cinza) */}
-                                            {data.rastro_oficial && <Polyline positions={data.rastro_oficial as LatLngExpression[]} color="#adb5bd" weight={6} opacity={0.4} />}
+                                            {/* 1. ROTA OFICIAL (Vermelho) */}
+                                            {data.rastro_oficial && <Polyline positions={data.rastro_oficial as LatLngExpression[]} color="#ff0505" weight={6} opacity={0.4} />}
                                             
                                             {/* 2. ROTA REAL (Preta Tracejada) */}
                                             {rastroRealOtimizado && <Polyline positions={rastroRealOtimizado as LatLngExpression[]} color="#212529" weight={3} dashArray="5, 10" opacity={0.8} />}
@@ -242,7 +242,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                         <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#0d6efd'}}></span> Rota Adaptativa</div>
                                     )}
                                     
-                                    <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#adb5bd'}}></span> Rota Oficial</div>
+                                    <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#ff0505'}}></span> Rota Oficial</div>
                                 </div>
                             </>
                         )}
