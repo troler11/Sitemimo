@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { calcularDistanciaRapida, simplificarRota } from '../utils/geometry';
+import { simplificarRota } from '../utils/geometry'; // Certifique-se que existe ou remova se não usar
 import { predictionCache } from '../utils/sharedCache'; 
 import moment from 'moment-timezone';
 
@@ -20,7 +20,7 @@ const headersAbm = {
 
 // --- FUNÇÃO HAVERSINE (Cálculo de Distância em KM) ---
 function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371; // Raio da terra em km
+  const R = 6371; 
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
   const a =
@@ -28,14 +28,12 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
     Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c; // Distância em km
-  return d;
+  return R * c;
 }
 
 function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
-// -----------------------------------------------------
 
 const getVeiculoPosicao = async (placa: string) => {
     const cleanPlaca = placa.replace(/[^A-Z0-9]/g, '');
@@ -114,17 +112,16 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const idLinhaOficial = linhaAlvo.idLinha || linhaAlvo.id;
         const idVeiculoMongo = linhaAlvo.veiculo?.id;
 
-        // 3. Busca Paralela
+        // 3. Busca Paralela (Rota Oficial e Histórico Real)
         const [resProg, resExec] = await Promise.all([
             axios.get(`https://abmbus.com.br:8181/api/linha/${idLinhaOficial}`, { headers: headersAbm }).catch(() => ({ data: { desenhoRota: [] } })),
             idVeiculoMongo ? axios.get(`https://abmbus.com.br:8181/api/rota/temporealmongo/${idVeiculoMongo}?idLinha=${idLinhaOficial}`, { headers: headersAbm }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
         ]);
 
-        // 4. Geometria
+        // 4. Geometria Básica
         let rastroOficial = (resProg.data.desenhoRota || []).map((p: any) => [parseFloat(p.latitude || p.lat), parseFloat(p.longitude || p.lng)]);
-        let rastroExecutado = [];
         const rawExec = Array.isArray(resExec.data) ? (resExec.data[0]?.logRotaDiarias || []) : [];
-        rastroExecutado = rawExec.map((p: any) => [parseFloat(p.latitude), parseFloat(p.longitude)]);
+        let rastroExecutado = rawExec.map((p: any) => [parseFloat(p.latitude), parseFloat(p.longitude)]);
 
         const paradas = linhaAlvo.pontoDeParadas || [];
         const pontosMapa = paradas.map((p: any) => ({
@@ -135,34 +132,52 @@ export const calculateRoute = async (req: Request, res: Response) => {
         })).filter((p: any) => p.lat && p.lng);
 
         const destinoFinal = tipo === 'inicial' ? pontosMapa[0] : pontosMapa[pontosMapa.length - 1];
+        
+        // --- OTIMIZAÇÃO: SE FOR ROTA FINAL, RETORNA JÁ (SEM TOMTOM) ---
+        if (tipo === 'final') {
+            return res.json({
+                tempo: "---",
+                distancia: "---",
+                duracaoSegundos: 0,
+                previsao_chegada: "N/D", // O Frontend já tem o 'pf' que vem da tabela
+                origem_endereco: veiculoData.endereco || `Lat: ${latAtual.toFixed(4)}, Lng: ${lngAtual.toFixed(4)}`,
+                destino_endereco: destinoFinal ? destinoFinal.nome : "Final",
+                veiculo_pos: [latAtual, lngAtual],
+                rastro_oficial: simplificarRota(rastroOficial), 
+                rastro_real: simplificarRota(rastroExecutado),
+                rastro_tomtom: [], // <--- ARRAY VAZIO (Economia de API e Performance)
+                todos_pontos_visual: pontosMapa 
+            });
+        }
+
+        // =================================================================================
+        // DAQUI PARA BAIXO, SÓ EXECUTA SE FOR TIPO "INICIAL" (ENTRADA/PREVISÃO)
+        // =================================================================================
+
         if (!destinoFinal) return res.status(400).json({ message: "Sem paradas definidas" });
 
-        // --- NOVA LÓGICA DE FILTRO INTELIGENTE ---
+        // Filtro Inteligente de Waypoints (Pontos à frente)
         let waypointsTomTom: any[] = [];
+        const pontosPendentes = pontosMapa.filter((p: any) => !p.passou);
 
-        if (tipo !== 'inicial') {
-            const pontosPendentes = pontosMapa.filter((p: any) => !p.passou);
+        if (pontosPendentes.length > 0) {
+            let indexMaisProximo = 0;
+            let menorDistancia = Infinity;
 
-            if (pontosPendentes.length > 0) {
-                let indexMaisProximo = 0;
-                let menorDistancia = Infinity;
-
-                pontosPendentes.forEach((p: any, index: number) => {
-                    const dist = getDistanceFromLatLonInKm(latAtual, lngAtual, p.lat, p.lng);
-                    if (dist < menorDistancia) {
-                        menorDistancia = dist;
-                        indexMaisProximo = index;
-                    }
-                });
-
-                waypointsTomTom = pontosPendentes.slice(indexMaisProximo);
-            }
+            pontosPendentes.forEach((p: any, index: number) => {
+                const dist = getDistanceFromLatLonInKm(latAtual, lngAtual, p.lat, p.lng);
+                if (dist < menorDistancia) {
+                    menorDistancia = dist;
+                    indexMaisProximo = index;
+                }
+            });
+            waypointsTomTom = pontosPendentes.slice(indexMaisProximo);
         }
         
-        const waypointsEnvio = waypointsTomTom.slice(0, 15);
+        const waypointsEnvio = waypointsTomTom.slice(0, 15); // Limite da API TomTom
         let coordsString = `${latAtual},${lngAtual}`; 
         
-        // --- CORREÇÃO 1: Adicionado tipo explícito (p: any) ---
+        // CORREÇÃO TS: Tipagem explícita no p
         waypointsEnvio.forEach((p: any) => { coordsString += `:${p.lat},${p.lng}`; });
 
         const ultimoWP = waypointsEnvio[waypointsEnvio.length - 1];
@@ -170,7 +185,7 @@ export const calculateRoute = async (req: Request, res: Response) => {
             coordsString += `:${destinoFinal.lat},${destinoFinal.lng}`;
         }
 
-        // 5. TomTom
+        // 5. Chamada TomTom (Apenas para 'inicial')
         const tomTomData = await calculateTomTomRoute(coordsString);
         const route = tomTomData.routes?.[0];
         const summary = route?.summary || { travelTimeInSeconds: 0, lengthInMeters: 0 };
@@ -187,8 +202,10 @@ export const calculateRoute = async (req: Request, res: Response) => {
                 }
             });
         }
+        
+        // Fallback se TomTom não retornar pontos (linha reta)
         if (rastroTomTom.length === 0) {
-            // --- CORREÇÃO 2: Adicionado tipo explícito (p: any) ---
+            // CORREÇÃO TS: Tipagem explícita no p
             rastroTomTom = [[latAtual, lngAtual], ...waypointsEnvio.map((p: any) => [p.lat, p.lng])];
         }
 
@@ -196,6 +213,7 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const chegadaEstimada = agora.clone().add(segundos, 'seconds');
         const horarioChegadaFmt = chegadaEstimada.format('HH:mm');
 
+        // Salva cache da previsão para usar na tabela principal
         predictionCache.set(cleanPlaca, { horario: horarioChegadaFmt, timestamp: Date.now() });
 
         const horas = Math.floor(segundos / 3600);
