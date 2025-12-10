@@ -32,6 +32,7 @@ interface RotaData {
     lng: number;
     tempo: string;
     distancia: string;
+    pf: string;
     previsao_chegada: string;
     rastro_oficial: [number, number][]; 
     rastro_real: [number, number][];
