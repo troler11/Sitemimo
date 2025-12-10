@@ -284,6 +284,7 @@ const Dashboard: React.FC = () => {
                                 <tr><td colSpan={10} className="text-center py-3">Carregando dados da frota...</td></tr>
                             ) : dadosFiltrados.map((l, idx) => {
                                 const previsao = getPrevisaoInteligente(l);
+                                const valSentido = Number(l.s); // Converte para número por segurança
                                 const jaSaiu = l.ri && l.ri !== 'N/D';
 
                                 let statusBadge;
@@ -294,7 +295,7 @@ const Dashboard: React.FC = () => {
                                 return (
                                     <tr key={`${l.id}-${idx}`}>
                                         <td>{l.e}</td>
-                                        <td> {l.r} {l.sentidoIda ? '➡️' : '⬅️'} </td>
+                                       <td>{l.r} {valSentido === 1 ? '➡️' : '⬅️'}</td>
                                         <td className="fw-bold text-primary">{l.v}</td>
                                         <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
