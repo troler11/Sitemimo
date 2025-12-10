@@ -161,7 +161,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     e: l.empresa?.nome || '',
                     r: l.descricaoLinha || '',
                     v: l.veiculo?.veiculo || '',
-                    s: l.sentidoIda ? 1 : 0,
+                    s: l.sentidoIDA ? 1 : 0,
                     pi: pi,
                     ri: ri,
                     pf: pf,
