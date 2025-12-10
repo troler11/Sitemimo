@@ -234,7 +234,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             {data.rastro_oficial && (
                                                 <Polyline 
                                                     positions={data.rastro_oficial as LatLngExpression[]} 
-                                                    color="#adb5bd" 
+                                                    color="#ff0505" 
                                                     weight={6} 
                                                     opacity={0.4} 
                                                 />
@@ -315,7 +315,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                 <div className="bg-white border-top py-2 px-3 d-flex justify-content-center gap-4 small text-muted">
                                     <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#212529'}}></span> Histórico Real</div>
                                     <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#0d6efd'}}></span> Rota Adaptativa</div>
-                                    <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#adb5bd'}}></span> Rota Oficial</div>
+                                    <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#ff0505'}}></span> Rota Oficial</div>
                                 </div>
                             </>
                         )}
