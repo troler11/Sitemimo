@@ -32,7 +32,6 @@ interface RotaData {
     lng: number;
     tempo: string;
     distancia: string;
-    pf: string;
     previsao_chegada: string;
     rastro_oficial: [number, number][]; 
     rastro_real: [number, number][];
@@ -189,7 +188,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                                     <small className="text-muted fw-bold text-uppercase d-block mb-1" style={{fontSize:'0.7rem'}}>
                                                         Final Programado
                                                     </small>
-                                                    <h3 className="mb-0 fw-bold text-dark">{data.pf}</h3>
+                                                    <h3 className="mb-0 fw-bold text-dark">{pf || '--:--'}</h3>
                                                 </div>
                                                 <div className="p-3 bg-white border rounded shadow-sm flex-fill text-center border-primary border-opacity-25" style={{backgroundColor: '#f8fbff'}}>
                                                     <small className="text-primary fw-bold text-uppercase d-block mb-1" style={{fontSize:'0.7rem'}}>
