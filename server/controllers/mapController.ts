@@ -213,6 +213,7 @@ export const calculateRoute = async (req: Request, res: Response) => {
             rastro_oficial: simplificarRota(rastroOficial), 
             rastro_real: simplificarRota(rastroExecutado),
             rastro_tomtom: simplificarRota(rastroTomTom), 
+            pf: pf,
             todos_pontos_visual: pontosMapa 
         });
 
