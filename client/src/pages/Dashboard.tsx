@@ -4,6 +4,9 @@ import api from '../services/api';
 import MapModal from '../components/MapModal';
 import { useAuth } from '../hooks/useAuth'; 
 
+// 1. IMPORTANTE: Importar o CSS específico aqui
+import './Login.css';
+
 interface Linha {
     id: string;
     e: string; 
