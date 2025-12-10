@@ -240,8 +240,8 @@ const Dashboard: React.FC = () => {
                 <div className="col-md-3">
                     <select className="form-select form-select-sm" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
                         <option value="">Sentido: Todos</option>
-                        <option value="ida">IDA ➡️</option>
-                        <option value="volta">VOLTA ⬅️</option>
+                        <option value="ida">Entrada</option>
+                        <option value="volta">Saida</option>
                     </select>
                 </div>
                 <div className="col-md-3">
