@@ -284,7 +284,6 @@ const Dashboard: React.FC = () => {
                                 <tr><td colSpan={10} className="text-center py-3">Carregando dados da frota...</td></tr>
                             ) : dadosFiltrados.map((l, idx) => {
                                 const previsao = getPrevisaoInteligente(l);
-                                const valSentido = Number(l.s);
                                 const jaSaiu = l.ri && l.ri !== 'N/D';
 
                                 let statusBadge;
