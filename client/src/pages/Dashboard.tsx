@@ -9,7 +9,7 @@ interface Linha {
     e: string; 
     r: string; 
     v: string; 
-    s: number; 
+    sentidoIda: boolean; // <-- ADICIONE ISSO
     pi: string; 
     ri: string; 
     pf: string; 
@@ -178,8 +178,8 @@ const Dashboard: React.FC = () => {
             }
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             if (filtroSentido) {
-                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
-                if (filtroSentido !== sentidoReal) return false;
+                if (filtroSentido === 'ida' && !l.sentidoIda) return false;
+    if (filtroSentido === 'volta' && l.sentidoIda) return false;
             }
             if (filtroStatus) {
                 const atrasado = isLineAtrasada(l);
@@ -295,7 +295,7 @@ const Dashboard: React.FC = () => {
                                 return (
                                     <tr key={`${l.id}-${idx}`}>
                                         <td>{l.e}</td>
-                                        <td>{l.r} {valSentido === 1 ? '➡️' : '⬅️'}</td>
+                                        <td> {l.r} {l.sentidoIda ? '➡️' : '⬅️'} </td>
                                         <td className="fw-bold text-primary">{l.v}</td>
                                         <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                         <td>{l.ri}</td>
