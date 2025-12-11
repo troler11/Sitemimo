@@ -282,7 +282,7 @@ const Dashboard: React.FC = () => {
         <div className="main-content">
             {/* Header com Busca */}
             <div className="header-flex mb-4">
-                <h2 className="page-title">Visão Geral da Frota ({horaServidor})</h2>
+                <h2 className="page-title">Tempo Real</h2>
                 <div className="search-wrapper">
                     <input 
                         type="text" 
