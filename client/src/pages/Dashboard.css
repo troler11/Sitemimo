@@ -158,7 +158,6 @@ body {
     color: var(--text-muted);
     font-weight: 700;
     font-size: 0.85rem;
-    padding: 15px;
     border-bottom: 2px solid #eee;
     text-transform: uppercase;
 }
