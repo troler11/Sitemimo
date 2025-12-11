@@ -234,45 +234,91 @@ const Dashboard: React.FC = () => {
                 </select>
             </div>
 
-            {/* KPI Cards - LINHA ÚNICA (Flex Row) */}
+            {/* KPI Cards - LINHA ÚNICA COM SVG (DESENHOS) */}
             <div className="kpi-row mb-4">
+                {/* 1. TOTAL (Grade/Grid) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-red"><i className="fas fa-th-large"></i></div>
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">TOTAL</span>
                         <span className="kpi-number text-red">{kpis.total}</span>
                     </div>
                 </div>
+
+                {/* 2. ATRASADOS (Relógio Vermelho) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-red"><i className="far fa-clock"></i></div>
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">ATRASADOS</span>
                         <span className="kpi-number text-red">{kpis.atrasados}</span>
                     </div>
                 </div>
+
+                {/* 3. PONTUAL (Relógio/Check Verde) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-green"><i className="far fa-check-circle"></i></div>
+                    <div className="kpi-icon text-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">PONTUAL</span>
                         <span className="kpi-number text-green">{kpis.pontual}</span>
                     </div>
                 </div>
+
+                {/* 4. DESLIGADOS (Usuário com X) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-dark"><i className="fas fa-user-slash"></i></div>
+                    <div className="kpi-icon text-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="18" y1="8" x2="23" y2="13"></line>
+                            <line x1="23" y1="8" x2="18" y2="13"></line>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">DESLIGADOS</span>
                         <span className="kpi-number text-dark">{kpis.desligados}</span>
                     </div>
                 </div>
+
+                {/* 5. EM TRÂNSITO (Caminhão) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-red"><i className="fas fa-truck-moving"></i></div>
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">EM TRÂNSITO...</span>
                         <span className="kpi-number text-red">{kpis.deslocamento}</span>
                     </div>
                 </div>
+
+                {/* 6. NÃO INICIOU (Círculo Vazio) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-dark"><i className="far fa-circle"></i></div>
+                    <div className="kpi-icon text-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                    </div>
                     <div className="kpi-info">
                         <span className="kpi-label">NÃO INICIOU</span>
                         <span className="kpi-number text-dark">{kpis.semInicio}</span>
