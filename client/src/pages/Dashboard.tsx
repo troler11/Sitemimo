@@ -346,17 +346,22 @@ const Dashboard: React.FC = () => {
 
                 {/* 3. PONTUAL (Relógio/Check Verde) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-green">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                    </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">PONTUAL</span>
-                        <span className="kpi-number text-green">{kpis.pontual}</span>
-                    </div>
-                </div>
+    <div className="kpi-icon text-green">
+        {/* SVG Adaptado */}
+        <svg 
+            viewBox="0 0 512 512" 
+            fill="currentColor" 
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <polygon points="211.344,306.703 160,256 128,288 211.414,368 384,176 351.703,144 "/>
+            <path d="M256,0C114.609,0,0,114.609,0,256s114.609,256,256,256s256-114.609,256-256S397.391,0,256,0z M256,472c-119.297,0-216-96.703-216-216S136.703,40,256,40s216,96.703,216,216S375.297,472,256,472z"/>
+        </svg>
+    </div>
+    <div className="kpi-info">
+        <span className="kpi-label">PONTUAL</span>
+        <span className="kpi-number text-green">{kpis.pontual}</span>
+    </div>
+</div>
 
                 {/* 4. DESLIGADOS (Usuário com X) */}
                 <div className="kpi-card">
