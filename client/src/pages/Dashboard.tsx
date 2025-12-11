@@ -21,6 +21,13 @@ interface Linha {
     c: string;  
 }
 
+// Configuração da ordenação
+type SortDirection = 'asc' | 'desc';
+interface SortConfig {
+    key: string;
+    direction: SortDirection;
+}
+
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
@@ -48,6 +55,9 @@ const Dashboard: React.FC = () => {
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
+
+    // Estado para controle de ordenação
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
     const [selectedMap, setSelectedMap] = useState<{
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
@@ -148,8 +158,40 @@ const Dashboard: React.FC = () => {
 
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
+    // Função para solicitar a ordenação ao clicar no cabeçalho
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Helper para desenhar a setinha de ordenação
+    const getSortIcon = (name: string) => {
+        if (!sortConfig || sortConfig.key !== name) {
+            return null; // ou <span style={{opacity: 0.3}}>⇅</span> se quiser mostrar sempre
+        }
+        return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
+    };
+
+    const getPrevisaoInteligente = (linha: Linha) => {
+        const temTomTom = linha.pfn && linha.pfn !== 'N/D';
+        const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
+        let classeCor = 'text-dark';
+        
+        if (temTomTom && linha.pf) {
+            if (linha.pfn! > linha.pf) classeCor = 'text-danger fw-bold'; 
+            else classeCor = 'text-success fw-bold';
+        } else if (!temTomTom) {
+            classeCor = 'text-muted';
+        }
+        return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
+    };
+
     const dadosFiltrados = useMemo(() => {
-        return linhas.filter(l => {
+        // 1. Filtragem
+        let resultado = linhas.filter(l => {
             if (busca) {
                 const termo = busca.toLowerCase();
                 const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
@@ -158,7 +200,7 @@ const Dashboard: React.FC = () => {
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             if (filtroSentido) {
                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
-                if (filtroSentido !== sentidoReal) return false;
+               if (filtroSentido !== sentidoReal) return false;
             }
             if (filtroStatus) {
                 const atrasado = isLineAtrasada(l);
@@ -167,7 +209,54 @@ const Dashboard: React.FC = () => {
             }
             return true;
         });
-    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
+
+        // 2. Ordenação
+        if (sortConfig !== null) {
+            resultado.sort((a, b) => {
+                let valA: any;
+                let valB: any;
+
+                // Lógica específica para extrair o valor de comparação dependendo da coluna
+                switch (sortConfig.key) {
+                    case 'status':
+                        // Lógica customizada para status: Desligado < Aguardando < Pontual < Atrasado (exemplo)
+                        const getStatusWeight = (l: Linha) => {
+                            if (l.c === 'Carro desligado') return 0;
+                            const jaSaiu = l.ri && l.ri !== 'N/D';
+                            if (!jaSaiu) return l.pi < horaServidor ? 3 : 1; // 3=Atrasado Ini, 1=Aguardando
+                            return isLineAtrasada(l) ? 4 : 2; // 4=Atrasado, 2=Pontual
+                        };
+                        valA = getStatusWeight(a);
+                        valB = getStatusWeight(b);
+                        break;
+                    case 'previsaoReal':
+                        // Compara pfn (se existir) ou pf
+                        const prevA = getPrevisaoInteligente(a);
+                        const prevB = getPrevisaoInteligente(b);
+                        valA = prevA.horario || '';
+                        valB = prevB.horario || '';
+                        break;
+                    default:
+                        // Padrão: pega a propriedade direta
+                        valA = a[sortConfig.key as keyof Linha];
+                        valB = b[sortConfig.key as keyof Linha];
+                        // Tratamento para nulos/undefined
+                        if (valA === undefined || valA === null) valA = '';
+                        if (valB === undefined || valB === null) valB = '';
+                        // Se for string, lowerCase para garantir ordem correta
+                        if (typeof valA === 'string') valA = valA.toLowerCase();
+                        if (typeof valB === 'string') valB = valB.toLowerCase();
+                        break;
+                }
+
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return resultado;
+    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, sortConfig, horaServidor]);
 
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
@@ -184,21 +273,10 @@ const Dashboard: React.FC = () => {
         return counts;
     }, [linhas, horaServidor]);
 
-    const getPrevisaoInteligente = (linha: Linha) => {
-        const temTomTom = linha.pfn && linha.pfn !== 'N/D';
-        const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
-        let classeCor = 'text-dark';
-        
-        if (temTomTom && linha.pf) {
-            if (linha.pfn! > linha.pf) classeCor = 'text-danger fw-bold'; 
-            else classeCor = 'text-success fw-bold';
-        } else if (!temTomTom) {
-            classeCor = 'text-muted';
-        }
-        return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
-    };
-
     if (isInitializing || !isLoggedIn) return null;
+
+    // Estilo inline para o cabeçalho ordenável (preservando classes existentes)
+    const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none' };
 
     return (
         <div className="main-content">
@@ -331,16 +409,36 @@ const Dashboard: React.FC = () => {
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
-                            <th>Empresa</th>
-                            <th>Rota</th>
-                            <th>Sentido</th>
-                            <th>Veículo</th>
-                            <th>Prev. Ini</th>
-                            <th>Real Início</th>
-                            <th>Prog. Fim</th>
-                            <th>Prev. Fim (Real)</th>
-                            <th>Ult. Reporte</th>
-                            <th>Status</th>
+                            <th style={thStyle} onClick={() => requestSort('e')}>
+                                Empresa {getSortIcon('e')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('r')}>
+                                Rota {getSortIcon('r')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('s')}>
+                                Sentido {getSortIcon('s')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('v')}>
+                                Veículo {getSortIcon('v')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('pi')}>
+                                Prev. Ini {getSortIcon('pi')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('ri')}>
+                                Real Início {getSortIcon('ri')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('pf')}>
+                                Prog. Fim {getSortIcon('pf')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('previsaoReal')}>
+                                Prev. Fim (Real) {getSortIcon('previsaoReal')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('u')}>
+                                Ult. Reporte {getSortIcon('u')}
+                            </th>
+                            <th style={thStyle} onClick={() => requestSort('status')}>
+                                Status {getSortIcon('status')}
+                            </th>
                             <th className="text-center">Ações</th>
                         </tr>
                     </thead>
