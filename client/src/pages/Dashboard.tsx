@@ -4,7 +4,7 @@ import api from '../services/api';
 import MapModal from '../components/MapModal';
 import { useAuth } from '../hooks/useAuth'; 
 
-// 1. IMPORTANTE: Importar o CSS específico aqui
+// Importação do CSS atualizado
 import './Dashboard.css';
 
 interface Linha {
@@ -12,7 +12,7 @@ interface Linha {
     e: string; 
     r: string; 
     v: string; 
-    s: number; // <--- VOLTOU A SER NÚMERO (1 = Ida, 0 = Volta)
+    s: number; 
     pi: string; 
     ri: string; 
     pf: string; 
@@ -37,7 +37,6 @@ function isLineAtrasada(l: Linha): boolean {
 }
 
 const Dashboard: React.FC = () => {
-    // Pegamos isLoggedIn aqui no topo. Vamos usar essa variável.
     const { isLoggedIn, isInitializing, logout } = useAuth();
     const navigate = useNavigate();
     
@@ -55,31 +54,23 @@ const Dashboard: React.FC = () => {
     } | null>(null);
 
     const linhasRef = useRef(linhas);
-    
-    // Ref para rastrear se o componente está montado/logado dentro do loop
     const isMountedRef = useRef(true);
 
-    useEffect(() => {
-        linhasRef.current = linhas; 
-    }, [linhas]);
+    useEffect(() => { linhasRef.current = linhas; }, [linhas]);
 
-    // Atualiza o ref de montagem
     useEffect(() => {
         isMountedRef.current = true;
         return () => { isMountedRef.current = false; };
     }, []);
 
-    // 0. SEGURANÇA
     useEffect(() => {
         if (!isInitializing && !isLoggedIn) {
             navigate('/login');
         }
     }, [isInitializing, isLoggedIn, navigate]);
 
-    // 1. CARREGAMENTO PRINCIPAL
     const fetchData = useCallback(async () => {
         if (!isLoggedIn) return;
-
         try {
             const res = await api.get('/dashboard');
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
@@ -106,11 +97,8 @@ const Dashboard: React.FC = () => {
         }
     }, [isLoggedIn, logout, navigate]);
 
-    // 2. PREVISÕES TOMTOM (CORRIGIDO)
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
-        // Usa a variável do escopo, NÃO chama o hook de novo
         if (!isLoggedIn) return;
-
         const linhasAtivas = linhasRef.current.filter(l => 
             l.ri && l.ri !== 'N/D' && 
             l.c !== 'Carro desligado' && 
@@ -118,22 +106,15 @@ const Dashboard: React.FC = () => {
         );
 
         if (linhasAtivas.length === 0) return;
-
         const BATCH_SIZE = 5;
         for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
-            // CORREÇÃO AQUI: Verificamos o Ref ou a variável local, NUNCA useAuth()
             if (!isMountedRef.current) break; 
-
             const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
             const promises = batch.map(async (linha) => {
                 try {
                     const cacheBuster = Date.now();
                     const url = `/rota/final/${encodeURIComponent(linha.v)}`;
-                    
-                    const res = await api.get(url, { 
-                        params: { idLinha: linha.id, cache: cacheBuster } 
-                    });
-
+                    const res = await api.get(url, { params: { idLinha: linha.id, cache: cacheBuster } });
                     const novaPrevisao: string = res.data.previsao_chegada;
                     
                     if (novaPrevisao && novaPrevisao !== 'N/D') {
@@ -141,15 +122,12 @@ const Dashboard: React.FC = () => {
                             item.id === linha.id ? { ...item, pfn: novaPrevisao } : item
                         ));
                     }
-                } catch (err: any) {
-                    // Silencioso ou tratamento de erro
-                }
+                } catch (err: any) { }
             });
             await Promise.allSettled(promises);
         }
-    }, [isLoggedIn]); // Dependência simples
+    }, [isLoggedIn]);
 
-    // 3. LOOPS
     useEffect(() => {
         if (isLoggedIn) {
             fetchData();
@@ -164,12 +142,10 @@ const Dashboard: React.FC = () => {
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
             }, 120000);
-            
             return () => clearInterval(intervalPrevisao);
         }
     }, [isLoggedIn, loading, linhas.length, carregarPrevisoesAutomaticamente]);
 
-    // --- RENDERIZAÇÃO ---
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
     const dadosFiltrados = useMemo(() => {
@@ -225,82 +201,88 @@ const Dashboard: React.FC = () => {
     if (isInitializing || !isLoggedIn) return null;
 
     return (
-        <div className="container-fluid p-4 dashboard-content-solid">
-            {/* Cabeçalho e Busca */}
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h4 className="fw-bold text-dark mb-0">Visão Geral da Frota ({horaServidor})</h4>
-                <div style={{ width: '300px' }}>
-                    <input type="text" className="form-control input-red-border" placeholder="Busca por veículo ou rota..." value={busca} onChange={e => setBusca(e.target.value)} />
+        <div className="main-content">
+            {/* Header com Busca */}
+            <div className="header-flex mb-4">
+                <h2 className="page-title">Visão Geral da Frota ({horaServidor})</h2>
+                <div className="search-wrapper">
+                    <input 
+                        type="text" 
+                        className="form-control red-border" 
+                        placeholder="Busca por veículo ou rota..." 
+                        value={busca} 
+                        onChange={e => setBusca(e.target.value)} 
+                    />
                 </div>
             </div>
 
-            {/* Filtros com Borda Vermelha */}
-            <div className="row g-3 mb-4">
-                <div className="col-md-3">
-                    <select className="form-select input-red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
-                        <option value="">Todas as Empresas</option>
-                        {empresasUnicas.map(emp => <option key={emp} value={emp}>{emp}</option>)}
-                    </select>
+            {/* Filtros */}
+            <div className="filters-flex mb-4">
+                <select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                    <option value="">Todas as Empresas</option>
+                    {empresasUnicas.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                </select>
+                <select className="form-select red-border" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
+                    <option value="">Sentido: Todos</option>
+                    <option value="ida">Entrada</option>
+                    <option value="volta">Saida</option>
+                </select>
+                <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                    <option value="">Status: Todos</option>
+                    <option value="atrasado">Atrasados</option>
+                    <option value="pontual">Pontual</option>
+                </select>
+            </div>
+
+            {/* KPI Cards - Estilo Borda Vermelha */}
+            <div className="kpi-grid mb-4">
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red"><i className="fas fa-th-large"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">TOTAL</span>
+                        <span className="kpi-number text-red">{kpis.total}</span>
+                    </div>
                 </div>
-                <div className="col-md-3">
-                    <select className="form-select input-red-border" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
-                        <option value="">Sentido: Todos</option>
-                        <option value="ida">Entrada</option>
-                        <option value="volta">Saida</option>
-                    </select>
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red"><i className="far fa-clock"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">ATRASADOS</span>
+                        <span className="kpi-number text-red">{kpis.atrasados}</span>
+                    </div>
                 </div>
-                <div className="col-md-3">
-                    <select className="form-select input-red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
-                        <option value="">Status: Todos</option>
-                        <option value="atrasado">Atrasados</option>
-                        <option value="pontual">Pontual</option>
-                    </select>
+                <div className="kpi-card">
+                    <div className="kpi-icon text-green"><i className="far fa-check-circle"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">PONTUAL</span>
+                        <span className="kpi-number text-green">{kpis.pontual}</span>
+                    </div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-icon text-dark"><i className="fas fa-user-slash"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">DESLIGADOS</span>
+                        <span className="kpi-number text-dark">{kpis.desligados}</span>
+                    </div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red"><i className="fas fa-truck-moving"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">EM TRÂNSITO</span>
+                        <span className="kpi-number text-red">{kpis.deslocamento}</span>
+                    </div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-icon text-dark"><i className="far fa-circle"></i></div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">NÃO INICIOU</span>
+                        <span className="kpi-number text-dark">{kpis.semInicio}</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Cards de KPI Coloridos Sólidos (Estilo Imagem 1) */}
-            <div className="row g-3 mb-4">
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-blue">
-                        <h5>TOTAL</h5>
-                        <h3>{kpis.total}</h3>
-                    </div>
-                </div>
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-red">
-                        <h5>ATRASADOS</h5>
-                        <h3>{kpis.atrasados}</h3>
-                    </div>
-                </div>
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-green">
-                        <h5>PONTUAL</h5>
-                        <h3>{kpis.pontual}</h3>
-                    </div>
-                </div>
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-dark">
-                        <h5>DESLIGADOS</h5>
-                        <h3>{kpis.desligados}</h3>
-                    </div>
-                </div>
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-cyan">
-                        <h5>EM DESLOCAMENTO</h5>
-                        <h3>{kpis.deslocamento}</h3>
-                    </div>
-                </div>
-                <div className="col-md-2">
-                    <div className="card-kpi-solid card-orange">
-                        <h5>NÃO INICIOU</h5>
-                        <h3>{kpis.semInicio}</h3>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabela de Dados */}
-            <div className="table-responsive bg-white p-0 shadow-sm">
-                <table className="table table-hover align-middle mb-0 table-solid">
+            {/* Tabela */}
+            <div className="table-responsive table-card">
+                <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
                             <th>Empresa</th>
@@ -318,39 +300,41 @@ const Dashboard: React.FC = () => {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={11} className="text-center py-3">Carregando dados da frota...</td></tr>
+                            <tr><td colSpan={11} className="text-center py-4">Carregando dados da frota...</td></tr>
                         ) : dadosFiltrados.map((l, idx) => {
                             const previsao = getPrevisaoInteligente(l);
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
                             let statusBadge;
-                            if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary">Desligado</span>;
-                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge bg-danger">Atrasado (Ini)</span> : <span className="badge bg-light text-dark border">Aguardando</span>;
-                            else statusBadge = isLineAtrasada(l) ? <span className="badge bg-danger">Atrasado</span> : <span className="badge bg-success">Pontual</span>;
+                            if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-gray">Desligado</span>;
+                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge badge-red">Atrasado (Ini)</span> : <span className="badge badge-gray">Aguardando</span>;
+                            else statusBadge = isLineAtrasada(l) ? <span className="badge badge-red">Atrasado</span> : <span className="badge badge-green">Pontual</span>;
 
                             return (
                                 <tr key={`${l.id}-${idx}`}>
                                     <td>{l.e}</td>
-                                    <td className="text-truncate" style={{maxWidth: '250px'}} title={l.r}>{l.r}</td>
+                                    <td className="text-truncate" style={{maxWidth: '220px'}} title={l.r}>{l.r}</td>
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
-                                    <td className="fw-bold text-primary">{l.v}</td>
+                                    <td className="fw-bold text-red">{l.v}</td>
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                     <td>{l.ri}</td>
                                     <td>{l.pf}</td>
                                     <td className={previsao.classe}>
                                         {previsao.horario || 'N/D'}
-                                        {previsao.origem === 'TomTom' && <i className="fas fa-satellite-dish ms-1 small text-primary" title="TomTom"></i>}
+                                        {previsao.origem === 'TomTom' && <i className="fas fa-broadcast-tower ms-1 small blink-icon" title="TomTom"></i>}
                                     </td>
                                     <td>{l.u}</td>
                                     <td>{statusBadge}</td>
                                     <td className="text-center">
-                                        <button className="btn btn-link btn-sm p-0 me-2 text-secondary" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--' })}>
-                                            <i className="far fa-clock"></i>
-                                        </button>
-                                        <button className="btn btn-link btn-sm p-0 text-primary" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D' })}>
-                                            <i className="fas fa-map-marker-alt"></i>
-                                        </button>
+                                        <div className="d-flex justify-content-center gap-2">
+                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--' })}>
+                                                <i className="far fa-clock"></i>
+                                            </button>
+                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D' })}>
+                                                <i className="fas fa-map-marker-alt"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             );
@@ -359,14 +343,13 @@ const Dashboard: React.FC = () => {
                 </table>
             </div>
 
-            {/* Modal do Mapa (mantido fora do fluxo principal) */}
             {selectedMap && (
-                <MapModal
-                    placa={selectedMap.placa}
-                    idLinha={selectedMap.idLinha}
+                <MapModal 
+                    placa={selectedMap.placa} 
+                    idLinha={selectedMap.idLinha} 
                     tipo={selectedMap.tipo}
                     pf={selectedMap.pf}
-                    onClose={() => setSelectedMap(null)}
+                    onClose={() => setSelectedMap(null)} 
                 />
             )}
         </div>
