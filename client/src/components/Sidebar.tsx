@@ -163,6 +163,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                 --bs-text-opacity: 1;
                 color: rgb(255 255 255) !important;
                 }
+                .text-primary {
+    --bs-text-opacity: 1;
+     color: rgb(255 255 255) !important;
                 .list-group-item-action:hover {
                     background-color: #f8f9fa;
                     color: #ffffff;
