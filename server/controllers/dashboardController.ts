@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
+import https from 'https';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import moment from 'moment-timezone';
 import { predictionCache } from '../utils/sharedCache'; 
 
 // Cache do Dashboard (Dados gerais da ABM) - Atualiza a cada 30 segundos
-const appCache = new NodeCache({ stdTTL: 30 }); av
+const appCache = new NodeCache({ stdTTL: 30 }); 
 
 const URL_DASHBOARD_MAIN = "https://abmbus.com.br:8181/api/dashboard/mongo/95?naoVerificadas=false&agrupamentos=";
 const HEADERS_DASHBOARD_MAIN = {
@@ -13,6 +14,13 @@ const HEADERS_DASHBOARD_MAIN = {
     "Authorization": process.env.TOKEN_ABMBUS
 };
 const TIMEZONE = 'America/Sao_Paulo';
+
+// Configuração do Agente HTTPS para evitar ECONNRESET
+const httpsAgent = new https.Agent({
+    keepAlive: true,
+    timeout: 60000,
+    scheduling: 'lifo'
+});
 
 const INPUT_FORMATS = [
     "DD/MM/YYYY HH:mm:ss", 
@@ -34,21 +42,32 @@ export const getDashboardData = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user; 
         
-        // --- LÓGICA DE SEGURANÇA CORRIGIDA ---
+        // --- LÓGICA DE SEGURANÇA ---
         const isAdmin = user.role === 'admin';
-        
-        // Normaliza as empresas permitidas (se houver)
         const allowedCompanies: string[] = user.allowed_companies || [];
         const allowedNorm = allowedCompanies.map(c => c.toUpperCase().trim());
-        // -------------------------------------
 
         let dashboardData = appCache.get('dashboard_main');
+        
         if (!dashboardData) {
-            const response = await axios.get(URL_DASHBOARD_MAIN, { 
-                headers: HEADERS_DASHBOARD_MAIN, timeout: 30000 
-            });
-            dashboardData = response.data;
-            appCache.set('dashboard_main', dashboardData);
+            try {
+                const response = await axios.get(URL_DASHBOARD_MAIN, { 
+                    headers: {
+                        ...HEADERS_DASHBOARD_MAIN,
+                        "Connection": "keep-alive",
+                        "User-Agent": "Node.js/Dashboard"
+                    }, 
+                    timeout: 60000,
+                    httpsAgent: httpsAgent 
+                });
+                dashboardData = response.data;
+                appCache.set('dashboard_main', dashboardData);
+            } catch (apiError: any) {
+                console.error("⚠️ Falha na API Externa:", apiError.code || apiError.message);
+                dashboardData = appCache.get('dashboard_main') || { 
+                    linhasAndamento: [], linhasCarroDesligado: [], linhasComecaramSemPrimeiroPonto: [] 
+                };
+            }
         }
 
         const data: any = dashboardData;
@@ -58,17 +77,11 @@ export const getDashboardData = async (req: Request, res: Response) => {
             if (!lista) return;
             
             for (const l of lista) {
-                // --- FILTRO DE EMPRESA (LÓGICA MESTRA) ---
+                // --- FILTRO DE EMPRESA ---
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
-                
-                // Se NÃO for Admin, aplica a checagem rigorosa
                 if (!isAdmin) {
-                    // Se a empresa da linha não estiver na lista permitida do usuário, PULA.
-                    // Isso também resolve o caso de lista vazia: .includes retorna false e bloqueia.
                     if (!allowedNorm.includes(empNome)) continue;
                 }
-                // Se for Admin, passa direto aqui.
-                // -----------------------------------------
 
                 // Filtro Finalizada
                 const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
@@ -92,49 +105,31 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 const mReporte = parseDateSafe(rawDate);
                 if (mReporte) u = mReporte.tz(TIMEZONE).format('HH:mm');
                 
-                // Variáveis de Saída
                 let diffMinutosSaida = 0; 
                 let saiu = false;
 
-                // 2. EXTRAÇÃO DE DADOS DOS PONTOS
+                // 2. EXTRAÇÃO DE DADOS DOS PONTOS (LÓGICA NOVA INTEGRADA)
                 if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
+                        const indexPonto = l.pontoDeParadas.indexOf(p) + 1; // 1, 2, 3...
 
-                        // --- A. DEFINIÇÃO DE DADOS ESTÁTICOS (TABELA) ---
-                        // O Programado Início (PI) e Local Inicial (LI) sempre vêm do ponto marcado como "Inicial"
+                        // A. DADOS ESTÁTICOS (Ponto 1)
                         if (tipo === "Inicial") {
                             if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                             if (p.horario) pi = p.horario;
                         }
 
-                       // 2. EXTRAÇÃO DE DADOS DOS PONTOS
-                if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
-                    for (const p of l.pontoDeParadas) {
-                        const tipo = p.tipoPonto?.tipo;
-                        const indexPonto = l.pontoDeParadas.indexOf(p) + 1; // Pega o número do ponto (1, 2, 3...)
-
-                        // --- A. DADOS ESTÁTICOS (SEMPRE DO PONTO 1/INICIAL) ---
-                        // O PI (Programado Início) na tabela sempre mostra a saída oficial da garagem/ponto 1
-                        if (tipo === "Inicial") {
-                            if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
-                            if (p.horario) pi = p.horario;
-                        }
-
-                        // --- B. DADOS REAIS (O PONTO ONDE ELE REALMENTE APARECEU) ---
-                        // Se 'ri' ainda é N/D, não é ponto final, e o ônibus PASSOU aqui:
+                        // B. DADOS REAIS (Onde o veículo apareceu)
                         if (ri === "N/D" && tipo !== "Final" && p.passou) {
                             saiu = true; 
 
-                            // Só calcula se tiver a diferença (tolerância/atraso) calculada
                             if (p.tempoDiferenca) {
-                                
-                                // PEGA O HORÁRIO DA TABELA DESTE PONTO ESPECÍFICO
+                                // Pega horário deste ponto específico
                                 const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
                                 const hojeStr = moment().format('YYYY-MM-DD');
                                 const baseTime = moment.tz(`${hojeStr} ${horaTabelaDestePonto}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                 
-                                // Converte diferença para minutos
                                 let dm = 0;
                                 if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
                                     const parts = p.tempoDiferenca.split(':');
@@ -143,19 +138,16 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     dm = parseInt(p.tempoDiferenca);
                                 }
                                 
-                                // Guarda a diferença para usar na previsão de chegada
                                 if (diffMinutosSaida === 0) {
                                     diffMinutosSaida = p.atrasado ? dm : -dm;
                                 }
 
-                                // MATEMÁTICA: Horário Tabela DESTE Ponto +/- Diferença
                                 if (p.atrasado) baseTime.add(dm, 'minutes');
                                 else baseTime.subtract(dm, 'minutes');
                                 
-                                // --- FORMATAÇÃO FINAL ---
                                 const horaCalculada = baseTime.format('HH:mm');
 
-                                // Se não for o ponto 1 (ou tipo Inicial), adiciona o texto indicativo
+                                // Se não for o ponto inicial (ou ponto 1), mostra qual ponto foi
                                 if (tipo !== "Inicial" && indexPonto > 1) {
                                     ri = `${horaCalculada} (Pt ${indexPonto})`;
                                 } else {
@@ -164,7 +156,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             }
                         }
 
-                        // --- C. FINAL ---
+                        // C. FINAL
                         if (tipo === "Final") {
                             if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
                             if (p.horario) pf = p.horario;
@@ -172,9 +164,8 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     }
                 }
 
-                // 3. LÓGICA DE PREVISÃO DE CHEGADA
+                // 3. PREVISÃO DE CHEGADA
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
-                
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
                 if (cachedPred && cachedPred.horario) {
@@ -189,12 +180,13 @@ export const getDashboardData = async (req: Request, res: Response) => {
                      pfn = "--:--"; 
                 }
 
+                // Push na lista final
                 todasLinhas.push({
                     id: l.idLinha || l.id,
                     e: l.empresa?.nome || '',
                     r: l.descricaoLinha || '',
                     v: l.veiculo?.veiculo || '',
-                    s: l.sentidoIDA ? 1 : 0,
+                    s: l.sentidoIda ? 1 : 0, 
                     pi: pi,
                     ri: ri,
                     pf: pf,
