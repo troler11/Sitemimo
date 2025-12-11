@@ -58,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                             {/* Botão Fechar (Apenas quando aberto) */}
                             <button onClick={toggle} className="btn btn-sm btn-light text-secondary border-0">
                                 <i className="bi bi-chevron-left"></i>
+                                style={{color: 'rgb(255 255 255)';}}
                             </button>
                         </>
                      ) : (
