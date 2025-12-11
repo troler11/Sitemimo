@@ -121,7 +121,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                         }
 
                         // B. DADOS REAIS
-                        if (ri === "N/D" && tipo !== "Final" && p.passou) {
+                        if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
                             
                             // Validação de tempoDiferenca (Aceita 0)
                             if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
