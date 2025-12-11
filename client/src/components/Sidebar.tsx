@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
             {/* --- 1. CABEÇALHO COM LOGO E TOGGLE --- */}
             <div>
                 <div 
-                    className={`d-flex align-items-center border-bottom bg-white ${isOpen ? 'justify-content-between px-3' : 'justify-content-center'}`} 
+                    className={`d-flex align-items-center border-bottom bg-danger ${isOpen ? 'justify-content-between px-3' : 'justify-content-center'}`} 
                     style={{ height: '80px' }}
                 >
                      {isOpen ? (
@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                         </>
                      ) : (
                         // Botão Abrir (Quando fechado, o logo vira o botão)
-                        <button onClick={toggle} className="btn btn-sm btn-white text-primary border-0 p-0" title="Expandir Menu">
+                        <button onClick={toggle} className="btn btn-sm btn-danger text-primary border-0 p-0" title="Expandir Menu">
                             <i className="bi bi-list fs-3"></i>
                         </button>
                      )}
