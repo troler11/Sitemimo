@@ -6,6 +6,7 @@ interface SidebarProps {
     isOpen: boolean;
     toggle: () => void; // <--- NOVA PROPRIEDADE
 }
+import './Sidebar.css';
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
     const { logout, currentUser } = useAuth();
