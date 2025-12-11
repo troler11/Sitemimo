@@ -150,7 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                 {`
                 .active-link {
                     background-color: #e3f2fd !important;
-                    color: #0d6efd !important;
+                    color: #000000 !important;
                     font-weight: 600;
                     border-left: 4px solid #0d6efd !important;
                 }
