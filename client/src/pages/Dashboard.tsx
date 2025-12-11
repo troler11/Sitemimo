@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const [selectedMap, setSelectedMap] = useState<{
-        placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
+        placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string, pfn: string
     } | null>(null);
 
     const linhasRef = useRef(linhas);
@@ -178,13 +178,15 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
-    // --- NOVA LÓGICA DE ORDENAÇÃO ---
+    // --- NOVA LÓGICA DE ORDENAÇÃO (CORRIGIDA) ---
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
+                // CORREÇÃO: O '??' garante que se for undefined, vira '' (string vazia)
+                // Isso satisfaz o TypeScript que reclamava de 'undefined'
+                const aValue = a[sortConfig.key] ?? '';
+                const bValue = b[sortConfig.key] ?? '';
 
                 if (aValue < bValue) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
@@ -371,10 +373,10 @@ const Dashboard: React.FC = () => {
                                     <td>{statusBadge}</td>
                                     <td className="text-center">
                                         <div className="d-flex justify-content-center gap-2">
-                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--' })}>
+                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--', pfn: l.ri || '--:--' })}>
                                                 <i className="far fa-clock"></i>
                                             </button>
-                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D' })}>
+                                            <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D', pfn: previsao.horario || 'N/D' })}>
                                                 <i className="fas fa-map-marker-alt"></i>
                                             </button>
                                         </div>
@@ -392,6 +394,7 @@ const Dashboard: React.FC = () => {
                     idLinha={selectedMap.idLinha} 
                     tipo={selectedMap.tipo}
                     pf={selectedMap.pf}
+                    pfn={selectedMap.pfn}
                     onClose={() => setSelectedMap(null)} 
                 />
             )}
