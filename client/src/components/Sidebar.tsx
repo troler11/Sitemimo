@@ -38,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                 zIndex: 1000,
                 overflowX: 'hidden',
                 borderRight: '1px solid #dee2e6',
-                backgroundColor: 'rgb(255 0 0) !important'
+                backgroundColor: '#ff0000'
             }}
         >
             {/* --- 1. CABEÇALHO COM LOGO E TOGGLE --- */}
