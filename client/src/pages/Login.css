@@ -71,7 +71,7 @@ body, html {
 /* Labels e Inputs */
 .login-label {
     font-size: 0.75rem; /* small */
-    font-weight: 700;   /* fw-bold */
+    font-weight: 900;   /* fw-bold */
     color: #6c757d;     /* text-secondary */
     margin-bottom: 0.5rem;
     display: block;
@@ -84,7 +84,7 @@ body, html {
     font-size: 0.875rem;
 }
 .input-group{
-        position: relative;
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: stretch;
