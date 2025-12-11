@@ -1,8 +1,11 @@
 :root {
     --mimo-red: #a81b24;       /* Vermelho da marca */
-    --mimo-red-accent: #d32f2f; /* Vermelho mais vivo para textos/bordas */
-    --mimo-green: #2e7d32;     /* Verde Sucesso */
-    --mimo-gray: #f4f7f6;      /* Fundo da página */
+    --mimo-red-accent: #d32f2f; 
+    --mimo-blue-accent: #2d3666; 
+    --mimo-yellow-accent: #f2a318; 
+    --mimo-grey-accent: rgb(101 104 107) !important; 
+    --mimo-green: #2e7d32;    
+    --mimo-gray: #f4f7f6;     
     --text-dark: #333333;
     --text-muted: #666666;
     --border-radius: 8px;
@@ -139,9 +142,11 @@ body {
 }
 
 /* Cores */
+.text-blue { color: var(--mimo-blue-accent) !important; stroke: var(--mimo-blue-accent); }
 .text-red { color: var(--mimo-red-accent) !important; stroke: var(--mimo-red-accent); }
 .text-green { color: var(--mimo-green) !important; stroke: var(--mimo-green); }
 .text-dark { color: var(--text-dark) !important; stroke: var(--text-dark); }
+.text-yellow { color: var(--mimo-yellow-accent) !important; stroke: var(--mimo-yellow-accent); }
 
 
 /* Tabela */
