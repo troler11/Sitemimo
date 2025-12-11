@@ -9,17 +9,23 @@ import './Dashboard.css';
 
 interface Linha {
     id: string;
-    e: string; 
-    r: string; 
-    v: string; 
-    s: number; 
-    pi: string; 
-    ri: string; 
-    pf: string; 
+    e: string;  // Empresa
+    r: string;  // Rota
+    v: string;  // Veículo
+    s: number;  // Sentido
+    pi: string; // Prev. Início
+    ri: string; // Real Início
+    pf: string; // Prog. Fim
     pfn?: string; 
-    u: string;  
+    u: string;  // Update (Ult. Reporte)
     c: string;  
 }
+
+// Tipo para controle de ordenação
+type SortConfig = {
+    key: keyof Linha; // Chave pela qual vamos ordenar
+    direction: 'asc' | 'desc';
+} | null;
 
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
@@ -48,6 +54,9 @@ const Dashboard: React.FC = () => {
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
+
+    // Estado para ordenação
+    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const [selectedMap, setSelectedMap] = useState<{
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
@@ -169,6 +178,46 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
+    // --- NOVA LÓGICA DE ORDENAÇÃO ---
+    const dadosOrdenados = useMemo(() => {
+        let sortableItems = [...dadosFiltrados];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [dadosFiltrados, sortConfig]);
+
+    // Função para clicar no header
+    const requestSort = (key: keyof Linha) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Helper para mostrar ícone
+    const getSortIcon = (name: keyof Linha) => {
+        if (!sortConfig || sortConfig.key !== name) {
+            return <i className="fas fa-sort text-muted ms-1" style={{fontSize:'0.7em', opacity: 0.3}}></i>;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <i className="fas fa-sort-up ms-1"></i> 
+            : <i className="fas fa-sort-down ms-1"></i>;
+    };
+    // --------------------------------
+
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         linhas.forEach(l => {
@@ -234,112 +283,60 @@ const Dashboard: React.FC = () => {
                 </select>
             </div>
 
-            {/* KPI Cards - LINHA ÚNICA COM SVG (DESENHOS) */}
+            {/* KPI Cards */}
             <div className="kpi-row mb-4">
-                {/* 1. TOTAL (Grade/Grid) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">TOTAL</span>
-                        <span className="kpi-number text-red">{kpis.total}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">TOTAL</span><span className="kpi-number text-red">{kpis.total}</span></div>
                 </div>
-
-                {/* 2. ATRASADOS (Relógio Vermelho) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">ATRASADOS</span>
-                        <span className="kpi-number text-red">{kpis.atrasados}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">ATRASADOS</span><span className="kpi-number text-red">{kpis.atrasados}</span></div>
                 </div>
-
-                {/* 3. PONTUAL (Relógio/Check Verde) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-green">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">PONTUAL</span>
-                        <span className="kpi-number text-green">{kpis.pontual}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">PONTUAL</span><span className="kpi-number text-green">{kpis.pontual}</span></div>
                 </div>
-
-                {/* 4. DESLIGADOS (Usuário com X) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-dark">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="8.5" cy="7" r="4"></circle>
-                            <line x1="18" y1="8" x2="23" y2="13"></line>
-                            <line x1="23" y1="8" x2="18" y2="13"></line>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">DESLIGADOS</span>
-                        <span className="kpi-number text-dark">{kpis.desligados}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">DESLIGADOS</span><span className="kpi-number text-dark">{kpis.desligados}</span></div>
                 </div>
-
-                {/* 5. EM TRÂNSITO (Caminhão) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="1" y="3" width="15" height="13"></rect>
-                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">DESLOCAMENTO</span>
-                        <span className="kpi-number text-red">{kpis.deslocamento}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">DESLOCAMENTO</span><span className="kpi-number text-red">{kpis.deslocamento}</span></div>
                 </div>
-
-                {/* 6. NÃO INICIOU (Círculo Vazio) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-dark">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>
                     </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">NÃO INICIOU</span>
-                        <span className="kpi-number text-dark">{kpis.semInicio}</span>
-                    </div>
+                    <div className="kpi-info"><span className="kpi-label">NÃO INICIOU</span><span className="kpi-number text-dark">{kpis.semInicio}</span></div>
                 </div>
             </div>
 
-            {/* Tabela */}
+            {/* Tabela com Ordenação */}
             <div className="table-responsive table-card">
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
-                            <th>Empresa</th>
-                            <th>Rota</th>
-                            <th>Sentido</th>
-                            <th>Veículo</th>
-                            <th>Prev. Ini</th>
-                            <th>Real Início</th>
-                            <th>Prog. Fim</th>
+                            <th onClick={() => requestSort('e')} style={{cursor:'pointer'}}>Empresa {getSortIcon('e')}</th>
+                            <th onClick={() => requestSort('r')} style={{cursor:'pointer'}}>Rota {getSortIcon('r')}</th>
+                            <th onClick={() => requestSort('s')} style={{cursor:'pointer'}}>Sentido {getSortIcon('s')}</th>
+                            <th onClick={() => requestSort('v')} style={{cursor:'pointer'}}>Veículo {getSortIcon('v')}</th>
+                            <th onClick={() => requestSort('pi')} style={{cursor:'pointer'}}>Prev. Ini {getSortIcon('pi')}</th>
+                            <th onClick={() => requestSort('ri')} style={{cursor:'pointer'}}>Real Início {getSortIcon('ri')}</th>
+                            <th onClick={() => requestSort('pf')} style={{cursor:'pointer'}}>Prog. Fim {getSortIcon('pf')}</th>
                             <th>Prev. Fim (Real)</th>
-                            <th>Ult. Reporte</th>
+                            <th onClick={() => requestSort('u')} style={{cursor:'pointer'}}>Ult. Reporte {getSortIcon('u')}</th>
                             <th>Status</th>
                             <th className="text-center">Ações</th>
                         </tr>
@@ -347,7 +344,7 @@ const Dashboard: React.FC = () => {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan={11} className="text-center py-4">Carregando dados da frota...</td></tr>
-                        ) : dadosFiltrados.map((l, idx) => {
+                        ) : dadosOrdenados.map((l, idx) => { // Usando dadosOrdenados
                             const previsao = getPrevisaoInteligente(l);
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
