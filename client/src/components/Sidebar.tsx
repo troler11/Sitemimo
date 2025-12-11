@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                         <>
                             {/* Logo Grande (Aberto) */}
                             <img 
-                                src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Logo.png" 
+                                src="https://viacaomimo.com.br/wp-content/uploads/2023/07/Background-12-1.png" 
                                 alt="Viação Mimo" 
                                 style={{ maxHeight: '40px', maxWidth: '140px' }} 
                             />
