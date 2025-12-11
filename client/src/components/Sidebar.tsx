@@ -156,12 +156,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                 }
                 .list-group-item-action {
                     transition: all 0.2s ease-in-out;
-                    color: #6c757d;
+                    color: #ffffff;
                     white-space: nowrap; /* Impede quebra de texto ao fechar */
                 }
                 .list-group-item-action:hover {
                     background-color: #f8f9fa;
-                    color: #0d6efd;
+                    color: #ffffff;
                     transform: translateX(3px);
                 }
                 `}
