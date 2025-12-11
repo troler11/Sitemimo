@@ -115,7 +115,6 @@ const Login: React.FC = () => {
 
                 <div className="login-footer">
                     <small className="text-muted d-block">&copy; {new Date().getFullYear()} Viação Mimo</small>
-                    <small className="text-muted">Desenvolvido por: Lucas Bueno</small>
                 </div>
             </div>
         </div>
