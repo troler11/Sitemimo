@@ -173,7 +173,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                                 
                                                 {/* Previsão Real */}
                                                 <div className="p-3 bg-white border rounded shadow-sm flex-fill text-center border-primary border-opacity-25" style={{backgroundColor: '#f8fbff'}}>
-                                                    <small className="text-primary fw-bold text-uppercase d-block mb-1" style={{fontSize:'0.7rem'}}>
+                                                    <small className="text-primary fw-bold text-uppercase d-block mb-1" style={{fontSize:'0.7rem', color: 'rgb(0 0 0)'}}>
                                                         {tipo === 'inicial' ? 'Horário Realizado' : 'Previsão Real'}
                                                     </small>
                                                     <h3 className={`mb-0 fw-bold ${getCorPrevisao(data.previsao_chegada, pf)}`}>
