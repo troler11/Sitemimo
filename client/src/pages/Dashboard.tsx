@@ -4,7 +4,7 @@ import api from '../services/api';
 import MapModal from '../components/MapModal';
 import { useAuth } from '../hooks/useAuth'; 
 
-// Importação do CSS atualizado
+// Importante: Importar o CSS atualizado
 import './Dashboard.css';
 
 interface Linha {
@@ -234,8 +234,8 @@ const Dashboard: React.FC = () => {
                 </select>
             </div>
 
-            {/* KPI Cards - Estilo Borda Vermelha */}
-            <div className="kpi-grid mb-4">
+            {/* KPI Cards - LINHA ÚNICA (Flex Row) */}
+            <div className="kpi-row mb-4">
                 <div className="kpi-card">
                     <div className="kpi-icon text-red"><i className="fas fa-th-large"></i></div>
                     <div className="kpi-info">
@@ -267,7 +267,7 @@ const Dashboard: React.FC = () => {
                 <div className="kpi-card">
                     <div className="kpi-icon text-red"><i className="fas fa-truck-moving"></i></div>
                     <div className="kpi-info">
-                        <span className="kpi-label">EM TRÂNSITO</span>
+                        <span className="kpi-label">EM TRÂNSITO...</span>
                         <span className="kpi-number text-red">{kpis.deslocamento}</span>
                     </div>
                 </div>
