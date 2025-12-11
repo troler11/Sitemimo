@@ -1,6 +1,6 @@
 .list-group{
      --bs-list-group-color: var(--bs-body-color);
-    --bs-list-group-bg: #dc3545;
+    --bs-list-group-bg: #dc3545 !important;
     --bs-list-group-border-color: var(--bs-border-color);
     --bs-list-group-border-width: var(--bs-border-width);
     --bs-list-group-border-radius: var(--bs-border-radius);
@@ -8,7 +8,7 @@
     --bs-list-group-item-padding-y: 0.5rem;
     --bs-list-group-action-color: var(--bs-secondary-color);
     --bs-list-group-action-hover-color: var(--bs-emphasis-color);
-    --bs-list-group-action-hover-bg: #dc3545;
+    --bs-list-group-action-hover-bg: #dc3545 !important;
     --bs-list-group-action-active-color: var(--bs-body-color);
     --bs-list-group-action-active-bg: var(--bs-secondary-bg);
     --bs-list-group-disabled-color: var(--bs-secondary-color);
@@ -28,7 +28,7 @@
     white-space: nowrap;
 }
 .btn-light {
-    --bs-btn-color: #000;
+    --bs-btn-color: #000 !important;
     --bs-btn-border-color: #f8f9fa;
     --bs-btn-hover-color: #000;
     --bs-btn-hover-bg: #d3d4d5;
