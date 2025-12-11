@@ -1,107 +1,196 @@
-/* ==========================================================================
-   ESTILOS DO CONTEÚDO - VISUAL SÓLIDO (TEMA IMG 1)
-   Nota: Este arquivo não contém estilos da sidebar.
-   ========================================================================== */
-
 :root {
-    --mimo-red-solid: #d32f2f; /* Vermelho sólido para bordas */
-    --bg-body: #f4f7f6;        /* Fundo cinza claro da página */
-    
-    /* Cores sólidas para os cards de KPI (baseadas na Imagem 1) */
-    --kpi-blue: #1565c0;   /* Azul escuro */
-    --kpi-red: #c62828;    /* Vermelho */
-    --kpi-green: #2e7d32;  /* Verde */
-    --kpi-dark: #455a64;   /* Cinza azulado escuro */
-    --kpi-cyan: #00acc1;   /* Ciano/Azul claro */
-    --kpi-orange: #ef6c00; /* Laranja */
+    --mimo-red: #a81b24;       /* Vermelho da marca */
+    --mimo-red-accent: #d32f2f; /* Vermelho mais vivo para textos/bordas */
+    --mimo-green: #2e7d32;     /* Verde Sucesso */
+    --mimo-gray: #f4f7f6;      /* Fundo da página */
+    --text-dark: #333333;
+    --text-muted: #666666;
+    --border-radius: 8px;
 }
 
-/* Ajuste do container principal */
-.dashboard-content-solid {
-    background-color: var(--bg-body);
+body {
+    background-color: var(--mimo-gray);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-dark);
+}
+
+/* Container Principal */
+.main-content {
+    padding: 30px;
+    background-color: var(--mimo-gray);
     min-height: 100vh;
 }
 
-/* --- Inputs e Selects com Borda Vermelha --- */
-.input-red-border {
-    border: 1px solid var(--mimo-red-solid) !important;
-    border-radius: 4px !important; /* Bordas levemente arredondadas padrão */
-    padding: 8px 12px;
-    background-color: #fff;
-    color: #333;
+/* Header */
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* Foco no input vermelho */
-.input-red-border:focus {
-    box-shadow: 0 0 0 0.2rem rgba(211, 47, 47, 0.25) !important;
-    border-color: var(--mimo-red-solid) !important;
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.search-wrapper {
+    width: 350px;
+}
+
+/* Estilo padrão para Inputs e Selects (Borda Vermelha) */
+.form-control.red-border,
+.form-select.red-border {
+    border: 1px solid var(--mimo-red-accent);
+    border-radius: var(--border-radius);
+    padding: 10px 15px;
+    font-size: 0.95rem;
+    background-color: #fff;
+    color: var(--text-dark);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.form-control.red-border:focus,
+.form-select.red-border:focus {
+    box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
+    border-color: var(--mimo-red);
     outline: none;
 }
 
-/* --- Cards de KPI Sólidos --- */
-.card-kpi-solid {
-    padding: 25px 15px;
-    border-radius: 6px;
-    color: #fff; /* Texto branco */
+/* Filtros Flex Container */
+.filters-flex {
+    display: flex;
+    gap: 15px;
+}
+
+.filters-flex .form-select {
+    min-width: 180px;
+    cursor: pointer;
+}
+
+/* Grid de KPIs */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+/* Card KPI (Branco com borda vermelha) */
+.kpi-card {
+    background: #fff;
+    border: 1px solid var(--mimo-red-accent);
+    border-radius: var(--border-radius);
+    padding: 20px 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    transition: transform 0.2s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(168, 27, 36, 0.1);
+}
+
+.kpi-icon {
+    font-size: 2rem;
+    min-width: 50px;
     text-align: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Sombra leve */
-    height: 100%;
+}
+
+.kpi-info {
     display: flex;
     flex-direction: column;
-    justify-content: center;
 }
 
-.card-kpi-solid h5 {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 15px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.95;
-}
-
-.card-kpi-solid h3 {
-    font-size: 2.8rem;
+.kpi-label {
+    font-size: 0.75rem;
     font-weight: 700;
-    margin: 0;
-    line-height: 1;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
 }
 
-/* Aplicação das cores sólidas */
-.card-blue { background-color: var(--kpi-blue); }
-.card-red { background-color: var(--kpi-red); }
-.card-green { background-color: var(--kpi-green); }
-.card-dark { background-color: var(--kpi-dark); }
-.card-cyan { background-color: var(--kpi-cyan); }
-.card-orange { background-color: var(--kpi-orange); }
+.kpi-number {
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
 
+/* Cores de Texto */
+.text-red { color: var(--mimo-red-accent) !important; }
+.text-green { color: var(--mimo-green) !important; }
+.text-dark { color: var(--text-dark) !important; }
 
-/* --- Tabela --- */
-.table-solid thead th {
+/* Tabela */
+.table-card {
+    background: #fff;
+    border-radius: var(--border-radius);
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    overflow: hidden;
+}
+
+.table thead th {
     background-color: #f8f9fa;
-    color: #495057;
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
     font-size: 0.85rem;
+    padding: 15px;
+    border-bottom: 2px solid #eee;
+    text-transform: uppercase;
 }
 
-.table-solid tbody td {
-    border-bottom: 1px solid #dee2e6;
-    font-size: 0.95rem;
-    background-color: #fff;
+.table tbody td {
+    padding: 14px 15px;
+    font-size: 0.9rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
 }
 
-.table-solid tbody tr:hover td {
-    background-color: #fdfdfe;
+.table-hover tbody tr:hover {
+    background-color: #fffbfb; /* Leve tom vermelho no hover */
 }
 
-/* Ajuste de cores de texto da tabela para combinar com o tema sólido */
-.text-primary { color: var(--kpi-blue) !important; }
-.text-danger { color: var(--kpi-red) !important; }
-
-/* Badges (ajuste fino para o visual mais "chapado") */
+/* Badges */
 .badge {
-    font-weight: 600;
-    border-radius: 4px; /* Menos arredondado que 'pill' */
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
 }
+
+.badge-green { background-color: var(--mimo-green); color: #fff; }
+.badge-red { background-color: var(--mimo-red-accent); color: #fff; }
+.badge-gray { background-color: #e0e0e0; color: #333; }
+
+/* Botões de Ação (Redondos com outline vermelho) */
+.btn-action-outline {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid var(--mimo-red-accent);
+    color: var(--mimo-red-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.btn-action-outline:hover {
+    background: var(--mimo-red-accent);
+    color: #fff;
+}
+
+/* Animação TomTom */
+.blink-icon {
+    animation: blinker 1.5s linear infinite;
+    color: var(--mimo-red-accent);
+}
+@keyframes blinker { 50% { opacity: 0.5; } }
