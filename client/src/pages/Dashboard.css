@@ -69,24 +69,32 @@ body {
     cursor: pointer;
 }
 
-/* Grid de KPIs */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+/* --- KPI SECTION (MODIFICADO PARA LINHA ÚNICA) --- */
+.kpi-row {
+    display: flex;
+    flex-wrap: nowrap; /* Impede a quebra de linha */
+    gap: 15px;
+    width: 100%;
+    /* Adiciona scroll horizontal se a tela for extremamente pequena */
+    overflow-x: auto; 
+    padding-bottom: 5px; /* Espaço para scrollbar se aparecer */
 }
 
-/* Card KPI (Branco com borda vermelha) */
+/* Card KPI */
 .kpi-card {
+    flex: 1; /* Todos os cards tentam ter o mesmo tamanho */
+    min-width: 160px; /* Garante um tamanho mínimo para não quebrar o layout interno */
     background: #fff;
     border: 1px solid var(--mimo-red-accent);
     border-radius: var(--border-radius);
-    padding: 20px 15px;
+    padding: 15px 12px;
     display: flex;
-    align-items: center;
+    align-items: center; /* Centraliza verticalmente */
+    justify-content: flex-start; /* Alinha à esquerda */
     gap: 15px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     transition: transform 0.2s;
+    white-space: nowrap; /* Evita quebras de texto dentro do card */
 }
 
 .kpi-card:hover {
@@ -94,29 +102,35 @@ body {
     box-shadow: 0 6px 12px rgba(168, 27, 36, 0.1);
 }
 
+/* Ícone (Desenho) Grande e à Esquerda */
 .kpi-icon {
-    font-size: 2rem;
-    min-width: 50px;
+    font-size: 2.5rem; /* Aumentado para parecer um "desenho" */
+    min-width: 45px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .kpi-info {
     display: flex;
     flex-direction: column;
+    justify-content: center;
 }
 
 .kpi-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 0.5px;
     margin-bottom: 2px;
+    text-transform: uppercase;
 }
 
 .kpi-number {
     font-size: 1.8rem;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1;
 }
 
 /* Cores de Texto */
