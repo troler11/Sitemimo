@@ -360,19 +360,23 @@ const Dashboard: React.FC = () => {
 
                 {/* 4. DESLIGADOS (Usuário com X) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-dark">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="8.5" cy="7" r="4"></circle>
-                            <line x1="18" y1="8" x2="23" y2="13"></line>
-                            <line x1="23" y1="8" x2="18" y2="13"></line>
-                        </svg>
-                    </div>
-                    <div className="kpi-info">
-                        <span className="kpi-label">DESLIGADOS</span>
-                        <span className="kpi-number text-dark">{kpis.desligados}</span>
-                    </div>
-                </div>
+    <div className="kpi-icon text-dark">
+        {/* Ícone Power Off limpo para React */}
+        <svg 
+            viewBox="0 0 1200 1200" 
+            fill="currentColor" 
+            width="24" 
+            height="24" 
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path d="M513.94,0v693.97H686.06V0H513.94z M175.708,175.708C67.129,284.287,0,434.314,0,600c0,331.371,268.629,600,600,600s600-268.629,600-600c0-165.686-67.13-315.713-175.708-424.292l-120.85,120.85C981.102,374.216,1029.126,481.51,1029.126,600c0,236.981-192.146,429.126-429.126,429.126c-236.981,0-429.126-192.145-429.126-429.126c0-118.49,48.025-225.784,125.684-303.442L175.708,175.708z"/>
+        </svg>
+    </div>
+    <div className="kpi-info">
+        <span className="kpi-label">DESLIGADOS</span>
+        <span className="kpi-number text-dark">{kpis.desligados}</span>
+    </div>
+</div>
 
                 {/* 5. EM TRÂNSITO (Caminhão) */}
                 <div className="kpi-card">
