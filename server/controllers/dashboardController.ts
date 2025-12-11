@@ -108,20 +108,34 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             if (p.horario) pi = p.horario;
                         }
 
-                       // --- B. DEFINIÇÃO DE DADOS REAIS (DINÂMICO) ---
-                        // Busca o PRIMEIRO ponto onde o ônibus passou para definir o "Real Início".
+                       // 2. EXTRAÇÃO DE DADOS DOS PONTOS
+                if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
+                    for (const p of l.pontoDeParadas) {
+                        const tipo = p.tipoPonto?.tipo;
+                        const indexPonto = l.pontoDeParadas.indexOf(p) + 1; // Pega o número do ponto (1, 2, 3...)
+
+                        // --- A. DADOS ESTÁTICOS (SEMPRE DO PONTO 1/INICIAL) ---
+                        // O PI (Programado Início) na tabela sempre mostra a saída oficial da garagem/ponto 1
+                        if (tipo === "Inicial") {
+                            if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
+                            if (p.horario) pi = p.horario;
+                        }
+
+                        // --- B. DADOS REAIS (O PONTO ONDE ELE REALMENTE APARECEU) ---
+                        // Se 'ri' ainda é N/D, não é ponto final, e o ônibus PASSOU aqui:
                         if (ri === "N/D" && tipo !== "Final" && p.passou) {
                             saiu = true; 
 
-                            // VALIDAÇÃO ESTRITA: Só calcula se houver 'tempoDiferenca'
+                            // Só calcula se tiver a diferença (tolerância/atraso) calculada
                             if (p.tempoDiferenca) {
-                                // Pega o horário da tabela para este ponto específico
-                                const horaBaseStr = p.horario || moment().format('HH:mm'); 
-                                const hojeStr = moment().format('YYYY-MM-DD');
-                                const baseTime = moment.tz(`${hojeStr} ${horaBaseStr}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                 
+                                // PEGA O HORÁRIO DA TABELA DESTE PONTO ESPECÍFICO
+                                const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
+                                const hojeStr = moment().format('YYYY-MM-DD');
+                                const baseTime = moment.tz(`${hojeStr} ${horaTabelaDestePonto}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                                
+                                // Converte diferença para minutos
                                 let dm = 0;
-                                // Trata formato "HH:mm" ou número inteiro
                                 if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
                                     const parts = p.tempoDiferenca.split(':');
                                     dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
@@ -129,22 +143,34 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     dm = parseInt(p.tempoDiferenca);
                                 }
                                 
-                                // Se for o ponto Inicial, guardamos a diferença para usar na previsão de chegada
-                                if (tipo === "Inicial") {
+                                // Guarda a diferença para usar na previsão de chegada
+                                if (diffMinutosSaida === 0) {
                                     diffMinutosSaida = p.atrasado ? dm : -dm;
                                 }
 
-                                // MATEMÁTICA DO HORÁRIO REAL:
-                                // Se atrasou: Horário Tabela + Diferença
-                                // Se adiantou: Horário Tabela - Diferença
+                                // MATEMÁTICA: Horário Tabela DESTE Ponto +/- Diferença
                                 if (p.atrasado) baseTime.add(dm, 'minutes');
                                 else baseTime.subtract(dm, 'minutes');
                                 
-                                ri = baseTime.format('HH:mm');
-                            } 
-                            // REMOVIDO: O bloco 'else if (p.dataPassouGmt3)' foi apagado conforme solicitado.
-                            // Se não tiver 'tempoDiferenca', o 'ri' continua como "N/D".
+                                // --- FORMATAÇÃO FINAL ---
+                                const horaCalculada = baseTime.format('HH:mm');
+
+                                // Se não for o ponto 1 (ou tipo Inicial), adiciona o texto indicativo
+                                if (tipo !== "Inicial" && indexPonto > 1) {
+                                    ri = `${horaCalculada} (Pt ${indexPonto})`;
+                                } else {
+                                    ri = horaCalculada;
+                                }
+                            }
                         }
+
+                        // --- C. FINAL ---
+                        if (tipo === "Final") {
+                            if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
+                            if (p.horario) pf = p.horario;
+                        }
+                    }
+                }
 
                 // 3. LÓGICA DE PREVISÃO DE CHEGADA
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
