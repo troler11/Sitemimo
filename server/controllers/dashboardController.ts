@@ -112,25 +112,22 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
-                        const indexPonto = l.pontoDeParadas.indexOf(p) + 1; // 1, 2, 3...
+                        const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
 
-                        // A. DADOS ESTÁTICOS (SEMPRE DO PONTO 1/INICIAL DA LINHA)
+                        // A. DADOS ESTÁTICOS (Ponto 1)
                         if (tipo === "Inicial") {
                             if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                             if (p.horario) pi = p.horario;
                         }
 
-                        // B. DADOS REAIS (O PONTO ONDE ELE REALMENTE APARECEU)
-                        // Se 'ri' ainda é N/D, não é ponto final, e o ônibus PASSOU aqui:
+                        // B. DADOS REAIS
                         if (ri === "N/D" && tipo !== "Final" && p.passou) {
-                            saiu = true; 
+                            
+                            // Validação de tempoDiferenca (Aceita 0)
+                            if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
+                                saiu = true; // Temporariamente assume que saiu, validaremos os 10min abaixo
 
-                           f (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
-                                // CORREÇÃO SOLICITADA:
-                                // Pega o horário da tabela DESTE PONTO ESPECÍFICO (p.horario)
-                                // Não usa o horário do ponto inicial (pi).
                                 const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
-                                
                                 const hojeStr = moment().format('YYYY-MM-DD');
                                 const baseTime = moment.tz(`${hojeStr} ${horaTabelaDestePonto}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                 
@@ -142,19 +139,16 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     dm = parseInt(p.tempoDiferenca);
                                 }
                                 
-                                // Salva a diferença encontrada neste ponto para calcular a previsão de chegada
                                 if (diffMinutosSaida === 0) {
                                     diffMinutosSaida = p.atrasado ? dm : -dm;
                                 }
 
-                                // CÁLCULO: Horário Tabela DESTE Ponto +/- Diferença DESTE Ponto
                                 if (p.atrasado) baseTime.add(dm, 'minutes');
                                 else baseTime.subtract(dm, 'minutes');
                                 
                                 const horaCalculada = baseTime.format('HH:mm');
 
-                                // Se não for o ponto 1 (ou tipo Inicial), mostra qual ponto foi
-                                if (indexPonto > 1) {
+                                if (tipo !== "Inicial" && indexPonto > 1) {
                                     ri = `${horaCalculada} (Pt ${indexPonto})`;
                                 } else {
                                     ri = horaCalculada;
@@ -170,6 +164,30 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     }
                 }
 
+                // =========================================================
+                // VALIDAÇÃO DE TOLERÂNCIA DE 10 MINUTOS (NOVA REGRA)
+                // =========================================================
+                if (pi !== "N/D" && ri !== "N/D") {
+                    // Limpa o texto "(Pt 2)" para pegar só a hora "14:30"
+                    const cleanRi = ri.split(' ')[0]; 
+                    
+                    const hoje = moment().format('YYYY-MM-DD');
+                    const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                    const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+
+                    if (mPi.isValid() && mRi.isValid()) {
+                        const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
+
+                        // Se a diferença for maior que 10 minutos, considera que não é a viagem correta
+                        if (diffAbsoluta > 10) {
+                            ri = "N/D";
+                            saiu = false; // Cancela status de saída
+                            diffMinutosSaida = 0; // Zera diferença para não afetar previsão
+                        }
+                    }
+                }
+                // =========================================================
+
                 // 3. PREVISÃO DE CHEGADA
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
                 const cachedPred = predictionCache.get(placaLimpa) as any;
@@ -178,7 +196,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     pfn = cachedPred.horario;
                 } 
                 else if (pf !== "N/D" && saiu) {
-                    // Aplica a diferença encontrada no ponto de partida ao horário final programado
                     const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     progFimObj.add(diffMinutosSaida, 'minutes');
                     pfn = progFimObj.format('HH:mm');
