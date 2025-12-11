@@ -101,37 +101,54 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
 
+                        // --- A. DEFINIÇÃO DE DADOS ESTÁTICOS (TABELA) ---
+                        // O Programado Início (PI) e Local Inicial (LI) sempre vêm do ponto marcado como "Inicial"
                         if (tipo === "Inicial") {
                             if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                             if (p.horario) pi = p.horario;
-                            
-                            if (p.passou && p.horario) {
-                                saiu = true;
-                                if (p.tempoDiferenca) {
-                                    const hojeStr = moment().format('YYYY-MM-DD');
-                                    const baseTime = moment.tz(`${hojeStr} ${p.horario}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                                    
-                                    let dm = 0;
-                                    if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
-                                        const parts = p.tempoDiferenca.split(':');
-                                        dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-                                    } else {
-                                        dm = parseInt(p.tempoDiferenca);
-                                    }
-                                    
-                                    diffMinutosSaida = p.atrasado ? dm : -dm;
+                        }
 
-                                    if (p.atrasado) baseTime.add(dm, 'minutes');
-                                    else baseTime.subtract(dm, 'minutes');
-                                    ri = baseTime.format('HH:mm');
-                                } 
-                                else if (p.dataPassouGmt3) {
-                                    const mPassou = parseDateSafe(p.dataPassouGmt3);
-                                    if (mPassou) ri = mPassou.tz(TIMEZONE).format('HH:mm');
+                        // --- B. DEFINIÇÃO DE DADOS REAIS (DINÂMICO) ---
+                        // Busca o PRIMEIRO ponto onde o ônibus passou para definir o "Real Início".
+                        // Se pulou o ponto 1, ele pega o ponto 2, e assim por diante.
+                        // A verificação (ri === "N/D") garante que pegamos apenas o primeiro registro válido.
+                        if (ri === "N/D" && tipo !== "Final" && p.passou) {
+                            saiu = true; // Marca que o ônibus está em viagem
+
+                            // Estratégia 1: Cálculo via Diferença (Mais preciso)
+                            if (p.tempoDiferenca) {
+                                // Se o ponto não tiver horário (raro), usa o horário atual como base, senão usa o da tabela
+                                const horaBaseStr = p.horario || moment().format('HH:mm'); 
+                                const hojeStr = moment().format('YYYY-MM-DD');
+                                const baseTime = moment.tz(`${hojeStr} ${horaBaseStr}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                                
+                                let dm = 0;
+                                if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
+                                    const parts = p.tempoDiferenca.split(':');
+                                    dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
+                                } else {
+                                    dm = parseInt(p.tempoDiferenca);
                                 }
+                                
+                                // Se for o Ponto Inicial, calculamos o atraso de saída.
+                                // Se for Ponto 2 ou 3, apenas registramos o horário que ele passou ali.
+                                if (tipo === "Inicial") {
+                                    diffMinutosSaida = p.atrasado ? dm : -dm;
+                                }
+
+                                if (p.atrasado) baseTime.add(dm, 'minutes');
+                                else baseTime.subtract(dm, 'minutes');
+                                
+                                ri = baseTime.format('HH:mm');
+                            } 
+                            // Estratégia 2: Data Exata do Evento (GPS)
+                            else if (p.dataPassouGmt3) {
+                                const mPassou = parseDateSafe(p.dataPassouGmt3);
+                                if (mPassou) ri = mPassou.tz(TIMEZONE).format('HH:mm');
                             }
                         }
 
+                        // --- C. DEFINIÇÃO DO FINAL ---
                         if (tipo === "Final") {
                             if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
                             if (p.horario) pf = p.horario;
