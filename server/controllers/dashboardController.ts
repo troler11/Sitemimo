@@ -125,7 +125,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                         if (ri === "N/D" && tipo !== "Final" && p.passou) {
                             saiu = true; 
 
-                            if (p.tempoDiferenca) {
+                           f (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
                                 // CORREÇÃO SOLICITADA:
                                 // Pega o horário da tabela DESTE PONTO ESPECÍFICO (p.horario)
                                 // Não usa o horário do ponto inicial (pi).
