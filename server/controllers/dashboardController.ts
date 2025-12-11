@@ -108,21 +108,20 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             if (p.horario) pi = p.horario;
                         }
 
-                        // --- B. DEFINIÇÃO DE DADOS REAIS (DINÂMICO) ---
+                       // --- B. DEFINIÇÃO DE DADOS REAIS (DINÂMICO) ---
                         // Busca o PRIMEIRO ponto onde o ônibus passou para definir o "Real Início".
-                        // Se pulou o ponto 1, ele pega o ponto 2, e assim por diante.
-                        // A verificação (ri === "N/D") garante que pegamos apenas o primeiro registro válido.
                         if (ri === "N/D" && tipo !== "Final" && p.passou) {
-                            saiu = true; // Marca que o ônibus está em viagem
+                            saiu = true; 
 
-                            // Estratégia 1: Cálculo via Diferença (Mais preciso)
+                            // VALIDAÇÃO ESTRITA: Só calcula se houver 'tempoDiferenca'
                             if (p.tempoDiferenca) {
-                                // Se o ponto não tiver horário (raro), usa o horário atual como base, senão usa o da tabela
+                                // Pega o horário da tabela para este ponto específico
                                 const horaBaseStr = p.horario || moment().format('HH:mm'); 
                                 const hojeStr = moment().format('YYYY-MM-DD');
                                 const baseTime = moment.tz(`${hojeStr} ${horaBaseStr}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                                 
                                 let dm = 0;
+                                // Trata formato "HH:mm" ou número inteiro
                                 if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
                                     const parts = p.tempoDiferenca.split(':');
                                     dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
@@ -130,31 +129,22 @@ export const getDashboardData = async (req: Request, res: Response) => {
                                     dm = parseInt(p.tempoDiferenca);
                                 }
                                 
-                                // Se for o Ponto Inicial, calculamos o atraso de saída.
-                                // Se for Ponto 2 ou 3, apenas registramos o horário que ele passou ali.
+                                // Se for o ponto Inicial, guardamos a diferença para usar na previsão de chegada
                                 if (tipo === "Inicial") {
                                     diffMinutosSaida = p.atrasado ? dm : -dm;
                                 }
 
+                                // MATEMÁTICA DO HORÁRIO REAL:
+                                // Se atrasou: Horário Tabela + Diferença
+                                // Se adiantou: Horário Tabela - Diferença
                                 if (p.atrasado) baseTime.add(dm, 'minutes');
                                 else baseTime.subtract(dm, 'minutes');
                                 
                                 ri = baseTime.format('HH:mm');
                             } 
-                            // Estratégia 2: Data Exata do Evento (GPS)
-                            else if (p.dataPassouGmt3) {
-                                const mPassou = parseDateSafe(p.dataPassouGmt3);
-                                if (mPassou) ri = mPassou.tz(TIMEZONE).format('HH:mm');
-                            }
+                            // REMOVIDO: O bloco 'else if (p.dataPassouGmt3)' foi apagado conforme solicitado.
+                            // Se não tiver 'tempoDiferenca', o 'ri' continua como "N/D".
                         }
-
-                        // --- C. DEFINIÇÃO DO FINAL ---
-                        if (tipo === "Final") {
-                            if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
-                            if (p.horario) pf = p.horario;
-                        }
-                    }
-                }
 
                 // 3. LÓGICA DE PREVISÃO DE CHEGADA
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
