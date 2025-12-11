@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">TOTAL</span>
-                        <span className="kpi-number text-red">{kpis.total}</span>
+                        <span className="kpi-number text-blue">{kpis.total}</span>
                     </div>
                 </div>
 
@@ -376,7 +376,7 @@ const Dashboard: React.FC = () => {
 
                 {/* 5. EM TRÂNSITO (Caminhão) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-red">
+                    <div className="kpi-icon text-yellow">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="1" y="3" width="15" height="13"></rect>
                             <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
