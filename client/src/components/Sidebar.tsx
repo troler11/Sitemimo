@@ -58,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                             {/* Botão Fechar (Apenas quando aberto) */}
                             <button onClick={toggle} className="btn btn-sm btn-light text-secondary border-0">
                                 <i className="bi bi-chevron-left"></i>
-                                style={{color: 'rgb(255 255 255)';}}
                             </button>
                         </>
                      ) : (
@@ -159,6 +158,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                     transition: all 0.2s ease-in-out;
                     color: #ffffff;
                     white-space: nowrap; /* Impede quebra de texto ao fechar */
+                }
+                .text-secondary {
+                --bs-text-opacity: 1;
+                color: rgb(255 255 255) !important;
                 }
                 .list-group-item-action:hover {
                     background-color: #f8f9fa;
