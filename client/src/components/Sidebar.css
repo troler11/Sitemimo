@@ -27,8 +27,9 @@
     color: #ffffff;
     white-space: nowrap;
 }
-.btn-light {
+.btn-light{
     --bs-btn-color: #000 !important;
+    --bs-btn-bg: rgb(0 0 0 / 0%) !important;
     --bs-btn-border-color: #f8f9fa !important;
     --bs-btn-hover-color: #000;
     --bs-btn-hover-bg: #d3d4d5 !important;
