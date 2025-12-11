@@ -1,4 +1,16 @@
-/* client/src/components/Sidebar.css */
+ /* client/src/components/Sidebar.css */
+
+
+.bg-white shadow-sm d-flex flex-column justify-content-between{
+    width: 250px; 
+    height: 100vh; 
+    position: fixed; 
+    transition: width 0.3s;
+    z-index: 1000; 
+    overflow-x: hidden; 
+    border-right: 1px solid rgb(222, 226, 230);
+    background-color: rgb(255 0 0) !important;
+}
 
 .sidebar {
     background-color: #0b1f3a; /* Azul Mimo Original */
