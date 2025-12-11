@@ -392,7 +392,7 @@ const Dashboard: React.FC = () => {
 
                 {/* 6. NÃO INICIOU (Círculo Vazio) */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-dark">
+                    <div className="kpi-icon text-grey">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                         </svg>
