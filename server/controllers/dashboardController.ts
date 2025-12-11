@@ -5,7 +5,7 @@ import moment from 'moment-timezone';
 import { predictionCache } from '../utils/sharedCache'; 
 
 // Cache do Dashboard (Dados gerais da ABM) - Atualiza a cada 30 segundos
-const appCache = new NodeCache({ stdTTL: 30 }); 
+const appCache = new NodeCache({ stdTTL: 30 }); av
 
 const URL_DASHBOARD_MAIN = "https://abmbus.com.br:8181/api/dashboard/mongo/95?naoVerificadas=false&agrupamentos=";
 const HEADERS_DASHBOARD_MAIN = {
