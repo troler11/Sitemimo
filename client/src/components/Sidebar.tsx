@@ -120,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
             <div className="p-3 border-top bg-danger">
                 <div className="d-flex align-items-center mb-3 px-2 text-muted" style={{ overflow: 'hidden' }}>
                     <div className="bg-white rounded-circle p-2 shadow-sm me-3 d-flex align-items-center justify-content-center" style={{width: 40, height: 40}}>
-                        <i className="bi bi-person-fill fs-5 text-secondary"></i>
+                        <i className="bi bi-person-fill fs-5 text-dark"></i>
                     </div>
                     
                     {isOpen && (
