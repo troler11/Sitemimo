@@ -29,7 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
 
     return (
         <div 
-            className="bg-white shadow-sm d-flex flex-column justify-content-between"
+            className="bg-danger shadow-sm d-flex flex-column justify-content-between"
             style={{
                 width: isOpen ? '250px' : '80px',
                 height: '100vh',
@@ -37,8 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                 transition: 'width 0.3s ease',
                 zIndex: 1000,
                 overflowX: 'hidden',
-                borderRight: '1px solid #dee2e6',
-                backgroundColor: '#ff0000 !important'
+                borderRight: '1px solid #dee2e6'
             }}
         >
             {/* --- 1. CABEÇALHO COM LOGO E TOGGLE --- */}
