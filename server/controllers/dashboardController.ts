@@ -179,7 +179,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                         const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
 
                         // Se a diferença for maior que 10 minutos, considera que não é a viagem correta
-                        if (diffAbsoluta > 10) {
+                        if (diffAbsoluta > 40) {
                             ri = "N/D";
                             saiu = false; // Cancela status de saída
                             diffMinutosSaida = 0; // Zera diferença para não afetar previsão
