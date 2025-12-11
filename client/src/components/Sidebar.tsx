@@ -125,10 +125,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                     
                     {isOpen && (
                         <div className="d-flex flex-column" style={{ lineHeight: '1.2' }}>
-                            <small className="fw-bold text-dark text-truncate" style={{ maxWidth: '140px' }}>
+                            <small className="fw-bold text-dark text-truncate" style={{ maxWidth: '140px', color: '#ffffff' }}>
                                 {currentUser?.full_name?.split(' ')[0]}
                             </small>
-                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            <small className="text-muted" style={{ fontSize: '0.75rem', color: '#ffffff' }}>
                                 {currentUser?.role === 'admin' ? 'Administrador' : 'Colaborador'}
                             </small>
                         </div>
