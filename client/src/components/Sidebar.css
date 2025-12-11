@@ -107,7 +107,7 @@
     background-color: rgba(220, 53, 69, 0.1) !important;
     border-left-color: #dc3545 !important;
 }
-.list-group list-group-flush mt-2 p-2{
+.list-group{
      --bs-list-group-color: var(--bs-body-color);
     --bs-list-group-bg: #dc3545;
     --bs-list-group-border-color: var(--bs-border-color);
