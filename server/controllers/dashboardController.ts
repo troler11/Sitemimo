@@ -103,7 +103,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 else rawDate = l.ultimaData;
 
                 const mReporte = parseDateSafe(rawDate);
-                if (mReporte) u = mReporte.tz(TIMEZONE).format('HH:mm');
+                if (mReporte) u = mReporte.tz(TIMEZONE).format('DD/MM/YYYY HH:mm');
                 
                 let diffMinutosSaida = 0; 
                 let saiu = false;
