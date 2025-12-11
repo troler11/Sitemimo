@@ -32,8 +32,13 @@ function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
     
+    // Função auxiliar para limpar "(Pt 2)" e pegar só a hora
+    const cleanTimeStr = (t: string) => t ? t.split(' ')[0] : ''; 
+
     const timeToMinutes = (time: string) => {
-        const [h, m] = time.split(':').map(Number);
+        const limpo = cleanTimeStr(time);
+        if (!limpo.includes(':')) return 0; // Proteção contra formato inválido
+        const [h, m] = limpo.split(':').map(Number);
         return h * 60 + m;
     };
     
