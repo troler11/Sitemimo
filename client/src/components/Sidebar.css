@@ -29,9 +29,9 @@
 }
 .btn-light {
     --bs-btn-color: #000 !important;
-    --bs-btn-border-color: #f8f9fa;
+    --bs-btn-border-color: #f8f9fa !important;
     --bs-btn-hover-color: #000;
-    --bs-btn-hover-bg: #d3d4d5;
+    --bs-btn-hover-bg: #d3d4d5 !important;
     --bs-btn-hover-border-color: #c6c7c8;
     --bs-btn-focus-shadow-rgb: 211, 212, 213;
     --bs-btn-active-color: #000;
