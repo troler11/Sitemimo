@@ -144,6 +144,7 @@ body {
 /* Cores */
 .text-blue { color: var(--mimo-blue-accent) !important; stroke: var(--mimo-blue-accent); }
 .text-red { color: var(--mimo-red-accent) !important; stroke: var(--mimo-red-accent); }
+.text-grey { color: var(--mimo-grey-accent) !important; stroke: var(--mimo-grey-accent); }
 .text-green { color: var(--mimo-green) !important; stroke: var(--mimo-green); }
 .text-dark { color: var(--text-dark) !important; stroke: var(--text-dark); }
 .text-yellow { color: var(--mimo-yellow-accent) !important; stroke: var(--mimo-yellow-accent); }
