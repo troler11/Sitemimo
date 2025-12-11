@@ -225,30 +225,32 @@ const Dashboard: React.FC = () => {
     if (isInitializing || !isLoggedIn) return null;
 
     return (
-        <div className="container-fluid pt-3">
+        <div className="container-fluid p-4 dashboard-content-solid">
+            {/* Cabeçalho e Busca */}
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <h4 className="fw-bold text-dark mb-1">Visão Geral da Frota ({horaServidor})</h4>
-                <div className="position-relative w-25">
-                    <input type="text" className="form-control" placeholder="Busca por veículo ou rota..." value={busca} onChange={e => setBusca(e.target.value)} />
+                <h4 className="fw-bold text-dark mb-0">Visão Geral da Frota ({horaServidor})</h4>
+                <div style={{ width: '300px' }}>
+                    <input type="text" className="form-control input-red-border" placeholder="Busca por veículo ou rota..." value={busca} onChange={e => setBusca(e.target.value)} />
                 </div>
             </div>
 
-            <div className="row g-2 mb-3">
+            {/* Filtros com Borda Vermelha */}
+            <div className="row g-3 mb-4">
                 <div className="col-md-3">
-                    <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                    <select className="form-select input-red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
                         <option value="">Todas as Empresas</option>
                         {empresasUnicas.map(emp => <option key={emp} value={emp}>{emp}</option>)}
                     </select>
                 </div>
                 <div className="col-md-3">
-                    <select className="form-select form-select-sm" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
+                    <select className="form-select input-red-border" value={filtroSentido} onChange={e => setFiltroSentido(e.target.value)}>
                         <option value="">Sentido: Todos</option>
                         <option value="ida">Entrada</option>
                         <option value="volta">Saida</option>
                     </select>
                 </div>
                 <div className="col-md-3">
-                    <select className="form-select form-select-sm" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                    <select className="form-select input-red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
                         <option value="">Status: Todos</option>
                         <option value="atrasado">Atrasados</option>
                         <option value="pontual">Pontual</option>
@@ -256,88 +258,115 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
+            {/* Cards de KPI Coloridos Sólidos (Estilo Imagem 1) */}
             <div className="row g-3 mb-4">
-                <div className="col-md-2"><div className="card-summary card-blue"><h5>Total</h5><h3>{kpis.total}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary card-red"><h5>Atrasados</h5><h3>{kpis.atrasados}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary card-green"><h5>Pontual</h5><h3>{kpis.pontual}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-secondary"><h5>Desligados</h5><h3>{kpis.desligados}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-info"><h5>Em Deslocamento</h5><h3>{kpis.deslocamento}</h3></div></div>
-                <div className="col-md-2"><div className="card-summary bg-gradient-warning"><h5>Não Iniciou</h5><h3>{kpis.semInicio}</h3></div></div>
-            </div>
-
-            <div className="card border-0 shadow-sm">
-                <div className="table-responsive">
-                    <table className="table table-hover table-sm table-ultra-compact align-middle mb-0">
-                        <thead className="table-light">
-                            <tr>
-                                <th>Empresa</th>
-                                <th>Rota</th>
-                                <th>Sentido</th>
-                                <th>Veículo</th>
-                                <th>Prev. Ini</th>
-                                <th>Real Início</th>
-                                <th title="Horário Programado Original">Prog. Fim</th>
-                                <th title="Calculado Automaticamente">Prev. Fim (Real)</th>
-                                <th>Ult. Reporte</th>
-                                <th>Status</th>
-                                <th className="text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan={10} className="text-center py-3">Carregando dados da frota...</td></tr>
-                            ) : dadosFiltrados.map((l, idx) => {
-                                const previsao = getPrevisaoInteligente(l);
-                                const valSentido = Number(l.s); // Converte para número por segurança
-                                const jaSaiu = l.ri && l.ri !== 'N/D';
-
-                                let statusBadge;
-                                if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary badge-pill">Desligado</span>;
-                                else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge bg-danger badge-pill">Atrasado (Ini)</span> : <span className="badge bg-light text-dark border">Aguardando</span>;
-                                else statusBadge = isLineAtrasada(l) ? <span className="badge bg-danger badge-pill">Atrasado</span> : <span className="badge bg-success badge-pill">Pontual</span>;
-
-                                return (
-                                    <tr key={`${l.id}-${idx}`}>
-                                        <td>{l.e}</td>
-                                        <td>{l.r}</td>
-                                        <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
-                                        <td className="fw-bold text-primary">{l.v}</td>
-                                        <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
-                                        <td>{l.ri}</td>
-                                        <td className="text-muted small">{l.pf}</td>
-                                        <td className={previsao.classe}>
-                                            {previsao.horario || 'N/D'}
-                                            {previsao.origem === 'TomTom' && <i className="bi bi-broadcast ms-1 small blink-icon" title="Cálculo em Tempo Real (TomTom)"></i>}
-                                        </td>
-                                        <td className="small">{l.u}</td>
-                                        <td>{statusBadge}</td>
-                                        <td className="text-center">
-                                            <button className="btn btn-outline-primary btn-sm rounded-circle me-1 p-0" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--'
-                                            })}>
-                                                <i className="bi bi-clock" style={{fontSize: 10}}></i>
-                                            </button>
-                                            <button className="btn btn-primary btn-sm rounded-circle shadow-sm" style={{width:24, height:24}} onClick={() => setSelectedMap({
-                                                placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D' 
-                                            })}>
-                                                <i className="bi bi-geo-alt-fill" style={{fontSize: 10}}></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-blue">
+                        <h5>TOTAL</h5>
+                        <h3>{kpis.total}</h3>
+                    </div>
+                </div>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-red">
+                        <h5>ATRASADOS</h5>
+                        <h3>{kpis.atrasados}</h3>
+                    </div>
+                </div>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-green">
+                        <h5>PONTUAL</h5>
+                        <h3>{kpis.pontual}</h3>
+                    </div>
+                </div>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-dark">
+                        <h5>DESLIGADOS</h5>
+                        <h3>{kpis.desligados}</h3>
+                    </div>
+                </div>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-cyan">
+                        <h5>EM DESLOCAMENTO</h5>
+                        <h3>{kpis.deslocamento}</h3>
+                    </div>
+                </div>
+                <div className="col-md-2">
+                    <div className="card-kpi-solid card-orange">
+                        <h5>NÃO INICIOU</h5>
+                        <h3>{kpis.semInicio}</h3>
+                    </div>
                 </div>
             </div>
 
+            {/* Tabela de Dados */}
+            <div className="table-responsive bg-white p-0 shadow-sm">
+                <table className="table table-hover align-middle mb-0 table-solid">
+                    <thead className="table-light">
+                        <tr>
+                            <th>Empresa</th>
+                            <th>Rota</th>
+                            <th>Sentido</th>
+                            <th>Veículo</th>
+                            <th>Prev. Ini</th>
+                            <th>Real Início</th>
+                            <th>Prog. Fim</th>
+                            <th>Prev. Fim (Real)</th>
+                            <th>Ult. Reporte</th>
+                            <th>Status</th>
+                            <th className="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={11} className="text-center py-3">Carregando dados da frota...</td></tr>
+                        ) : dadosFiltrados.map((l, idx) => {
+                            const previsao = getPrevisaoInteligente(l);
+                            const valSentido = Number(l.s);
+                            const jaSaiu = l.ri && l.ri !== 'N/D';
+
+                            let statusBadge;
+                            if (l.c === 'Carro desligado') statusBadge = <span className="badge bg-secondary">Desligado</span>;
+                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge bg-danger">Atrasado (Ini)</span> : <span className="badge bg-light text-dark border">Aguardando</span>;
+                            else statusBadge = isLineAtrasada(l) ? <span className="badge bg-danger">Atrasado</span> : <span className="badge bg-success">Pontual</span>;
+
+                            return (
+                                <tr key={`${l.id}-${idx}`}>
+                                    <td>{l.e}</td>
+                                    <td className="text-truncate" style={{maxWidth: '250px'}} title={l.r}>{l.r}</td>
+                                    <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
+                                    <td className="fw-bold text-primary">{l.v}</td>
+                                    <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
+                                    <td>{l.ri}</td>
+                                    <td>{l.pf}</td>
+                                    <td className={previsao.classe}>
+                                        {previsao.horario || 'N/D'}
+                                        {previsao.origem === 'TomTom' && <i className="fas fa-satellite-dish ms-1 small text-primary" title="TomTom"></i>}
+                                    </td>
+                                    <td>{l.u}</td>
+                                    <td>{statusBadge}</td>
+                                    <td className="text-center">
+                                        <button className="btn btn-link btn-sm p-0 me-2 text-secondary" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--' })}>
+                                            <i className="far fa-clock"></i>
+                                        </button>
+                                        <button className="btn btn-link btn-sm p-0 text-primary" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'final', pf: l.pf || 'N/D' })}>
+                                            <i className="fas fa-map-marker-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Modal do Mapa (mantido fora do fluxo principal) */}
             {selectedMap && (
-                <MapModal 
-                    placa={selectedMap.placa} 
-                    idLinha={selectedMap.idLinha} 
+                <MapModal
+                    placa={selectedMap.placa}
+                    idLinha={selectedMap.idLinha}
                     tipo={selectedMap.tipo}
                     pf={selectedMap.pf}
-                    onClose={() => setSelectedMap(null)} 
+                    onClose={() => setSelectedMap(null)}
                 />
             )}
         </div>
