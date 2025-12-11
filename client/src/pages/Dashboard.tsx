@@ -307,7 +307,7 @@ const Dashboard: React.FC = () => {
                         </svg>
                     </div>
                     <div className="kpi-info">
-                        <span className="kpi-label">EM TRÂNSITO...</span>
+                        <span className="kpi-label">DESLOCAMENTO</span>
                         <span className="kpi-number text-red">{kpis.deslocamento}</span>
                     </div>
                 </div>
