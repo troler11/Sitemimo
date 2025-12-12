@@ -241,10 +241,23 @@ const Dashboard: React.FC = () => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                // @ts-ignore - Ignora erro de tipo string/number para ordenação genérica
-                const aValue = a[sortConfig.key] ?? '';
-                // @ts-ignore
-                const bValue = b[sortConfig.key] ?? '';
+                
+                // Helper para pegar valor, tratando casos especiais como 'status'
+                const getValue = (item: Linha, key: string) => {
+                    if (key === 'status') {
+                        // Calcula um peso para ordenação do status
+                        const jaSaiu = item.ri && item.ri !== 'N/D';
+                        const atrasado = isLineAtrasada(item);
+                        if (item.c === 'Carro desligado') return 0; // Desligado
+                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado (Ini) vs Aguardando
+                        return atrasado ? 2 : 3; // Atrasado vs Pontual
+                    }
+                    // @ts-ignore
+                    return item[key] ?? '';
+                };
+
+                const aValue = getValue(a, sortConfig.key);
+                const bValue = getValue(b, sortConfig.key);
 
                 if (aValue < bValue) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
@@ -256,8 +269,9 @@ const Dashboard: React.FC = () => {
             });
         }
         return sortableItems;
-    }, [dadosFiltrados, sortConfig]);
+    }, [dadosFiltrados, sortConfig, horaServidor]); // Adicionado horaServidor nas dependências
 
+    
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         linhas.forEach(l => {
@@ -446,9 +460,7 @@ const Dashboard: React.FC = () => {
                             <th style={thStyle} onClick={() => requestSort('pf')}>
                                 Prog. Fim {getSortIcon('pf')}
                             </th>
-                            <th style={thStyle} onClick={() => requestSort('previsaoReal')}>
-                                Prev. Fim (Real) {getSortIcon('previsaoReal')}
-                            </th>
+                            <th style={thStyle} onClick={() => requestSort('pfn')}>Prev. Fim (Real) {getSortIcon('pfn')}</th>
                             <th style={thStyle} onClick={() => requestSort('u')}>
                                 Ult. Reporte {getSortIcon('u')}
                             </th>
