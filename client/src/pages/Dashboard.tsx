@@ -466,7 +466,7 @@ const Dashboard: React.FC = () => {
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
-                           / --- LÓGICA DO ÍCONE ? ---
+                           // --- LÓGICA DO ÍCONE ? ---
                             // Verifica se existe texto extra (ex: "(Pt 2)")
                             const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
