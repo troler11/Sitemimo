@@ -22,11 +22,10 @@ interface Linha {
 }
 
 // Configuração da ordenação
-type SortDirection = 'asc' | 'desc';
-interface SortConfig {
-    key: string;
-    direction: SortDirection;
-}
+type SortConfig = {
+    key: string; // <--- MUDOU AQUI (Era keyof Linha)
+    direction: 'asc' | 'desc';
+} | null;
 
 function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
@@ -242,34 +241,34 @@ const Dashboard: React.FC = () => {
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 
-                // Helper para pegar valor, tratando casos especiais como 'status'
+                // Helper para extrair valores, tratando casos especiais
                 const getValue = (item: Linha, key: string) => {
+                    // Ordenação especial para STATUS (peso numérico)
                     if (key === 'status') {
-                        // Calcula um peso para ordenação do status
                         const jaSaiu = item.ri && item.ri !== 'N/D';
                         const atrasado = isLineAtrasada(item);
-                        if (item.c === 'Carro desligado') return 0; // Desligado
-                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado (Ini) vs Aguardando
+                        
+                        if (item.c === 'Carro desligado') return 0; // Fica por último/primeiro
+                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado na saída vs Aguardando
                         return atrasado ? 2 : 3; // Atrasado vs Pontual
                     }
+                    
+                    // Ordenação padrão: Garante que não seja undefined
                     // @ts-ignore
-                    return item[key] ?? '';
+                    const val = item[key];
+                    return val !== undefined && val !== null ? val : '';
                 };
 
                 const aValue = getValue(a, sortConfig.key);
                 const bValue = getValue(b, sortConfig.key);
 
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
         }
         return sortableItems;
-    }, [dadosFiltrados, sortConfig, horaServidor]); // Adicionado horaServidor nas dependências
+    }, [dadosFiltrados, sortConfig, horaServidor]);
 
     
     const kpis = useMemo(() => {
