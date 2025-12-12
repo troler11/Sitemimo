@@ -466,12 +466,17 @@ const Dashboard: React.FC = () => {
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
-                           // --- LÓGICA DO ÍCONE ? ---
-                            // Verifica se existe texto extra (ex: "(Pt 2)")
+                           // --- LÓGICA DE EXIBIÇÃO ---
                             const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
+                            const hora = matchPonto ? l.ri.split(' ')[0] : l.ri;
+                            
+                            // Se tiver Ponto 2+, exibe "12:26 (Ponto 2)" e o ícone ?
+                            const textoExibicao = matchPonto 
+                                ? <>{hora} <small className="text-secondary">(Ponto {matchPonto[1]})</small></> 
+                                : hora;
+
+                            // Tooltip explicativo
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
-                            // Remove o texto "(Pt X)" para exibir só a hora
-                            const horaLimpa = matchPonto ? l.ri.split(' ')[0] : l.ri;
                             
                             let statusBadge;
                             if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-dark">Desligado</span>;
@@ -485,21 +490,20 @@ const Dashboard: React.FC = () => {
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                     <td className="fw-bold text-red">{l.v}</td>
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
-                                {/* --- COLUNA REAL INÍCIO COM ÍCONE ? --- */}
-                                    <td>
-                                        {horaLimpa}
+                               {/* --- COLUNA REAL INÍCIO --- */}
+                                    <td className="text-nowrap">
+                                        {textoExibicao}
                                         {matchPonto && (
                                             <span 
                                                 className="ms-1 text-secondary" 
                                                 style={{ cursor: 'help' }} 
                                                 title={tooltipRi}
                                             >
-                                                {/* CORRIGIDO: Ícone Bootstrap que com certeza funciona */}
                                                 <i className="bi bi-question-circle-fill" style={{fontSize: '0.85em'}}></i>
                                             </span>
                                         )}
                                     </td>
-                                    {/* -------------------------------------- */}
+                                    {/* ------------------------- */}
                                     <td>{l.pf}</td>
                                     <td className={previsao.classe}>
                                         {previsao.horario || 'N/D'}
