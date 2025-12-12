@@ -195,73 +195,68 @@ const Dashboard: React.FC = () => {
     };
 
     const dadosFiltrados = useMemo(() => {
-        // 1. Filtragem
-        let resultado = linhas.filter(l => {
+        return linhas.filter(l => {
+            // 1. Busca Texto
             if (busca) {
                 const termo = busca.toLowerCase();
                 const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
                 if (!textoLinha.includes(termo)) return false;
             }
+           // 2. Filtro Empresa
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
+            
+            // 3. Filtro Sentido
             if (filtroSentido) {
                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
-               if (filtroSentido !== sentidoReal) return false;
+                if (filtroSentido !== sentidoReal) return false;
             }
+            // 4. Filtro Status (ATUALIZADO)
             if (filtroStatus) {
+                const jaSaiu = l.ri && l.ri !== 'N/D';
                 const atrasado = isLineAtrasada(l);
-                if (filtroStatus === 'atrasado' && !atrasado) return false;
-                if (filtroStatus === 'pontual' && atrasado) return false;
+                const isDesligado = l.c === 'Carro desligado';
+
+                if (filtroStatus === 'desligado') {
+                    if (!isDesligado) return false;
+                }
+                else if (filtroStatus === 'atrasado') {
+                    if (isDesligado || !jaSaiu || !atrasado) return false;
+                }
+                else if (filtroStatus === 'pontual') {
+                    if (isDesligado || !jaSaiu || atrasado) return false;
+                }
+                else if (filtroStatus === 'nao_iniciou') {
+                    // Não saiu e já passou da hora (ou é agora)
+                    if (isDesligado || jaSaiu || l.pi >= horaServidor) return false;
+                }
+                else if (filtroStatus === 'deslocamento') {
+                    // Não saiu e a hora programada ainda é futura
+                    if (isDesligado || jaSaiu || l.pi < horaServidor) return false;
+                }
             }
             return true;
         });
+    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, horaServidor]);
 
-        // 2. Ordenação
+      // Ordenação
+    const dadosOrdenados = useMemo(() => {
+        let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
-            resultado.sort((a, b) => {
-                let valA: any;
-                let valB: any;
+            sortableItems.sort((a, b) => {
+                const aValue = a[sortConfig.key] ?? '';
+                const bValue = b[sortConfig.key] ?? '';
 
-                // Lógica específica para extrair o valor de comparação dependendo da coluna
-                switch (sortConfig.key) {
-                    case 'status':
-                        // Lógica customizada para status: Desligado < Aguardando < Pontual < Atrasado (exemplo)
-                        const getStatusWeight = (l: Linha) => {
-                            if (l.c === 'Carro desligado') return 0;
-                            const jaSaiu = l.ri && l.ri !== 'N/D';
-                            if (!jaSaiu) return l.pi < horaServidor ? 3 : 1; // 3=Atrasado Ini, 1=Aguardando
-                            return isLineAtrasada(l) ? 4 : 2; // 4=Atrasado, 2=Pontual
-                        };
-                        valA = getStatusWeight(a);
-                        valB = getStatusWeight(b);
-                        break;
-                    case 'previsaoReal':
-                        // Compara pfn (se existir) ou pf
-                        const prevA = getPrevisaoInteligente(a);
-                        const prevB = getPrevisaoInteligente(b);
-                        valA = prevA.horario || '';
-                        valB = prevB.horario || '';
-                        break;
-                    default:
-                        // Padrão: pega a propriedade direta
-                        valA = a[sortConfig.key as keyof Linha];
-                        valB = b[sortConfig.key as keyof Linha];
-                        // Tratamento para nulos/undefined
-                        if (valA === undefined || valA === null) valA = '';
-                        if (valB === undefined || valB === null) valB = '';
-                        // Se for string, lowerCase para garantir ordem correta
-                        if (typeof valA === 'string') valA = valA.toLowerCase();
-                        if (typeof valB === 'string') valB = valB.toLowerCase();
-                        break;
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
                 }
-
-                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
                 return 0;
             });
         }
-
-        return resultado;
-    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, sortConfig, horaServidor]);
+        return sortableItems;
+    }, [dadosFiltrados, sortConfig]);
 
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
