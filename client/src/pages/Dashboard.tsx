@@ -164,7 +164,7 @@ const Dashboard: React.FC = () => {
 
     // Função para solicitar a ordenação ao clicar no cabeçalho
     const requestSort = (key: string) => {
-        let direction: SortDirection = 'asc';
+        let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
         }
