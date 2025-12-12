@@ -79,7 +79,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
 
     // --- CORTE INTELIGENTE (REGRA DE EXIBIÇÃO) ---
     const rotaTomTomInteligente = useMemo(() => {
-        // SOLICITAÇÃO ATUAL: Não desenhar linha azul se for tipo FINAL
+        // REGRA: Não desenhar linha azul se for tipo FINAL
         if (tipo === 'final') return []; 
 
         if (!data?.rastro_tomtom || !data?.veiculo_pos) return [];
@@ -202,7 +202,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                                             <MapAdjuster bounds={bounds} />
 
-                                           {/* 1. ROTA OFICIAL (Vermelho) - SOMENTE SE TIPO === 'final' */}
+                                            {/* 1. ROTA OFICIAL (Vermelho) - SOMENTE SE TIPO === 'final' */}
                                             {tipo === 'final' && data.rastro_oficial && (
                                                 <Polyline positions={data.rastro_oficial as LatLngExpression[]} color="#ff0505" weight={6} opacity={0.7} />
                                             )}
@@ -211,7 +211,6 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             {rastroRealOtimizado && <Polyline positions={rastroRealOtimizado as LatLngExpression[]} color="#212529" weight={3} dashArray="5, 10" opacity={0.8} />}
                                             
                                             {/* 3. PREVISÃO AZUL (SOMENTE SE TIPO === 'inicial') */}
-                                            {/* Se tipo for 'inicial', desenhamos. Se for 'final', não desenhamos. */}
                                             {tipo === 'inicial' && rotaTomTomInteligente && (
                                                 <Polyline positions={rotaTomTomInteligente as LatLngExpression[]} color="#0d6efd" weight={5} opacity={0.9} />
                                             )}
@@ -236,10 +235,11 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                     )}
                                 </div>
 
+                                {/* LEGENDAS */}
                                 <div className="bg-white border-top py-2 px-3 d-flex justify-content-center gap-4 small text-muted">
                                     <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#212529'}}></span> Histórico Real</div>
                                     
-                                    {/* Só mostra a legenda de Previsão se for rota INICIAL */}
+                                    {/* Legenda Azul só se for INICIAL */}
                                     {tipo === 'inicial' && (
                                         <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#0d6efd'}}></span> Rota Adaptativa</div>
                                     )}
@@ -248,6 +248,7 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                     {tipo === 'final' && (
                                         <div className="d-flex align-items-center"><span className="d-inline-block rounded-circle me-1" style={{width: 10, height: 10, backgroundColor: '#ff0505'}}></span> Rota Oficial</div>
                                     )}
+                                </div>
                             </>
                         )}
                     </div>
