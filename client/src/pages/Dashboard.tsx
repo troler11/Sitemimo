@@ -483,21 +483,21 @@ const Dashboard: React.FC = () => {
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                     <td className="fw-bold text-red">{l.v}</td>
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
-                                 {/* --- COLUNA REAL INÍCIO AJUSTADA --- */}
+                                {/* --- COLUNA REAL INÍCIO COM ÍCONE ? --- */}
                                     <td>
-                                        {l.ri}
-                                        {/* Se tiver ponto alternativo, mostra o ícone ? cinza */}
+                                        {horaLimpa}
                                         {matchPonto && (
                                             <span 
                                                 className="ms-1 text-secondary" 
                                                 style={{ cursor: 'help' }} 
                                                 title={tooltipRi}
                                             >
-                                                <i className="fas fa-question-circle" style={{fontSize: '0.85em'}}></i>
+                                                {/* CORRIGIDO: Ícone Bootstrap que com certeza funciona */}
+                                                <i className="bi bi-question-circle-fill" style={{fontSize: '0.85em'}}></i>
                                             </span>
                                         )}
                                     </td>
-                                    {/* ----------------------------------- */}
+                                    {/* -------------------------------------- */}
                                     <td>{l.pf}</td>
                                     <td className={previsao.classe}>
                                         {previsao.horario || 'N/D'}
