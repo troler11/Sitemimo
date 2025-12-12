@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 
-// Interface que espelha o retorno do backend
+// Reutilizamos o CSS do Dashboard para manter a identidade visual
+import './Dashboard.css';
+
 interface ItemEscala {
     empresa: string;
     rota: string;
@@ -20,57 +22,43 @@ interface ItemEscala {
 const Escala: React.FC = () => {
     const [dados, setDados] = useState<ItemEscala[]>([]);
     const [loading, setLoading] = useState(true);
-    // Inicializa com a data de hoje, mas permite edição
     const [filtroData, setFiltroData] = useState(new Date().toLocaleDateString('pt-BR'));
     
-    // Filtros
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroStatus, setFiltroStatus] = useState(''); 
     const [busca, setBusca] = useState('');
 
-    // --- FUNÇÃO DE BUSCA (Estável com useCallback) ---
     const fetchData = useCallback(async (isAutoUpdate = false) => {
-        // Se for atualização automática, não mostra o loading para não piscar a tela
         if (!isAutoUpdate) setLoading(true);
-        
         try {
             const res = await api.get('/escala', { params: { data: filtroData } });
             setDados(res.data);
         } catch (err) { 
             console.error("Erro ao carregar escala:", err); 
         } finally { 
-            setLoading(false); 
+            if (!isAutoUpdate) setLoading(false); 
         }
-    }, [filtroData]); // Recria a função se a data mudar
+    }, [filtroData]);
 
-    // --- EFEITO 1: Carrega ao abrir ou mudar a data ---
     useEffect(() => {
         fetchData(); 
     }, [fetchData]);
 
-    // --- EFEITO 2: Atualização Automática (A CADA 1 MINUTO) ---
     useEffect(() => {
         const intervalo = setInterval(() => {
-            console.log("Atualizando escala automaticamente...");
-            fetchData(true); // Passa true para não ativar o spinner de loading
-        }, 60000); // 60000 ms = 1 minuto
-
-        // Limpa o intervalo quando o usuário sai da página
+            fetchData(true); 
+        }, 60000);
         return () => clearInterval(intervalo);
     }, [fetchData]);
 
-    // 1. Lista de Empresas para o Select
     const empresasUnicas = useMemo(() => {
         return Array.from(new Set(dados.map(d => d.empresa))).sort();
     }, [dados]);
 
-    // 2. Lógica de Filtragem
     const dadosFiltrados = useMemo(() => {
         return dados.filter(item => {
-            // Filtro Empresa
             if (filtroEmpresa && item.empresa !== filtroEmpresa) return false;
             
-            // Definição de Status
             const realizou = item.ra_val && String(item.ra_val).trim() !== '' && String(item.ra_val).trim() !== '0';
             const obsTexto = (item.obs || '').toLowerCase();
             const isCobrir = obsTexto.includes('cobrir');
@@ -79,7 +67,6 @@ const Escala: React.FC = () => {
             if (item.manutencao) statusItem = 'manutencao';
             else if (realizou) statusItem = 'confirmado';
             
-            // Filtro Status Dropdown
             if (filtroStatus) {
                 if (filtroStatus === 'cobrir') {
                     if (!isCobrir) return false;
@@ -88,7 +75,6 @@ const Escala: React.FC = () => {
                 }
             }
 
-            // Busca Texto Global
             if (busca) {
                 const termo = busca.toLowerCase();
                 const texto = `${item.empresa} ${item.rota} ${item.motorista} ${item.frota_escala} ${item.obs}`.toLowerCase();
@@ -99,7 +85,6 @@ const Escala: React.FC = () => {
         });
     }, [dados, filtroEmpresa, filtroStatus, busca]);
 
-    // 3. Cálculo de KPIs
     const kpis = useMemo(() => {
         let k = { total: 0, confirmados: 0, pendentes: 0, manutencao: 0, aguardando: 0, cobrir: 0 };
         
@@ -122,203 +107,230 @@ const Escala: React.FC = () => {
     }, [dados, filtroEmpresa]);
 
     return (
-        <div className="container-fluid pt-3">
+        <div className="main-content">
             
-            {/* --- HEADER: TÍTULO E CONTROLE DE DATA --- */}
-            <div className="d-flex justify-content-between align-items-center mb-4">
+            {/* --- HEADER --- */}
+            <div className="header-flex mb-4">
                 <div>
-                    <h4 className="fw-bold text-dark mb-1">Escala de Frota</h4>
-                    <p className="text-muted small mb-0">
-                        <span className="badge bg-success border me-2">Atualização Automática (1m)</span>
-                        Dados de: <strong>{filtroData}</strong>
+                    <h2 className="page-title">Escala de Frota</h2>
+                    <p className="text-muted small mb-0 mt-1">
+                        <i className="fas fa-sync-alt me-1"></i> Atualização automática (1m)
                     </p>
                 </div>
                 <div className="d-flex gap-2 align-items-center">
                     <input 
                         type="text" 
-                        className="form-control text-center" 
+                        className="form-control red-border text-center fw-bold" 
                         value={filtroData} 
                         onChange={e => setFiltroData(e.target.value)} 
                         placeholder="dd/mm/aaaa"
-                        style={{width: '120px'}}
+                        style={{width: '140px'}}
                     />
-                    <button className="btn btn-dark" onClick={() => fetchData(false)} title="Atualizar Agora">
-                        <i className="bi bi-arrow-clockwise"></i>
+                    <button className="btn-action-outline" onClick={() => fetchData(false)} title="Atualizar Agora">
+                        <i className="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
 
-            {/* --- LINHA 1: CARDS DE KPI (GRADIENTES) --- */}
-            <div className="row g-3 mb-3">
-                <div className="col-md-4">
-                    <div className="card-summary card-blue">
-                        <h5>Total de Linhas</h5>
-                        <h3>{kpis.total}</h3>
+            {/* --- KPI CARDS (LINHA ÚNICA COM SVG) --- */}
+            <div className="kpi-row mb-4">
+                
+                {/* 1. TOTAL */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">TOTAL LINHAS</span>
+                        <span className="kpi-number text-dark">{kpis.total}</span>
                     </div>
                 </div>
-                <div className="col-md-4">
-                    <div className="card-summary card-green">
-                        <h5>Confirmadas (RA)</h5>
-                        <h3>{kpis.confirmados}</h3>
+
+                {/* 2. CONFIRMADAS */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">CONFIRMADAS</span>
+                        <span className="kpi-number text-green">{kpis.confirmados}</span>
                     </div>
                 </div>
-                <div className="col-md-4">
-                    <div className="card-summary bg-gradient-warning">
-                        <h5>Pendentes</h5>
-                        <h3>{kpis.pendentes}</h3>
+
+                {/* 3. PENDENTES */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">PENDENTES</span>
+                        <span className="kpi-number text-warning">{kpis.pendentes}</span>
+                    </div>
+                </div>
+
+                {/* 4. MANUTENÇÃO */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">MANUTENÇÃO</span>
+                        <span className="kpi-number text-red">{kpis.manutencao}</span>
+                    </div>
+                </div>
+
+                {/* 5. AGUARDANDO */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 22h14"></path>
+                            <path d="M5 2h14"></path>
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">AGUARDANDO</span>
+                        <span className="kpi-number text-warning">{kpis.aguardando}</span>
+                    </div>
+                </div>
+
+                {/* 6. COBRIR */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-info">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">COBRIR</span>
+                        <span className="kpi-number text-info">{kpis.cobrir}</span>
                     </div>
                 </div>
             </div>
 
-            {/* --- LINHA 2: ALERTAS DE STATUS CRÍTICO --- */}
-            <div className="row g-3 mb-4">
-                <div className="col-md-4">
-                    <div className="alert alert-danger d-flex justify-content-between align-items-center mb-0 shadow-sm border-0">
-                        <strong><i className="bi bi-wrench-adjustable me-2"></i>Em Manutenção</strong>
-                        <span className="fs-4 fw-bold">{kpis.manutencao}</span>
-                    </div>
+            {/* --- FILTROS --- */}
+            <div className="filters-flex mb-4">
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                        <option value="">Todas as Empresas</option>
+                        {empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
                 </div>
-                <div className="col-md-4">
-                    <div className="alert alert-warning d-flex justify-content-between align-items-center mb-0 shadow-sm border-0 text-dark">
-                        <strong><i className="bi bi-cone-striped me-2"></i>Aguardando Carro</strong>
-                        <span className="fs-4 fw-bold">{kpis.aguardando}</span>
-                    </div>
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                        <option value="">Status Visual: Todos</option>
+                        <option value="pendente">Aguardando RA</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="manutencao">Manutenção</option>
+                        <option value="cobrir">Cobrir</option>
+                    </select>
                 </div>
-                <div className="col-md-4">
-                    <div className="alert alert-info d-flex justify-content-between align-items-center mb-0 shadow-sm border-0">
-                        <strong><i className="bi bi-arrow-repeat me-2"></i>Cobrir</strong>
-                        <span className="fs-4 fw-bold">{kpis.cobrir}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* --- BARRA DE FILTROS E BUSCA --- */}
-            <div className="filter-bar">
-                <div className="row g-3 align-items-end">
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold text-secondary mb-1">Empresa</label>
-                        <select className="form-select form-select-sm" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
-                            <option value="">Todas</option>
-                            {empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label small fw-bold text-secondary mb-1">Status Visual</label>
-                        <select className="form-select form-select-sm" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
-                            <option value="">Todos</option>
-                            <option value="pendente">Aguardando RA</option>
-                            <option value="confirmado">Confirmado</option>
-                            <option value="manutencao">Manutenção</option>
-                            <option value="cobrir">Cobrir</option>
-                        </select>
-                    </div>
-                    <div className="col-md-6">
-                        <div className="position-relative">
-                            <i className="bi bi-search search-icon"></i>
-                            <input 
-                                type="text" 
-                                className="form-control search-bar" 
-                                placeholder="Buscar motorista, frota, rota..." 
-                                value={busca} 
-                                onChange={e => setBusca(e.target.value)} 
-                            />
-                        </div>
-                    </div>
+                <div style={{flex: 1}}>
+                    <input 
+                        type="text" 
+                        className="form-control red-border" 
+                        placeholder="Buscar motorista, frota, rota..." 
+                        value={busca} 
+                        onChange={e => setBusca(e.target.value)} 
+                    />
                 </div>
             </div>
 
-            {/* --- TABELA DETALHADA --- */}
-            <div className="card border-0 shadow-sm">
-                <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                        <thead className="table-light">
-                            <tr>
-                                <th>Empresa / Rota</th>
-                                <th className="text-center">Frota (Esc/Real)</th>
-                                <th>Motorista</th>
-                                <th>Detalhes & Obs</th>
-                                <th className="text-center">Status</th>
-                                <th className="text-end">Horário</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                Array.from({length: 5}).map((_,i) => (
-                                    <tr key={i}><td colSpan={6}><div className="skeleton skeleton-text"></div></td></tr>
-                                ))
-                            ) : dadosFiltrados.length === 0 ? (
-                                <tr><td colSpan={6} className="text-center py-5 text-muted">Nenhum registro encontrado.</td></tr>
-                            ) : (
-                                dadosFiltrados.map((row, i) => {
-                                    const divergencia = row.frota_escala != row.frota_enviada && row.frota_enviada !== '---';
-                                    const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
-                                    const isCobrir = (row.obs || '').toLowerCase().includes('cobrir');
-                                    
-                                    return (
-                                        <tr key={i} className={row.manutencao ? 'table-danger' : ''}>
-                                            <td>
-                                                <div className="fw-bold text-dark" style={{fontSize: '0.9rem'}}>{row.empresa}</div>
-                                                <div className="text-muted small text-truncate" style={{maxWidth: '280px'}} title={row.rota}>
-                                                    {row.rota}
-                                                </div>
-                                            </td>
-                                            <td className="text-center">
-                                                <div className="d-flex flex-column align-items-center">
-                                                    <span className="badge bg-light text-dark border mb-1">{row.frota_escala}</span>
-                                                    {divergencia ? (
-                                                        <span className="badge bg-danger">{row.frota_enviada}</span>
-                                                    ) : (
-                                                        <span className="text-muted small">{row.frota_enviada}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="d-flex align-items-center">
-                                                    <div className="bg-light rounded-circle p-2 me-2 text-secondary">
-                                                        <i className="bi bi-person-fill"></i>
-                                                    </div>
-                                                    <div>
-                                                        <div className="fw-bold text-dark small">{row.motorista}</div>
-                                                        {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="d-flex flex-column">
-                                                    {row.manutencao && <span className="text-danger fw-bold small"><i className="bi bi-exclamation-octagon me-1"></i>EM MANUTENÇÃO</span>}
-                                                    {row.aguardando && <span className="text-warning fw-bold small"><i className="bi bi-hourglass-split me-1"></i>AGUARDANDO CARRO</span>}
-                                                    
-                                                    {row.obs && (
-                                                        <small className="fst-italic mt-1" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
-                                                            {isCobrir && <i className="bi bi-arrow-repeat me-1"></i>}
-                                                            {row.obs}
-                                                        </small>
-                                                    )}
-                                                    
-                                                    {realizou && <small className="text-success fw-bold mt-1"><i className="bi bi-check-all me-1"></i>RA: {row.ra_val}</small>}
-                                                </div>
-                                            </td>
-                                            <td className="text-center">
-                                                {row.manutencao ? <span className="badge rounded-pill bg-danger px-3">Manutenção</span> :
-                                                 realizou ? <span className="badge rounded-pill bg-success px-3">Confirmado</span> :
-                                                 row.aguardando ? <span className="badge rounded-pill bg-warning text-dark px-3">Aguardando</span> :
-                                                 <span className="badge rounded-pill bg-secondary bg-opacity-50 text-dark px-3">Pendente</span>}
-                                            </td>
-                                            <td className="text-end">
-                                                <div className="small">Prog: <strong>{row.h_prog}</strong></div>
-                                                {(row.h_real && row.h_real.length > 2) && (
-                                                    <div className={row.h_real > row.h_prog ? 'text-danger fw-bold small' : 'text-success fw-bold small'}>
-                                                        Real: {row.h_real}
-                                                    </div>
+            {/* --- TABELA --- */}
+            <div className="table-responsive table-card">
+                <table className="table table-hover align-middle mb-0">
+                    <thead className="table-light">
+                        <tr>
+                            <th style={{width: '35%'}}>Empresa / Rota</th>
+                            <th className="text-center">Frota</th>
+                            <th>Motorista</th>
+                            <th>Detalhes</th>
+                            <th className="text-center">Status</th>
+                            <th className="text-end">Horário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={6} className="text-center py-5">Carregando escala...</td></tr>
+                        ) : dadosFiltrados.length === 0 ? (
+                            <tr><td colSpan={6} className="text-center py-5 text-muted">Nenhum registro encontrado.</td></tr>
+                        ) : (
+                            dadosFiltrados.map((row, i) => {
+                                const divergencia = row.frota_escala != row.frota_enviada && row.frota_enviada !== '---';
+                                const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
+                                const isCobrir = (row.obs || '').toLowerCase().includes('cobrir');
+                                
+                                return (
+                                    <tr key={i}>
+                                        <td>
+                                            <div className="fw-bold text-dark">{row.empresa}</div>
+                                            <div className="text-muted small text-truncate" style={{maxWidth: '300px'}} title={row.rota}>
+                                                {row.rota}
+                                            </div>
+                                        </td>
+                                        <td className="text-center">
+                                            <div className="d-flex flex-column align-items-center">
+                                                <span className="badge badge-gray mb-1">{row.frota_escala}</span>
+                                                {divergencia ? (
+                                                    <span className="badge badge-red">{row.frota_enviada}</span>
+                                                ) : (
+                                                    <span className="text-muted small" style={{fontSize: '0.7rem'}}>{row.frota_enviada}</span>
                                                 )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="d-flex align-items-center">
+                                                <div className="fw-bold text-dark small">{row.motorista}</div>
+                                            </div>
+                                            {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
+                                        </td>
+                                        <td>
+                                            <div className="d-flex flex-column">
+                                                {row.obs && (
+                                                    <small className="fst-italic" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
+                                                        {isCobrir && <i className="fas fa-sync-alt me-1"></i>}
+                                                        {row.obs}
+                                                    </small>
+                                                )}
+                                                {realizou && <small className="text-green fw-bold mt-1">RA: {row.ra_val}</small>}
+                                            </div>
+                                        </td>
+                                        <td className="text-center">
+                                            {row.manutencao ? <span className="badge badge-red">Manutenção</span> :
+                                             realizou ? <span className="badge badge-green">Confirmado</span> :
+                                             row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
+                                             <span className="badge badge-gray">Pendente</span>}
+                                        </td>
+                                        <td className="text-end">
+                                            <div className="small text-muted">Prog: {row.h_prog}</div>
+                                            {(row.h_real && row.h_real.length > 2) && (
+                                                <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
+                                                    Real: {row.h_real}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
