@@ -203,7 +203,9 @@ const MapModal: React.FC<MapModalProps> = ({ placa, idLinha, tipo, pf, onClose }
                                             <MapAdjuster bounds={bounds} />
 
                                             {/* 1. ROTA OFICIAL (Vermelho) */}
+                                            {tipo ==='final' (                                            
                                             {data.rastro_oficial && <Polyline positions={data.rastro_oficial as LatLngExpression[]} color="#ff0505" weight={6} opacity={0.7} />}
+                                            )}
                                             
                                             {/* 2. ROTA REAL (Preta Tracejada) */}
                                             {rastroRealOtimizado && <Polyline positions={rastroRealOtimizado as LatLngExpression[]} color="#212529" weight={3} dashArray="5, 10" opacity={0.8} />}
