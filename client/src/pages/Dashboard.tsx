@@ -305,10 +305,13 @@ const Dashboard: React.FC = () => {
                     <option value="ida">Entrada</option>
                     <option value="volta">Saida</option>
                 </select>
-                <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                 <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
                     <option value="">Status: Todos</option>
                     <option value="atrasado">Atrasados</option>
                     <option value="pontual">Pontual</option>
+                    <option value="desligado">Desligados</option>
+                    <option value="deslocamento">Em Deslocamento</option>
+                    <option value="nao_iniciou">Não Iniciou</option>
                 </select>
             </div>
 
