@@ -95,15 +95,18 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 let li = "N/D";
                 let lf = "N/D";
                 
-                // 1. LÓGICA DO ÚLTIMO REPORTE (GPS Real)
+                // 1. LÓGICA DO ÚLTIMO REPORTE (SEM CONVERSÃO)
                 let u = "N/D";
                 let rawDate = null;
+                
                 if (l.veiculo && l.veiculo.dataHora) rawDate = l.veiculo.dataHora;
                 else if (l.veiculo && l.veiculo.dataComunicacao) rawDate = l.veiculo.dataComunicacao;
                 else rawDate = l.ultimaData;
 
-                const mReporte = parseDateSafe(rawDate);
-                if (mReporte) u = mReporte.tz(TIMEZONE).format('DD/MM/YYYY HH:mm');
+                // ALTERAÇÃO AQUI: Se existe dado bruto, usa ele como String direto.
+                if (rawDate) {
+                    u = String(rawDate);
+                }
                 
                 let diffMinutosSaida = 0; 
                 let saiu = false;
@@ -121,7 +124,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                         }
 
                         // B. DADOS REAIS
-                        if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
+                        if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) { //PUXA ATE O 4 PONTO
                             
                             // Validação de tempoDiferenca (Aceita 0)
                             if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
@@ -165,7 +168,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 }
 
                 // =========================================================
-                // VALIDAÇÃO DE TOLERÂNCIA DE 10 MINUTOS (NOVA REGRA)
+                // VALIDAÇÃO DE TOLERÂNCIA DE 40 MINUTOS (NOVA REGRA)
                 // =========================================================
                 if (pi !== "N/D" && ri !== "N/D") {
                     // Limpa o texto "(Pt 2)" para pegar só a hora "14:30"
@@ -178,7 +181,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     if (mPi.isValid() && mRi.isValid()) {
                         const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
 
-                        // Se a diferença for maior que 10 minutos, considera que não é a viagem correta
+                        // Se a diferença for maior que 40 minutos, considera que não é a viagem correta
                         if (diffAbsoluta > 40) {
                             ri = "N/D";
                             saiu = false; // Cancela status de saída
