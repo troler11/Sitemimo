@@ -210,7 +210,7 @@ const Dashboard: React.FC = () => {
                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoReal) return false;
             }
-            // 4. Filtro Status (ATUALIZADO)
+            // 4. Filtro Status
             if (filtroStatus) {
                 const jaSaiu = l.ri && l.ri !== 'N/D';
                 const atrasado = isLineAtrasada(l);
@@ -226,11 +226,9 @@ const Dashboard: React.FC = () => {
                     if (isDesligado || !jaSaiu || atrasado) return false;
                 }
                 else if (filtroStatus === 'nao_iniciou') {
-                    // Não saiu e já passou da hora (ou é agora)
                     if (isDesligado || jaSaiu || l.pi >= horaServidor) return false;
                 }
                 else if (filtroStatus === 'deslocamento') {
-                    // Não saiu e a hora programada ainda é futura
                     if (isDesligado || jaSaiu || l.pi < horaServidor) return false;
                 }
             }
@@ -238,12 +236,14 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, horaServidor]);
 
-      // Ordenação
+    // Ordenação
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
+                // @ts-ignore - Ignora erro de tipo string/number para ordenação genérica
                 const aValue = a[sortConfig.key] ?? '';
+                // @ts-ignore
                 const bValue = b[sortConfig.key] ?? '';
 
                 if (aValue < bValue) {
@@ -275,7 +275,7 @@ const Dashboard: React.FC = () => {
 
     if (isInitializing || !isLoggedIn) return null;
 
-    // Estilo inline para o cabeçalho ordenável (preservando classes existentes)
+    // Estilo inline para o cabeçalho ordenável
     const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none' };
 
     return (
