@@ -23,7 +23,7 @@ interface Linha {
 
 // Configuração da ordenação
 type SortConfig = {
-    key: string; // <--- MUDOU AQUI (Era keyof Linha)
+    key: string; 
     direction: 'asc' | 'desc';
 } | null;
 
@@ -241,26 +241,34 @@ const Dashboard: React.FC = () => {
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 
-                // Helper para extrair valores, tratando casos especiais
-                const getValue = (item: Linha, key: string) => {
-                    // Ordenação especial para STATUS (peso numérico)
+                // Função auxiliar para preparar o valor para ordenação
+                const getSortableValue = (item: Linha, key: string) => {
+                    // 1. Ordenação Especial de STATUS
                     if (key === 'status') {
                         const jaSaiu = item.ri && item.ri !== 'N/D';
                         const atrasado = isLineAtrasada(item);
                         
-                        if (item.c === 'Carro desligado') return 0; // Fica por último/primeiro
-                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado na saída vs Aguardando
+                        if (item.c === 'Carro desligado') return 0; // Desligado (Peso menor)
+                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado (Ini) vs Aguardando
                         return atrasado ? 2 : 3; // Atrasado vs Pontual
                     }
+
+                    // 2. Ordenação de Horários (remove texto extra ex: "(Ponto 2)")
+                    if (['ri', 'pfn', 'pi', 'pf', 'u'].includes(key)) {
+                        // @ts-ignore
+                        let val = item[key];
+                        if (!val || val === 'N/D' || val === '--:--') return 'ZZZZ'; 
+                        return val.split(' ')[0]; // Pega só a hora HH:mm
+                    }
                     
-                    // Ordenação padrão: Garante que não seja undefined
+                    // 3. Padrão
                     // @ts-ignore
                     const val = item[key];
                     return val !== undefined && val !== null ? val : '';
                 };
 
-                const aValue = getValue(a, sortConfig.key);
-                const bValue = getValue(b, sortConfig.key);
+                const aValue = getSortableValue(a, sortConfig.key);
+                const bValue = getSortableValue(b, sortConfig.key);
 
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
