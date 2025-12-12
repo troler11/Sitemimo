@@ -438,35 +438,19 @@ const Dashboard: React.FC = () => {
             <div className="table-responsive table-card">
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
-                        <tr>
-                            <th style={thStyle} onClick={() => requestSort('e')}>
-                                Empresa {getSortIcon('e')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('r')}>
-                                Rota {getSortIcon('r')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('s')}>
-                                Sentido {getSortIcon('s')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('v')}>
-                                Veículo {getSortIcon('v')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('pi')}>
-                                Prev. Ini {getSortIcon('pi')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('ri')}>
-                                Real Início {getSortIcon('ri')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('pf')}>
-                                Prog. Fim {getSortIcon('pf')}
-                            </th>
+                       <tr>
+                            <th style={thStyle} onClick={() => requestSort('e')}>Empresa {getSortIcon('e')}</th>
+                            <th style={thStyle} onClick={() => requestSort('r')}>Rota {getSortIcon('r')}</th>
+                            <th style={thStyle} onClick={() => requestSort('s')}>Sentido {getSortIcon('s')}</th>
+                            <th style={thStyle} onClick={() => requestSort('v')}>Veículo {getSortIcon('v')}</th>
+                            <th style={thStyle} onClick={() => requestSort('pi')}>Prev. Ini {getSortIcon('pi')}</th>
+                            <th style={thStyle} onClick={() => requestSort('ri')}>Real Início {getSortIcon('ri')}</th>
+                            <th style={thStyle} onClick={() => requestSort('pf')}>Prog. Fim {getSortIcon('pf')}</th>
+                            {/* CORRIGIDO: Key 'pfn' para ordenar a previsão */}
                             <th style={thStyle} onClick={() => requestSort('pfn')}>Prev. Fim (Real) {getSortIcon('pfn')}</th>
-                            <th style={thStyle} onClick={() => requestSort('u')}>
-                                Ult. Reporte {getSortIcon('u')}
-                            </th>
-                            <th style={thStyle} onClick={() => requestSort('status')}>
-                                Status {getSortIcon('status')}
-                            </th>
+                            <th style={thStyle} onClick={() => requestSort('u')}>Ult. Reporte {getSortIcon('u')}</th>
+                            {/* CORRIGIDO: Key 'status' (tratada no useMemo) */}
+                            <th style={thStyle} onClick={() => requestSort('status')}>Status {getSortIcon('status')}</th>
                             <th className="text-center">Ações</th>
                         </tr>
                     </thead>
