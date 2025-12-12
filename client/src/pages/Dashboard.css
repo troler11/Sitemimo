@@ -192,7 +192,7 @@ body {
 
 .badge-green { background-color: var(--mimo-green); color: #fff; }
 .badge-dark { background-color: var(--mimo-dark); color: #fff; }
-.badge-yellow { background-color: var(--mimo-yellow); color: #fff; }
+.badge-yellow { background-color: var(--mimo-yellow-accent); color: #fff; }
 .badge-red { background-color: var(--mimo-red-accent); color: #fff; }
 .badge-gray { background-color: #e0e0e0; color: #333; }
 
