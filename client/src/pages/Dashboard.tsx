@@ -466,6 +466,14 @@ const Dashboard: React.FC = () => {
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
+                             // LÓGICA DO TOOLTIP DE PONTO INICIAL
+                            // 1. Procura se tem "(Pt X)" na string
+                            const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
+                            // 2. Se tiver, cria o texto do tooltip
+                            const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
+                            // 3. Adiciona cursor de ajuda (interrogação/ponteiro) e sublinhado para o usuário saber que tem info
+                            const styleRi = matchPonto ? { cursor: 'help', textDecoration: 'underline dotted', color: '#0d6efd' } : {};
+
                             let statusBadge;
                             if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-dark">Desligado</span>;
                             else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge badge-red">Atrasado (Ini)</span> : <span className="badge badge-yellow">Deslocamento</span>;
@@ -478,7 +486,11 @@ const Dashboard: React.FC = () => {
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                     <td className="fw-bold text-red">{l.v}</td>
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
-                                    <td>{l.ri}</td>
+                                  {/* --- COLUNA REAL INÍCIO COM TOOLTIP --- */}
+                                    <td title={tooltipRi} style={styleRi}>
+                                        {l.ri}
+                                    </td>
+                                    {/* -------------------------------------- */}
                                     <td>{l.pf}</td>
                                     <td className={previsao.classe}>
                                         {previsao.horario || 'N/D'}
