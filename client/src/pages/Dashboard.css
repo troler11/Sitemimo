@@ -222,4 +222,19 @@ body {
     animation: blinker 1.5s linear infinite;
     color: var(--mimo-red-accent);
 }
+
+/* --- ADIÇÕES PARA A PÁGINA DE ESCALA --- */
+
+/* Cores de Texto Adicionais */
+.text-warning { color: #f59e0b !important; stroke: #f59e0b; } /* Laranja */
+.text-info { color: #06b6d4 !important; stroke: #06b6d4; }    /* Azul Ciano */
+
+/* Badges Específicos */
+.badge-warning { background-color: #fef3c7; color: #d97706; }
+.badge-info { background-color: #cffafe; color: #0891b2; }
+
+/* Ajuste fino para inputs centrais (datas) */
+.form-control.text-center {
+    text-align: center;
+}
 @keyframes blinker { 50% { opacity: 0.5; } }
