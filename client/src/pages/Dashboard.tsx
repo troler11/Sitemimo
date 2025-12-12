@@ -466,10 +466,12 @@ const Dashboard: React.FC = () => {
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
-                            // --- LÓGICA DO TOOLTIP E ÍCONE ---
-                            // 1. Verifica se tem ponto alternativo na string
+                           / --- LÓGICA DO ÍCONE ? ---
+                            // Verifica se existe texto extra (ex: "(Pt 2)")
                             const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
+                            // Remove o texto "(Pt X)" para exibir só a hora
+                            const horaLimpa = matchPonto ? l.ri.split(' ')[0] : l.ri;
                             
                             let statusBadge;
                             if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-dark">Desligado</span>;
