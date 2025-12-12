@@ -472,7 +472,7 @@ const Dashboard: React.FC = () => {
                             
                             // Se tiver Ponto 2+, exibe "12:26 (Ponto 2)" e o ícone ?
                             const textoExibicao = matchPonto 
-                                ? <>{hora} <small className="text-secondary">(Ponto {matchPonto[1]})</small></> 
+                                ? <>{hora} <small className="text-dark">(Ponto {matchPonto[1]})</small></> 
                                 : hora;
 
                             // Tooltip explicativo
