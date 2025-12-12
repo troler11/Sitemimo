@@ -112,7 +112,7 @@ const Escala: React.FC = () => {
             {/* --- HEADER --- */}
             <div className="header-flex mb-4">
                 <div>
-                    <h2 className="page-title">Escala de Frota</h2>
+                    <h2 className="page-title">Escala Diária</h2>
                     <p className="text-muted small mb-0 mt-1">
                         <i className="fas fa-sync-alt me-1"></i> Atualização automática (1m)
                     </p>
