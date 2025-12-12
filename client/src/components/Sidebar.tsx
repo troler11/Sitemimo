@@ -149,10 +149,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
             <style>
                 {`
                 .active-link {
-                    background-color: #e3f2fd !important;
+                  
                     color: #000000 !important;
                     font-weight: 600;
-                    border-left: 4px solid #0d6efd !important;
+                   
                 }
                 .list-group-item-action {
                     transition: all 0.2s ease-in-out;
