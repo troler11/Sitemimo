@@ -469,8 +469,8 @@ const Dashboard: React.FC = () => {
                             const jaSaiu = l.ri && l.ri !== 'N/D';
 
                             let statusBadge;
-                            if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-gray">Desligado</span>;
-                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge badge-red">Atrasado (Ini)</span> : <span className="badge badge-gray">Aguardando</span>;
+                            if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-dark">Desligado</span>;
+                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge badge-red">Atrasado (Ini)</span> : <span className="badge badge-yellow">Deslocamento</span>;
                             else statusBadge = isLineAtrasada(l) ? <span className="badge badge-red">Atrasado</span> : <span className="badge badge-green">Pontual</span>;
 
                             return (
