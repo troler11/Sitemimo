@@ -236,6 +236,7 @@ const Dashboard: React.FC = () => {
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, horaServidor]);
 
     // Ordenação
+    // Ordenação
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
@@ -270,6 +271,14 @@ const Dashboard: React.FC = () => {
                 const aValue = getSortableValue(a, sortConfig.key);
                 const bValue = getSortableValue(b, sortConfig.key);
 
+                // MELHORIA: Tratamento para Strings vs Números
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    return sortConfig.direction === 'asc' 
+                        ? aValue.localeCompare(bValue) 
+                        : bValue.localeCompare(aValue);
+                }
+
+                // Tratamento numérico padrão
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -464,7 +473,7 @@ const Dashboard: React.FC = () => {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan={11} className="text-center py-4">Carregando dados da frota...</td></tr>
-                        ) : dadosFiltrados.map((l, idx) => {
+                        ) : dadosOrdenados.map((l, idx) => {
                             const previsao = getPrevisaoInteligente(l);
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
