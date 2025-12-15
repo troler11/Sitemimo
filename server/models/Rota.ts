@@ -5,6 +5,8 @@ export interface IRota extends Document {
     codigo: string;
     sentido: string;
     cliente: string;
+    empresa: string;           // <--- ADICIONADO
+    diasOperacao: boolean[];   // <--- ADICIONADO (Array de boolean)
     pontos: Array<{
         ordem: number;
         nome: string;
@@ -22,6 +24,8 @@ const RotaSchema: Schema = new Schema({
     codigo: { type: String, required: true },
     sentido: { type: String, required: true },
     cliente: { type: String, required: true },
+    empresa: { type: String, required: true },         // <--- ADICIONADO
+    diasOperacao: { type: [Boolean], default: [] },    // <--- ADICIONADO
     pontos: [
         {
             ordem: { type: Number, required: true },
