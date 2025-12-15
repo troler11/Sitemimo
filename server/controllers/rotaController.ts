@@ -168,3 +168,16 @@ export const updateRota = async (req: Request, res: Response) => {
         client.release();
     }
 };
+//DELETAR A ROTA
+export const deleteRota = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        // O "ON DELETE CASCADE" no banco já apaga os pontos automaticamente
+        await pool.query('DELETE FROM rotas WHERE id = $1', [id]);
+        
+        return res.status(200).json({ message: 'Rota excluída com sucesso.' });
+    } catch (error) {
+        console.error("Erro ao deletar rota:", error);
+        return res.status(500).json({ error: "Erro ao excluir rota." });
+    }
+};
