@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth'; 
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
+import RoutesList from './pages/RoutesList';
 import RouteCreate from './pages/RouteCreate';
 
 // Páginas
@@ -73,7 +74,9 @@ const App: React.FC = () => {
                         <Route element={<AuthGuard requiredMenu="usuarios" />}>
                             <Route path="/admin/usuarios" element={<AdminPage />} />
                         </Route>
+
 <Route path="/rotas/nova" element={<RouteCreate />} />
+                        
                     </Route>
                 </Routes>
             </BrowserRouter>
