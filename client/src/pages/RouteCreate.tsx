@@ -398,13 +398,13 @@ const RouteCreate: React.FC = () => {
                                             onChange={e => updatePoint(pt.id, 'time', e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-md-1 text-center">
-                                        <i 
-                                            className="fas fa-trash-alt" 
-                                            onClick={() => removePoint(pt.id)}
-                                            title="Remover ponto"
-                                        ></i>
-                                    </div>
+                                    <div className="col-md-1 col-center">
+        <i 
+            className="fas fa-trash-alt icon-trash" 
+            onClick={() => removePoint(pt.id)}
+            title="Remover ponto"
+        ></i>
+    </div>
                                 </div>
                             );
                         })
