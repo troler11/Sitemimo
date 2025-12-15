@@ -3,33 +3,28 @@ import Rota from '../models/Rota';
 
 export const createRota = async (req: Request, res: Response) => {
     try {
-        // 1. Recebe os dados que vieram do Frontend
-        const { descricao, codigo, sentido, cliente, pontos, tracado } = req.body;
+        // Recebe os novos campos do body
+        const { descricao, codigo, sentido, cliente, empresa, diasOperacao, pontos, tracado_completo } = req.body;
 
-        // 2. Validação básica
         if (!descricao || !pontos || pontos.length === 0) {
-            return res.status(400).json({ error: "Dados inválidos. A rota precisa ter descrição e pontos." });
+            return res.status(400).json({ error: "Dados inválidos." });
         }
 
-        // 3. Cria a nova rota na memória
         const novaRota = new Rota({
             descricao,
             codigo,
             sentido,
             cliente,
+            empresa,          // <--- Salva empresa
+            diasOperacao,     // <--- Salva dias
             pontos,
-            tracado // Opcional
+            tracado: tracado_completo || []
         });
 
-        // 4. Salva no MongoDB
         await novaRota.save();
 
-        console.log(`[ROTA] Nova rota criada: ${descricao} (${pontos.length} pontos)`);
-
-        return res.status(201).json({ 
-            message: "Rota cadastrada com sucesso!",
-            id: novaRota._id 
-        });
+        console.log(`[ROTA] Nova rota criada: ${descricao}`);
+        return res.status(201).json({ message: "Rota cadastrada com sucesso!" });
 
     } catch (error) {
         console.error("Erro ao criar rota:", error);
