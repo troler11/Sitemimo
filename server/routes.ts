@@ -30,4 +30,8 @@ router.get('/escala', verifyToken, getEscala);
 router.post('/rotas', createRota);
 router.get('/rotas', getRotas);
 
+// 2. Operações por ID (Necessário para a Edição funcionar)
+router.get('/rotas/:id', getRotaById); // <--- Busca os dados para preencher o formulário
+router.put('/rotas/:id', updateRota);  // <--- Salva as alterações do formulário
+
 export default router;
