@@ -49,3 +49,28 @@
     height: 100%;
     width: 100%;
 }
+
+/* src/pages/RouteCreate.css */
+
+/* Estilo do Ícone de Lixeira */
+.icon-trash {
+    color: #dc3545; /* Vermelho Bootstrap */
+    font-size: 1.2rem; /* Tamanho um pouco maior */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px; /* Área de clique maior */
+    border-radius: 50%;
+}
+
+.icon-trash:hover {
+    color: #a71d2a; /* Vermelho mais escuro no hover */
+    background-color: #ffe6e6; /* Fundo rosinha leve ao passar o mouse */
+    transform: scale(1.1); /* Leve aumento */
+}
+
+/* Garante que a coluna esteja centralizada */
+.col-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
