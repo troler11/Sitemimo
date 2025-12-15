@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Adicione useEffect
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
-import L, { LatLngExpression } from 'leaflet';
+import L, { LatLngExpression, LatLngTuple } from 'leaflet'; // Adicione LatLngTuple
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api'; // Sua instância do Axios
@@ -27,9 +27,21 @@ interface RotaForm {
 // Componente auxiliar para ajustar o zoom do mapa automaticamente
 const MapAutoFit = ({ bounds }: { bounds: LatLngExpression[] }) => {
     const map = useMap();
-    if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [50, 50] });
-    }
+    
+    useEffect(() => {
+        if (bounds.length > 0) {
+            // O erro acontecia aqui. Agora convertemos explicitamente:
+            // 1. Dizemos ao TS que é uma lista de Tuplas [lat, lng]
+            // 2. Usamos L.latLngBounds para criar o retângulo matemático da área
+            const boundsObj = L.latLngBounds(bounds as LatLngTuple[]);
+            
+            map.fitBounds(boundsObj, { 
+                padding: [50, 50],
+                maxZoom: 15 // Opcional: evita zoom excessivo se tiver só 1 ponto
+            });
+        }
+    }, [bounds, map]); // Só roda quando os "bounds" mudarem
+
     return null;
 };
 
