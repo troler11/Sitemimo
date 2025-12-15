@@ -226,11 +226,9 @@ const RoutesList: React.FC = () => {
                                                     >
                                                         <i className="fas fa-edit me-2 text-primary"></i> Editar
                                                     </button>
-                                                    // Localize o botão "Excluir" dentro do menu dropdown e adicione o onClick:
     <button 
         className="dropdown-item text-danger"
         onClick={() => {
-             // Fecha o menu antes de chamar o delete, para evitar bugs visuais
             setOpenDropdownId(null); 
             handleDelete(rota.id);
         }}
