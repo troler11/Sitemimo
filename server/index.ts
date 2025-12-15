@@ -5,7 +5,6 @@ import { getDashboardData } from './controllers/dashboardController';
 import { verifyToken } from './middleware/auth';
 import { login } from './controllers/authController'; // Você precisa criar este baseado no login.php
 import path from 'path';
-import routes from './routes';
 
 const app = express();
 app.use(cors());
