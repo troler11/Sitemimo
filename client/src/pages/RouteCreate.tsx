@@ -7,7 +7,7 @@ import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 import './RouteCreate.css';
 
-// --- Interfaces (Tipagem) ---
+// --- Interfaces ---
 interface PontoParada {
     id: number;
     name: string;
@@ -22,22 +22,18 @@ interface RotaForm {
     codigo: string;
     sentido: string;
     cliente: string;
+    empresa: string;        // NOVO CAMPO
+    diasOperacao: boolean[]; // NOVO CAMPO (Array [Dom, Seg, Ter...])
 }
 
-// Componente auxiliar para ajustar o zoom do mapa automaticamente
 const MapAutoFit = ({ bounds }: { bounds: LatLngExpression[] }) => {
     const map = useMap();
-    
     useEffect(() => {
         if (bounds.length > 0) {
             const boundsObj = L.latLngBounds(bounds as LatLngTuple[]);
-            map.fitBounds(boundsObj, { 
-                padding: [50, 50],
-                maxZoom: 15
-            });
+            map.fitBounds(boundsObj, { padding: [50, 50], maxZoom: 15 });
         }
     }, [bounds, map]);
-
     return null;
 };
 
@@ -47,10 +43,13 @@ const RouteCreate: React.FC = () => {
 
     // --- ESTADOS ---
     const [form, setForm] = useState<RotaForm>({
-        descricao: '', // AGORA INICIA EM BRANCO
-        codigo: '',    // AGORA INICIA EM BRANCO
+        descricao: '',
+        codigo: '',
         sentido: 'entrada',
-        cliente: 'PACKTEC' // Pode manter um padrão ou deixar vazio também
+        cliente: 'PACKTEC',
+        empresa: '', // Inicia vazio
+        // [Dom, Seg, Ter, Qua, Qui, Sex, Sáb] - Inicia com Seg-Sex true
+        diasOperacao: [false, true, true, true, true, true, false] 
     });
     
     const [points, setPoints] = useState<PontoParada[]>([]);
@@ -58,15 +57,25 @@ const RouteCreate: React.FC = () => {
     const [allBounds, setAllBounds] = useState<LatLngExpression[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // --- Lógica de KML ---
+    // Lista de labels para os botões
+    const diasSemanaLabel = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    // --- Lógica de Dias da Semana ---
+    const toggleDia = (index: number) => {
+        setForm(prev => {
+            const novosDias = [...prev.diasOperacao];
+            novosDias[index] = !novosDias[index]; // Inverte o valor
+            return { ...prev, diasOperacao: novosDias };
+        });
+    };
+
+    // --- Lógica de KML (Mantida Igual) ---
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (ev) => {
-            const text = ev.target?.result as string;
-            processKML(text);
+            processKML(ev.target?.result as string);
         };
         reader.readAsText(file);
     };
@@ -74,18 +83,16 @@ const RouteCreate: React.FC = () => {
     const processKML = (xmlString: string) => {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-        
         const newPoints: PontoParada[] = [];
         const newRoutePath: LatLngExpression[] = [];
         const bounds: LatLngExpression[] = [];
 
-        // 1. Extrair Traçado (Linha Azul)
+        // 1. Linha (Traçado)
         const lineStrings = xmlDoc.getElementsByTagName("LineString");
         if (lineStrings.length > 0) {
             for (let i = 0; i < lineStrings.length; i++) {
                 const coordsRaw = lineStrings[i].getElementsByTagName("coordinates")[0]?.textContent?.trim();
                 if (!coordsRaw) continue;
-
                 const pointsArray = coordsRaw.split(/\s+/);
                 pointsArray.forEach(p => {
                     const parts = p.split(',');
@@ -101,32 +108,32 @@ const RouteCreate: React.FC = () => {
             }
         }
 
-        // 2. Extrair Pontos de Parada
+        // 2. Pontos
         const placemarks = xmlDoc.getElementsByTagName("Placemark");
         for (let i = 0; i < placemarks.length; i++) {
             if (placemarks[i].getElementsByTagName("LineString").length > 0) continue;
-
             const name = placemarks[i].getElementsByTagName("name")[0]?.textContent || "Ponto";
             const pointTag = placemarks[i].getElementsByTagName("Point")[0];
-
             if (pointTag) {
                 const coords = pointTag.getElementsByTagName("coordinates")[0]?.textContent?.trim();
                 if (coords) {
                     const [lngStr, latStr] = coords.split(',');
-                    const lat = parseFloat(latStr);
-                    const lng = parseFloat(lngStr);
-
                     newPoints.push({
                         id: Date.now() + i,
                         name: name,
                         time: '00:00',
-                        lat,
-                        lng,
+                        lat: parseFloat(latStr),
+                        lng: parseFloat(lngStr),
                         type: 'PARADA'
                     });
-                    bounds.push([lat, lng]);
+                    bounds.push([parseFloat(latStr), parseFloat(lngStr)]);
                 }
             }
+        }
+
+        if (newPoints.length > 0) {
+            newPoints[0].type = 'INICIAL';
+            newPoints[newPoints.length - 1].type = 'FINAL';
         }
 
         setRoutePath(newRoutePath);
@@ -134,23 +141,18 @@ const RouteCreate: React.FC = () => {
         setAllBounds(bounds);
     };
 
-    // --- CRUD Local dos Pontos ---
     const updatePoint = (id: number, field: 'name' | 'time', value: string) => {
         setPoints(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
     };
 
-    // FUNÇÃO DE EXCLUIR PONTO
     const removePoint = (id: number) => {
-        // Filtra removendo o ID selecionado
         setPoints(prev => prev.filter(p => p.id !== id));
-        // Nota: O React vai re-renderizar e recalcular quem é o Inicial/Final automaticamente
     };
 
-    // --- Salvar no Backend ---
+    // --- Salvar ---
     const handleSave = async () => {
-        // Validação básica
-        if (!form.descricao || !form.codigo) {
-            Swal.fire('Campos obrigatórios', 'Preencha a descrição e o código da linha.', 'warning');
+        if (!form.descricao || !form.codigo || !form.empresa) {
+            Swal.fire('Campos obrigatórios', 'Preencha Descrição, Código e Empresa.', 'warning');
             return;
         }
         if (points.length === 0) {
@@ -170,7 +172,7 @@ const RouteCreate: React.FC = () => {
                 longitude: pt.lng,
                 tipo: index === 0 ? 'INICIAL' : (index === points.length - 1 ? 'FINAL' : 'PARADA')
             })),
-            tracado_completo: routePath // Envia o desenho da rota também
+            tracado_completo: routePath
         };
 
         try {
@@ -203,8 +205,10 @@ const RouteCreate: React.FC = () => {
             {/* CARD 1: FORMULÁRIO */}
             <div className="card-custom">
                 <h6 className="section-title">Informações da Linha</h6>
+                
+                {/* LINHA 1: DESCRIÇÃO E CÓDIGO */}
                 <div className="row mb-3">
-                    <div className="col-md-5">
+                    <div className="col-md-6">
                         <label>Descrição</label>
                         <input 
                             type="text" 
@@ -214,7 +218,7 @@ const RouteCreate: React.FC = () => {
                             onChange={e => setForm({...form, descricao: e.target.value})}
                         />
                     </div>
-                    <div className="col-md-2">
+                    <div className="col-md-3">
                         <label>Código</label>
                         <input 
                             type="text" 
@@ -224,6 +228,20 @@ const RouteCreate: React.FC = () => {
                             onChange={e => setForm({...form, codigo: e.target.value})}
                         />
                     </div>
+                    <div className="col-md-3">
+                        <label>Empresa Responsável</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="Ex: VIACAO XYZ"
+                            value={form.empresa}
+                            onChange={e => setForm({...form, empresa: e.target.value})}
+                        />
+                    </div>
+                </div>
+
+                {/* LINHA 2: SENTIDO, CLIENTE E DIAS DA SEMANA */}
+                <div className="row mb-3 align-items-end">
                     <div className="col-md-2">
                         <label>Sentido</label>
                         <select 
@@ -236,10 +254,32 @@ const RouteCreate: React.FC = () => {
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <label>Veículo Padrão</label>
-                        <div className="input-group">
-                            <span className="input-group-text bg-light">--</span>
-                            <input type="text" className="form-control" placeholder="Opcional" disabled />
+                        <label>Cliente Final</label>
+                        <select 
+                            className="form-select" 
+                            value={form.cliente}
+                            onChange={e => setForm({...form, cliente: e.target.value})}
+                        >
+                            <option value="PACKTEC">PACKTEC</option>
+                            <option value="MERCADO_LIVRE">MERCADO LIVRE</option>
+                            <option value="OUTRO">OUTRO</option>
+                        </select>
+                    </div>
+                    
+                    {/* CAMPO: DIAS DE OPERAÇÃO */}
+                    <div className="col-md-7">
+                        <label className="d-block">Dias de Operação</label>
+                        <div className="btn-group w-100" role="group">
+                            {diasSemanaLabel.map((dia, index) => (
+                                <button
+                                    key={dia}
+                                    type="button"
+                                    className={`btn btn-sm ${form.diasOperacao[index] ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                    onClick={() => toggleDia(index)}
+                                >
+                                    {dia}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -275,7 +315,6 @@ const RouteCreate: React.FC = () => {
                         <p className="text-center text-muted p-4">Aguardando importação do arquivo KML...</p>
                     ) : (
                         points.map((pt, idx) => {
-                            // Definir cores e textos dinamicamente baseados na posição ATUAL do array
                             let labelColor = 'text-primary';
                             let labelText = 'PONTO PARADA';
                             
@@ -304,7 +343,6 @@ const RouteCreate: React.FC = () => {
                                         />
                                     </div>
                                     <div className="col-md-1 text-center">
-                                        {/* Ícone de Exclusão Ativo */}
                                         <i 
                                             className="fas fa-trash-alt text-danger cursor-pointer" 
                                             onClick={() => removePoint(pt.id)}
@@ -331,7 +369,6 @@ const RouteCreate: React.FC = () => {
 
                     {points.map((pt, idx) => {
                         let color = "blue";
-                        // Recalcula a cor no mapa também caso remova pontos
                         if (idx === 0) color = "red";
                         else if (idx === points.length - 1) color = "green";
 
