@@ -92,24 +92,33 @@ export const getRotas = async (req: Request, res: Response) => {
 // ... imports existentes
 
 // 1. BUSCAR UMA ROTA ESPECÍFICA (Para preencher a tela de edição)
+// server/controllers/rotaController.ts
+
 export const getRotaById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         
-        // Busca o cabeçalho
+        // 1. Busca a Rota
         const rotaResult = await pool.query('SELECT * FROM rotas WHERE id = $1', [id]);
-        if (rotaResult.rows.length === 0) return res.status(404).json({ error: 'Rota não encontrada' });
+        
+        if (rotaResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Rota não encontrada no banco' });
+        }
 
-        // Busca os pontos
+        // 2. Busca os Pontos
         const pontosResult = await pool.query('SELECT * FROM pontos_rota WHERE rota_id = $1 ORDER BY ordem ASC', [id]);
 
-        const rota = rotaResult.rows[0];
-        // Anexa os pontos ao objeto da rota
+        // 3. Monta o objeto final
+        // Importante: clonar o objeto para não ter problemas de referência
+        const rota = { ...rotaResult.rows[0] };
+        
+        // Anexa os pontos
         rota.pontos = pontosResult.rows; 
 
         return res.json(rota);
+
     } catch (error) {
-        console.error("Erro ao buscar rota:", error);
+        console.error("Erro no GetById:", error);
         return res.status(500).json({ error: "Erro interno." });
     }
 };
