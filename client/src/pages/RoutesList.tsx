@@ -18,6 +18,17 @@ interface Rota {
     }[];
 }
 
+const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+// Função para alternar o menu
+const toggleDropdown = (id: number) => {
+    if (openDropdownId === id) {
+        setOpenDropdownId(null); // Fecha se já estiver aberto
+    } else {
+        setOpenDropdownId(id); // Abre o novo e fecha os outros
+    }
+};
+
 const RoutesList: React.FC = () => {
     const navigate = useNavigate();
     const [rotas, setRotas] = useState<Rota[]>([]);
@@ -164,24 +175,49 @@ const RoutesList: React.FC = () => {
                                         <td>
                                             <span className="small text-muted">{formatDias(rota.dias_operacao)}</span>
                                         </td>
-                                        <td className="text-end">
-    <div className="dropdown">
-        <button className="btn btn-link text-dark fw-bold text-decoration-none btn-sm" type="button" data-bs-toggle="dropdown">
-            Opções <i className="fas fa-ellipsis-v ms-1"></i>
-        </button>
-        <ul className="dropdown-menu">
-            <li>
-                <button className="dropdown-item" onClick={() => navigate(`/rotas/editar/${rota.id}`)}>
-                    <i className="fas fa-edit me-2 text-primary"></i> Editar
-                </button>
-            </li>
-            <li>
-                <button className="dropdown-item text-danger">
-                    <i className="fas fa-trash-alt me-2"></i> Excluir
-                </button>
-            </li>
-        </ul>
-    </div>
+                                        <td className="text-end" style={{ position: 'relative' }}>
+    <button 
+        className="btn btn-link text-dark fw-bold text-decoration-none btn-sm"
+        onClick={(e) => {
+            e.stopPropagation(); // Evita bugs de clique
+            toggleDropdown(rota.id);
+        }}
+    >
+        Opções <i className="fas fa-ellipsis-v ms-1"></i>
+    </button>
+
+    {/* Renderização Condicional do Menu */}
+    {openDropdownId === rota.id && (
+        <div 
+            className="dropdown-menu show" 
+            style={{
+                display: 'block', 
+                position: 'absolute', 
+                right: 0, 
+                top: '100%', 
+                zIndex: 1050,
+                boxShadow: '0 5px 10px rgba(0,0,0,0.2)'
+            }}
+        >
+            <button 
+                className="dropdown-item" 
+                onClick={() => navigate(`/rotas/editar/${rota.id}`)}
+            >
+                <i className="fas fa-edit me-2 text-primary"></i> Editar
+            </button>
+            <button 
+                className="dropdown-item text-danger"
+                onClick={() => {/* Lógica de excluir */}}
+            >
+                <i className="fas fa-trash-alt me-2"></i> Excluir
+            </button>
+            {/* Botão para fechar (opcional, ou clique fora) */}
+            <div className="dropdown-divider"></div>
+            <button className="dropdown-item small text-muted" onClick={() => setOpenDropdownId(null)}>
+                Fechar
+            </button>
+        </div>
+    )}
 </td>
                                     </tr>
                                 );
