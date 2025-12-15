@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
-import { supabase } from '../database/supabase';
+import { pool } from '../server/db'; // Importando sua conexão PG correta
 
 export const createRota = async (req: Request, res: Response) => {
+    // Precisamos de um cliente dedicado para fazer transação (BEGIN/COMMIT)
+    const client = await pool.connect();
+
     try {
         const { descricao, codigo, sentido, cliente, empresa, diasOperacao, pontos, tracado_completo } = req.body;
 
@@ -10,76 +13,84 @@ export const createRota = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Dados inválidos." });
         }
 
+        // --- INÍCIO DA TRANSAÇÃO ---
+        await client.query('BEGIN');
+
         // 2. Inserir a Rota (Cabeçalho)
-        const { data: rotaData, error: rotaError } = await supabase
-            .from('rotas')
-            .insert([
-                {
-                    descricao,
-                    codigo,
-                    sentido,
-                    cliente,
-                    empresa,
-                    dias_operacao: diasOperacao, // Array de booleanos [true, false...]
-                    tracado_completo: tracado_completo // JSON do traçado
-                }
-            ])
-            .select() // Retorna os dados inseridos (precisamos do ID)
-            .single();
+        const insertRotaQuery = `
+            INSERT INTO rotas 
+            (descricao, codigo, sentido, cliente, empresa, dias_operacao, tracado_completo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id;
+        `;
+        
+        // Convertendo traçado para JSON string se necessário, ou passando direto se o driver aceitar
+        const valuesRota = [
+            descricao, 
+            codigo, 
+            sentido, 
+            cliente, 
+            empresa, 
+            diasOperacao, // O driver PG entende arrays nativos ou JSONB
+            JSON.stringify(tracado_completo)
+        ];
 
-        if (rotaError) {
-            console.error('Erro Supabase Rota:', rotaError);
-            throw rotaError;
+        const resRota = await client.query(insertRotaQuery, valuesRota);
+        const rotaId = resRota.rows[0].id;
+
+        // 3. Inserir os Pontos (Loop seguro dentro da transação)
+        const insertPontoQuery = `
+            INSERT INTO pontos_rota 
+            (rota_id, ordem, nome, horario, latitude, longitude, tipo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `;
+
+        for (const p of pontos) {
+            await client.query(insertPontoQuery, [
+                rotaId, 
+                p.ordem, 
+                p.nome, 
+                p.horario, 
+                p.latitude, 
+                p.longitude, 
+                p.tipo
+            ]);
         }
 
-        const rotaId = rotaData.id;
-
-        // 3. Preparar os Pontos para inserção em massa
-        const pontosFormatados = pontos.map((p: any) => ({
-            rota_id: rotaId,
-            ordem: p.ordem,
-            nome: p.nome,
-            horario: p.horario,
-            latitude: p.latitude,
-            longitude: p.longitude,
-            tipo: p.tipo
-        }));
-
-        // 4. Inserir os Pontos
-        const { error: pontosError } = await supabase
-            .from('pontos_rota')
-            .insert(pontosFormatados);
-
-        if (pontosError) {
-            // Se der erro nos pontos, idealmente deletamos a rota criada para não ficar "órfã"
-            await supabase.from('rotas').delete().eq('id', rotaId);
-            console.error('Erro Supabase Pontos:', pontosError);
-            throw pontosError;
-        }
+        // --- SUCESSO: CONFIRMA TUDO ---
+        await client.query('COMMIT');
 
         return res.status(201).json({ message: "Rota cadastrada com sucesso!", id: rotaId });
 
     } catch (error) {
-        console.error("Erro interno:", error);
+        // --- ERRO: DESFAZ TUDO ---
+        await client.query('ROLLBACK');
+        console.error("Erro ao criar rota:", error);
         return res.status(500).json({ error: "Erro ao salvar rota no banco de dados." });
+    } finally {
+        // Libera o cliente de volta para o pool
+        client.release();
     }
 };
 
 export const getRotas = async (req: Request, res: Response) => {
     try {
-        // Busca rotas e já traz os pontos relacionados (join)
-        const { data, error } = await supabase
-            .from('rotas')
-            .select(`
-                *,
-                pontos_rota (*)
-            `)
-            .order('created_at', { ascending: false });
+        // Busca as rotas. 
+        // Se você precisar trazer os pontos junto, precisaria fazer um JOIN ou buscar separadamente.
+        // Abaixo, busco apenas as rotas ordenadas por data.
+        const query = `
+            SELECT * FROM rotas 
+            ORDER BY criado_em DESC
+        `;
+        
+        const result = await pool.query(query);
 
-        if (error) throw error;
+        // Se precisar converter nomes de colunas (snake_case para camelCase), faça aqui.
+        // Por padrão o Postgres retorna snake_case (criado_em, dias_operacao)
+        return res.json(result.rows);
 
-        return res.json(data);
     } catch (error) {
+        console.error("Erro ao buscar rotas:", error);
         return res.status(500).json({ error: "Erro ao buscar rotas." });
     }
 };
