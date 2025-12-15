@@ -18,17 +18,6 @@ interface Rota {
     }[];
 }
 
-const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
-
-// Função para alternar o menu
-const toggleDropdown = (id: number) => {
-    if (openDropdownId === id) {
-        setOpenDropdownId(null); // Fecha se já estiver aberto
-    } else {
-        setOpenDropdownId(id); // Abre o novo e fecha os outros
-    }
-};
-
 const RoutesList: React.FC = () => {
     const navigate = useNavigate();
     const [rotas, setRotas] = useState<Rota[]>([]);
