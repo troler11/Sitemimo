@@ -88,3 +88,70 @@ export const getRotas = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Erro ao buscar rotas." });
     }
 };
+
+// ... imports existentes
+
+// 1. BUSCAR UMA ROTA ESPECÍFICA (Para preencher a tela de edição)
+export const getRotaById = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        
+        // Busca o cabeçalho
+        const rotaResult = await pool.query('SELECT * FROM rotas WHERE id = $1', [id]);
+        if (rotaResult.rows.length === 0) return res.status(404).json({ error: 'Rota não encontrada' });
+
+        // Busca os pontos
+        const pontosResult = await pool.query('SELECT * FROM pontos_rota WHERE rota_id = $1 ORDER BY ordem ASC', [id]);
+
+        const rota = rotaResult.rows[0];
+        // Anexa os pontos ao objeto da rota
+        rota.pontos = pontosResult.rows; 
+
+        return res.json(rota);
+    } catch (error) {
+        console.error("Erro ao buscar rota:", error);
+        return res.status(500).json({ error: "Erro interno." });
+    }
+};
+
+// 2. ATUALIZAR A ROTA (PUT)
+export const updateRota = async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        const { descricao, codigo, sentido, cliente, empresa, diasOperacao, pontos, tracado_completo } = req.body;
+
+        await client.query('BEGIN');
+
+        // Atualiza a tabela principal
+        await client.query(`
+            UPDATE rotas 
+            SET descricao=$1, codigo=$2, sentido=$3, cliente=$4, empresa=$5, dias_operacao=$6, tracado_completo=$7
+            WHERE id=$8
+        `, [descricao, codigo, sentido, cliente, empresa, diasOperacao, JSON.stringify(tracado_completo), id]);
+
+        // Estratégia segura: Remove todos os pontos antigos e insere os novos
+        await client.query('DELETE FROM pontos_rota WHERE rota_id = $1', [id]);
+
+        const insertPontoQuery = `
+            INSERT INTO pontos_rota (rota_id, ordem, nome, horario, latitude, longitude, tipo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `;
+
+        for (const p of pontos) {
+            await client.query(insertPontoQuery, [
+                id, p.ordem, p.nome, p.horario, p.latitude, p.longitude, p.tipo
+            ]);
+        }
+
+        await client.query('COMMIT');
+        return res.json({ message: "Rota atualizada com sucesso!" });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("Erro ao atualizar:", error);
+        return res.status(500).json({ error: "Erro ao atualizar rota." });
+    } finally {
+        client.release();
+    }
+};
