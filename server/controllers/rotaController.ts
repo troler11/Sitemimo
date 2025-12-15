@@ -75,22 +75,16 @@ export const createRota = async (req: Request, res: Response) => {
 
 export const getRotas = async (req: Request, res: Response) => {
     try {
-        // Busca as rotas. 
-        // Se você precisar trazer os pontos junto, precisaria fazer um JOIN ou buscar separadamente.
-        // Abaixo, busco apenas as rotas ordenadas por data.
-        const query = `
-            SELECT * FROM rotas 
-            ORDER BY criado_em DESC
-        `;
+        // Removemos o ORDER BY criado_em para evitar erro se a coluna tiver outro nome
+        // Ou troque 'criado_em' por 'id' que é garantido que existe
+        const query = `SELECT * FROM rotas ORDER BY id DESC`; 
         
         const result = await pool.query(query);
-
-        // Se precisar converter nomes de colunas (snake_case para camelCase), faça aqui.
-        // Por padrão o Postgres retorna snake_case (criado_em, dias_operacao)
         return res.json(result.rows);
 
     } catch (error) {
-        console.error("Erro ao buscar rotas:", error);
+        // Adicione este log para você ver o erro real no terminal
+        console.error("ERRO REAL DO SQL:", error); 
         return res.status(500).json({ error: "Erro ao buscar rotas." });
     }
 };
