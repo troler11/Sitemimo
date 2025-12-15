@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../server/db'; // Importando sua conexão PG correta
+import { pool } from '../db';
 
 export const createRota = async (req: Request, res: Response) => {
     // Precisamos de um cliente dedicado para fazer transação (BEGIN/COMMIT)
