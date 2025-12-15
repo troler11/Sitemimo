@@ -94,6 +94,8 @@ export const getRotas = async (req: Request, res: Response) => {
 // 1. BUSCAR UMA ROTA ESPECÍFICA (Para preencher a tela de edição)
 // server/controllers/rotaController.ts
 
+// server/controllers/rotaController.ts
+
 export const getRotaById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
