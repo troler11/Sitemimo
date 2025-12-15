@@ -76,6 +76,7 @@ const App: React.FC = () => {
                         </Route>
 
 <Route path="/rotas/nova" element={<RouteCreate />} />
+<Route path="/rotas/editar/:id" element={<RouteCreate />} /> {/* Reutiliza a mesma tela */}
                         
                     </Route>
                 </Routes>
