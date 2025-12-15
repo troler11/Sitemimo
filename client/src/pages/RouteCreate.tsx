@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react'; // Adicione useEffect
+import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
-import L, { LatLngExpression, LatLngTuple } from 'leaflet'; // Adicione LatLngTuple
+import L, { LatLngExpression, LatLngTuple } from 'leaflet';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api'; // Sua instância do Axios
+import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
-import './RouteCreate.css'; // Vamos criar esse CSS abaixo
+import './RouteCreate.css';
 
 // --- Interfaces (Tipagem) ---
 interface PontoParada {
@@ -30,17 +30,13 @@ const MapAutoFit = ({ bounds }: { bounds: LatLngExpression[] }) => {
     
     useEffect(() => {
         if (bounds.length > 0) {
-            // O erro acontecia aqui. Agora convertemos explicitamente:
-            // 1. Dizemos ao TS que é uma lista de Tuplas [lat, lng]
-            // 2. Usamos L.latLngBounds para criar o retângulo matemático da área
             const boundsObj = L.latLngBounds(bounds as LatLngTuple[]);
-            
             map.fitBounds(boundsObj, { 
                 padding: [50, 50],
-                maxZoom: 15 // Opcional: evita zoom excessivo se tiver só 1 ponto
+                maxZoom: 15
             });
         }
-    }, [bounds, map]); // Só roda quando os "bounds" mudarem
+    }, [bounds, map]);
 
     return null;
 };
@@ -49,12 +45,12 @@ const RouteCreate: React.FC = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Estados
+    // --- ESTADOS ---
     const [form, setForm] = useState<RotaForm>({
-        descricao: 'CAMPI (JD CRISTINA) - PACKTEC E T4 (05:30)',
-        codigo: '65140314EP',
+        descricao: '', // AGORA INICIA EM BRANCO
+        codigo: '',    // AGORA INICIA EM BRANCO
         sentido: 'entrada',
-        cliente: 'PACKTEC'
+        cliente: 'PACKTEC' // Pode manter um padrão ou deixar vazio também
     });
     
     const [points, setPoints] = useState<PontoParada[]>([]);
@@ -108,7 +104,6 @@ const RouteCreate: React.FC = () => {
         // 2. Extrair Pontos de Parada
         const placemarks = xmlDoc.getElementsByTagName("Placemark");
         for (let i = 0; i < placemarks.length; i++) {
-            // Ignora se for LineString (traçado)
             if (placemarks[i].getElementsByTagName("LineString").length > 0) continue;
 
             const name = placemarks[i].getElementsByTagName("name")[0]?.textContent || "Ponto";
@@ -127,17 +122,11 @@ const RouteCreate: React.FC = () => {
                         time: '00:00',
                         lat,
                         lng,
-                        type: 'PARADA' // Será ajustado depois
+                        type: 'PARADA'
                     });
                     bounds.push([lat, lng]);
                 }
             }
-        }
-
-        // Ajustar tipos (Primeiro = Inicial, Último = Final)
-        if (newPoints.length > 0) {
-            newPoints[0].type = 'INICIAL';
-            newPoints[newPoints.length - 1].type = 'FINAL';
         }
 
         setRoutePath(newRoutePath);
@@ -150,12 +139,20 @@ const RouteCreate: React.FC = () => {
         setPoints(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
     };
 
+    // FUNÇÃO DE EXCLUIR PONTO
     const removePoint = (id: number) => {
+        // Filtra removendo o ID selecionado
         setPoints(prev => prev.filter(p => p.id !== id));
+        // Nota: O React vai re-renderizar e recalcular quem é o Inicial/Final automaticamente
     };
 
     // --- Salvar no Backend ---
     const handleSave = async () => {
+        // Validação básica
+        if (!form.descricao || !form.codigo) {
+            Swal.fire('Campos obrigatórios', 'Preencha a descrição e o código da linha.', 'warning');
+            return;
+        }
         if (points.length === 0) {
             Swal.fire('Atenção', 'Importe um arquivo KML antes de salvar.', 'warning');
             return;
@@ -173,14 +170,13 @@ const RouteCreate: React.FC = () => {
                 longitude: pt.lng,
                 tipo: index === 0 ? 'INICIAL' : (index === points.length - 1 ? 'FINAL' : 'PARADA')
             })),
-            // Opcional: Enviar o traçado completo se seu backend suportar
-            // traçado: routePath 
+            tracado_completo: routePath // Envia o desenho da rota também
         };
 
         try {
-            await api.post('/rotas', payload); // Ajuste a URL da rota no seu backend
+            await api.post('/rotas', payload);
             Swal.fire('Sucesso!', 'Rota cadastrada com sucesso.', 'success');
-            navigate('/dashboard'); // Redireciona após salvar
+            navigate('/dashboard');
         } catch (error) {
             console.error(error);
             Swal.fire('Erro', 'Falha ao salvar a rota.', 'error');
@@ -213,6 +209,7 @@ const RouteCreate: React.FC = () => {
                         <input 
                             type="text" 
                             className="form-control" 
+                            placeholder="Ex: CAMPI - CENTRO (06:00)"
                             value={form.descricao} 
                             onChange={e => setForm({...form, descricao: e.target.value})}
                         />
@@ -222,6 +219,7 @@ const RouteCreate: React.FC = () => {
                         <input 
                             type="text" 
                             className="form-control" 
+                            placeholder="Ex: 6514"
                             value={form.codigo}
                             onChange={e => setForm({...form, codigo: e.target.value})}
                         />
@@ -240,7 +238,8 @@ const RouteCreate: React.FC = () => {
                     <div className="col-md-3">
                         <label>Veículo Padrão</label>
                         <div className="input-group">
-                            <span className="input-group-text bg-light">FYV1D88</span>
+                            <span className="input-group-text bg-light">--</span>
+                            <input type="text" className="form-control" placeholder="Opcional" disabled />
                         </div>
                     </div>
                 </div>
@@ -276,7 +275,7 @@ const RouteCreate: React.FC = () => {
                         <p className="text-center text-muted p-4">Aguardando importação do arquivo KML...</p>
                     ) : (
                         points.map((pt, idx) => {
-                            // Definir cores e textos dinamicamente
+                            // Definir cores e textos dinamicamente baseados na posição ATUAL do array
                             let labelColor = 'text-primary';
                             let labelText = 'PONTO PARADA';
                             
@@ -304,7 +303,8 @@ const RouteCreate: React.FC = () => {
                                             onChange={e => updatePoint(pt.id, 'time', e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-md-1">
+                                    <div className="col-md-1 text-center">
+                                        {/* Ícone de Exclusão Ativo */}
                                         <i 
                                             className="fas fa-trash-alt text-danger cursor-pointer" 
                                             onClick={() => removePoint(pt.id)}
@@ -323,17 +323,15 @@ const RouteCreate: React.FC = () => {
                 <MapContainer center={[-23.5505, -46.6333]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     
-                    {/* Auto Zoom */}
                     <MapAutoFit bounds={allBounds} />
 
-                    {/* Linha Azul (Traçado) */}
                     {routePath.length > 0 && (
                         <Polyline positions={routePath} color="#0056b3" weight={5} opacity={0.7} />
                     )}
 
-                    {/* Marcadores */}
                     {points.map((pt, idx) => {
                         let color = "blue";
+                        // Recalcula a cor no mapa também caso remova pontos
                         if (idx === 0) color = "red";
                         else if (idx === points.length - 1) color = "green";
 
