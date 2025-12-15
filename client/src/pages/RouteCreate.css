@@ -1,0 +1,51 @@
+.card-custom {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.section-title {
+    color: #d63384;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+.btn-abm-red {
+    background-color: #ff0000;
+    color: white;
+    font-weight: bold;
+    border: none;
+    font-size: 0.85rem;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+.btn-abm-red:hover { background-color: #cc0000; color: white; }
+
+.btn-abm-green {
+    background-color: #198754;
+    color: white;
+    font-weight: bold;
+    border: none;
+    font-size: 0.85rem;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+.btn-abm-green:hover { background-color: #157347; color: white; }
+
+.cursor-pointer {
+    cursor: pointer;
+}
+.cursor-pointer:hover {
+    opacity: 0.7;
+}
+
+/* Fix para o mapa não ficar cinza se redimensionar */
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+}
