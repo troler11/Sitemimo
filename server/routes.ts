@@ -5,7 +5,7 @@ import { calculateRoute } from './controllers/mapController'; // <--- Importe
 import { getUsers, createUser, updateUser, deleteUser } from './controllers/userController';
 import { getEscala } from './controllers/escalaController';
 import { verifyToken } from './middleware/auth';
-import { createRota, getRotas } from './controllers/rotaController';
+import {createRota, getRotas, getRotaById, updateRota} from './controllers/rotaController';
 
 const router = Router();
 
