@@ -194,9 +194,10 @@ const RouteCreate: React.FC = () => {
         setPoints(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
     };
 
-    const removePoint = (id: number) => {
-        setPoints(prev => prev.filter(p => p.id !== id));
-    };
+   const removePoint = (id: number) => {
+    // Remove o ponto da lista visual
+    setPoints(prev => prev.filter(p => p.id !== id));
+};;
 
     // --- Salvar / Atualizar ---
     const handleSave = async () => {
@@ -399,7 +400,7 @@ const RouteCreate: React.FC = () => {
                                     </div>
                                     <div className="col-md-1 text-center">
                                         <i 
-                                            className="fas fa-trash-alt text-danger cursor-pointer" 
+                                            className="fas fa-trash-alt" 
                                             onClick={() => removePoint(pt.id)}
                                             title="Remover ponto"
                                         ></i>
