@@ -60,7 +60,7 @@ const App: React.FC = () => {
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="rotas" />}>
-                            <Route path="/rotas" element={<RotasPage />} />
+                            <Route path="/rotas" element={<RoutesList />} />
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="escala" />}>
