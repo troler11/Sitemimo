@@ -87,6 +87,32 @@ const RoutesList: React.FC = () => {
         r.empresa.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // FUNÇÃO PARA DELETAR
+    const handleDelete = async (id: number) => {
+        // Confirmação visual
+        const result = await Swal.fire({
+            title: 'Tem certeza?',
+            text: "Você não poderá reverter isso! A rota e todos os seus pontos serão apagados.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir!',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.delete(`/rotas/${id}`);
+                Swal.fire('Excluído!', 'A rota foi removida.', 'success');
+                fetchRotas(); // Recarrega a lista para sumir com o item
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Erro', 'Não foi possível excluir.', 'error');
+            }
+        }
+    };
+
     return (
         <div className="main-content">
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -200,9 +226,17 @@ const RoutesList: React.FC = () => {
                                                     >
                                                         <i className="fas fa-edit me-2 text-primary"></i> Editar
                                                     </button>
-                                                    <button className="dropdown-item text-danger">
-                                                        <i className="fas fa-trash-alt me-2"></i> Excluir
-                                                    </button>
+                                                    // Localize o botão "Excluir" dentro do menu dropdown e adicione o onClick:
+    <button 
+        className="dropdown-item text-danger"
+        onClick={() => {
+             // Fecha o menu antes de chamar o delete, para evitar bugs visuais
+            setOpenDropdownId(null); 
+            handleDelete(rota.id);
+        }}
+    >
+        <i className="fas fa-trash-alt me-2"></i> Excluir
+    </button>
                                                 </div>
                                             )}
                                         </td>
