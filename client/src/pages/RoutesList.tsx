@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import './RoutesList.css'; // Vamos criar o CSS abaixo
+import './RoutesList.css'; 
 import Swal from 'sweetalert2';
 
-// Interface compatível com o retorno do seu Backend
+// Interface dos dados
 interface Rota {
     id: number;
     descricao: string;
     codigo: string;
     empresa: string;
-    dias_operacao: boolean[]; // Postgres retorna snake_case por padrão
+    dias_operacao: boolean[]; 
     pontos_rota?: {
         ordem: number;
         horario: string;
@@ -24,7 +24,25 @@ const RoutesList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // --- CARREGAR DADOS ---
+    // --- NOVO: Estado para controlar qual menu está aberto ---
+    const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+    const toggleDropdown = (id: number) => {
+        if (openDropdownId === id) {
+            setOpenDropdownId(null);
+        } else {
+            setOpenDropdownId(id);
+        }
+    };
+
+    // Fecha o menu se clicar fora (opcional, mas melhora a UX)
+    useEffect(() => {
+        const handleClickOutside = () => setOpenDropdownId(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+    // ---------------------------------------------------------
+
     useEffect(() => {
         fetchRotas();
     }, []);
@@ -41,7 +59,6 @@ const RoutesList: React.FC = () => {
         }
     };
 
-    // --- HELPERS DE FORMATAÇÃO ---
     const formatDias = (dias: boolean[]) => {
         if (!dias || dias.length === 0) return '-';
         const labels = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
@@ -53,12 +70,9 @@ const RoutesList: React.FC = () => {
 
     const getHorarios = (rota: Rota) => {
         if (!rota.pontos_rota || rota.pontos_rota.length === 0) return { inicio: '--:--', fim: '--:--', origem: '-', destino: '-' };
-        
-        // Ordena pontos para garantir
         const pontosOrdenados = [...rota.pontos_rota].sort((a, b) => a.ordem - b.ordem);
         const primeiro = pontosOrdenados[0];
         const ultimo = pontosOrdenados[pontosOrdenados.length - 1];
-
         return {
             inicio: primeiro.horario,
             fim: ultimo.horario,
@@ -67,7 +81,6 @@ const RoutesList: React.FC = () => {
         };
     };
 
-    // --- FILTRO DE BUSCA ---
     const filteredRotas = rotas.filter(r => 
         r.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,7 +89,6 @@ const RoutesList: React.FC = () => {
 
     return (
         <div className="main-content">
-            {/* TOPO: TÍTULO E BOTÃO NOVO */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h5 className="page-title mb-1">Gerenciamento de Linhas</h5>
@@ -87,15 +99,10 @@ const RoutesList: React.FC = () => {
                 </button>
             </div>
 
-            {/* CARD DA TABELA */}
             <div className="card-table-container">
-                
-                {/* BARRA DE FERRAMENTAS */}
                 <div className="toolbar-flex">
                     <div className="actions-left">
                         <button className="btn btn-outline-secondary btn-sm me-2"><i className="far fa-file-excel me-1"></i> Exportação Excel</button>
-                        <button className="btn btn-outline-secondary btn-sm me-2">Ativar em massa</button>
-                        <button className="btn btn-outline-danger btn-sm">Deleta Em Massa</button>
                     </div>
                     <div className="search-right">
                         <div className="input-group input-group-sm">
@@ -111,8 +118,7 @@ const RoutesList: React.FC = () => {
                     </div>
                 </div>
 
-                {/* TABELA */}
-                <div className="table-responsive">
+                <div className="table-responsive" style={{ minHeight: '400px', overflow: 'visible' }}> 
                     <table className="table table-hover align-middle custom-table">
                         <thead>
                             <tr>
@@ -164,50 +170,44 @@ const RoutesList: React.FC = () => {
                                         <td>
                                             <span className="small text-muted">{formatDias(rota.dias_operacao)}</span>
                                         </td>
+                                        
+                                        {/* --- COLUNA DE AÇÕES COM DROPDOWN MANUAL --- */}
                                         <td className="text-end" style={{ position: 'relative' }}>
-    <button 
-        className="btn btn-link text-dark fw-bold text-decoration-none btn-sm"
-        onClick={(e) => {
-            e.stopPropagation(); // Evita bugs de clique
-            toggleDropdown(rota.id);
-        }}
-    >
-        Opções <i className="fas fa-ellipsis-v ms-1"></i>
-    </button>
+                                            <button 
+                                                className="btn btn-link text-dark fw-bold text-decoration-none btn-sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Impede que o click no botão feche o menu imediatamente
+                                                    toggleDropdown(rota.id);
+                                                }}
+                                            >
+                                                Opções <i className="fas fa-ellipsis-v ms-1"></i>
+                                            </button>
 
-    {/* Renderização Condicional do Menu */}
-    {openDropdownId === rota.id && (
-        <div 
-            className="dropdown-menu show" 
-            style={{
-                display: 'block', 
-                position: 'absolute', 
-                right: 0, 
-                top: '100%', 
-                zIndex: 1050,
-                boxShadow: '0 5px 10px rgba(0,0,0,0.2)'
-            }}
-        >
-            <button 
-                className="dropdown-item" 
-                onClick={() => navigate(`/rotas/editar/${rota.id}`)}
-            >
-                <i className="fas fa-edit me-2 text-primary"></i> Editar
-            </button>
-            <button 
-                className="dropdown-item text-danger"
-                onClick={() => {/* Lógica de excluir */}}
-            >
-                <i className="fas fa-trash-alt me-2"></i> Excluir
-            </button>
-            {/* Botão para fechar (opcional, ou clique fora) */}
-            <div className="dropdown-divider"></div>
-            <button className="dropdown-item small text-muted" onClick={() => setOpenDropdownId(null)}>
-                Fechar
-            </button>
-        </div>
-    )}
-</td>
+                                            {openDropdownId === rota.id && (
+                                                <div 
+                                                    className="dropdown-menu show shadow" 
+                                                    style={{
+                                                        display: 'block', 
+                                                        position: 'absolute', 
+                                                        right: '100%', // Abre para a esquerda do botão
+                                                        top: '0', 
+                                                        zIndex: 9999
+                                                    }}
+                                                >
+                                                    <button 
+                                                        className="dropdown-item" 
+                                                        onClick={() => navigate(`/rotas/editar/${rota.id}`)}
+                                                    >
+                                                        <i className="fas fa-edit me-2 text-primary"></i> Editar
+                                                    </button>
+                                                    <button className="dropdown-item text-danger">
+                                                        <i className="fas fa-trash-alt me-2"></i> Excluir
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                        {/* ------------------------------------------- */}
+
                                     </tr>
                                 );
                             })}
@@ -215,16 +215,8 @@ const RoutesList: React.FC = () => {
                     </table>
                 </div>
 
-                {/* PAGINAÇÃO (Visual) */}
                 <div className="d-flex justify-content-between align-items-center p-3 border-top">
                     <small className="text-muted">Mostrando {filteredRotas.length} registros</small>
-                    <nav>
-                        <ul className="pagination pagination-sm mb-0">
-                            <li className="page-item disabled"><button className="page-link">Anterior</button></li>
-                            <li className="page-item active"><button className="page-link">1</button></li>
-                            <li className="page-item"><button className="page-link">Próximo</button></li>
-                        </ul>
-                    </nav>
                 </div>
             </div>
         </div>
