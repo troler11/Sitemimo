@@ -5,7 +5,7 @@ import { calculateRoute } from './controllers/mapController'; // <--- Importe
 import { getUsers, createUser, updateUser, deleteUser } from './controllers/userController';
 import { getEscala } from './controllers/escalaController';
 import { verifyToken } from './middleware/auth';
-import {createRota, getRotas, getRotaById, updateRota} from './controllers/rotaController';
+import {createRota, getRotas, getRotaById, updateRota, deleteRota} from './controllers/rotaController';
 
 const router = Router();
 
@@ -33,5 +33,6 @@ router.get('/rotas', getRotas);
 // 2. Operações por ID (Necessário para a Edição funcionar)
 router.get('/rotas/:id', getRotaById); // <--- Busca os dados para preencher o formulário
 router.put('/rotas/:id', updateRota);  // <--- Salva as alterações do formulário
+router.delete('/rotas/:id', deleteRota); // <--- NOVA ROTA
 
 export default router;
