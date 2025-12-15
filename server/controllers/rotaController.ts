@@ -99,12 +99,14 @@ export const getRotas = async (req: Request, res: Response) => {
 export const getRotaById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
-        // 1. Busca a Rota
+        console.log("BACKEND: Recebi pedido para ID:", id); // LOG 1
+
         const rotaResult = await pool.query('SELECT * FROM rotas WHERE id = $1', [id]);
         
+        console.log("BACKEND: Resultado da busca:", rotaResult.rows); // LOG 2
+
         if (rotaResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Rota não encontrada no banco' });
+            return res.status(404).json({ error: 'Rota não encontrada' });
         }
 
         // 2. Busca os Pontos
