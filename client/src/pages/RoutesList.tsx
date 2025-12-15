@@ -165,10 +165,24 @@ const RoutesList: React.FC = () => {
                                             <span className="small text-muted">{formatDias(rota.dias_operacao)}</span>
                                         </td>
                                         <td className="text-end">
-                                            <button className="btn btn-link text-dark fw-bold text-decoration-none btn-sm">
-                                                Opções <i className="fas fa-ellipsis-v ms-1"></i>
-                                            </button>
-                                        </td>
+    <div className="dropdown">
+        <button className="btn btn-link text-dark fw-bold text-decoration-none btn-sm" type="button" data-bs-toggle="dropdown">
+            Opções <i className="fas fa-ellipsis-v ms-1"></i>
+        </button>
+        <ul className="dropdown-menu">
+            <li>
+                <button className="dropdown-item" onClick={() => navigate(`/rotas/editar/${rota.id}`)}>
+                    <i className="fas fa-edit me-2 text-primary"></i> Editar
+                </button>
+            </li>
+            <li>
+                <button className="dropdown-item text-danger">
+                    <i className="fas fa-trash-alt me-2"></i> Excluir
+                </button>
+            </li>
+        </ul>
+    </div>
+</td>
                                     </tr>
                                 );
                             })}
