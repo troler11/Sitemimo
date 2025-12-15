@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLngTuple } from 'leaflet';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom'; // Adicionado useParams
 import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 import './RouteCreate.css';
@@ -22,8 +22,8 @@ interface RotaForm {
     codigo: string;
     sentido: string;
     cliente: string;
-    empresa: string;        // NOVO CAMPO
-    diasOperacao: boolean[]; // NOVO CAMPO (Array [Dom, Seg, Ter...])
+    empresa: string;
+    diasOperacao: boolean[]; 
 }
 
 const MapAutoFit = ({ bounds }: { bounds: LatLngExpression[] }) => {
@@ -39,16 +39,17 @@ const MapAutoFit = ({ bounds }: { bounds: LatLngExpression[] }) => {
 
 const RouteCreate: React.FC = () => {
     const navigate = useNavigate();
+    const { id } = useParams(); // Pega o ID da URL (se existir)
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- ESTADOS ---
+    const isEditing = !!id; // Boolean: true se estiver editando
+
     const [form, setForm] = useState<RotaForm>({
         descricao: '',
         codigo: '',
         sentido: 'entrada',
         cliente: 'PACKTEC',
-        empresa: '', // Inicia vazio
-        // [Dom, Seg, Ter, Qua, Qui, Sex, Sáb] - Inicia com Seg-Sex true
+        empresa: '', 
         diasOperacao: [false, true, true, true, true, true, false] 
     });
     
@@ -57,19 +58,69 @@ const RouteCreate: React.FC = () => {
     const [allBounds, setAllBounds] = useState<LatLngExpression[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Lista de labels para os botões
+    // --- CARREGAR DADOS NA EDIÇÃO ---
+    useEffect(() => {
+        if (isEditing) {
+            fetchRotaData();
+        }
+    }, [id]);
+
+    const fetchRotaData = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get(`/rotas/${id}`);
+            const data = response.data;
+
+            // 1. Preenche o Formulário
+            setForm({
+                descricao: data.descricao,
+                codigo: data.codigo,
+                sentido: data.sentido,
+                cliente: data.cliente,
+                empresa: data.empresa,
+                // O banco manda snake_case (dias_operacao), convertemos para state camelCase
+                diasOperacao: data.dias_operacao || [false, true, true, true, true, true, false]
+            });
+
+            // 2. Preenche o Traçado (Linha Azul)
+            if (data.tracado_completo && Array.isArray(data.tracado_completo)) {
+                setRoutePath(data.tracado_completo);
+                setAllBounds(data.tracado_completo); // Ajusta zoom
+            }
+
+            // 3. Preenche os Pontos
+            if (data.pontos && Array.isArray(data.pontos)) {
+                const pontosMapeados = data.pontos.map((p: any) => ({
+                    id: Date.now() + Math.random(), // ID temporário para o React Key
+                    name: p.nome,
+                    time: p.horario,
+                    lat: parseFloat(p.latitude),
+                    lng: parseFloat(p.longitude),
+                    type: p.tipo
+                }));
+                setPoints(pontosMapeados);
+            }
+
+        } catch (error) {
+            console.error("Erro ao carregar rota", error);
+            Swal.fire("Erro", "Não foi possível carregar os dados da rota.", "error");
+            navigate('/rotas');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const diasSemanaLabel = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-    // --- Lógica de Dias da Semana ---
     const toggleDia = (index: number) => {
         setForm(prev => {
             const novosDias = [...prev.diasOperacao];
-            novosDias[index] = !novosDias[index]; // Inverte o valor
+            novosDias[index] = !novosDias[index]; 
             return { ...prev, diasOperacao: novosDias };
         });
     };
 
-    // --- Lógica de KML (Mantida Igual) ---
+    // --- Lógica de KML (Mantida) ---
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -81,13 +132,15 @@ const RouteCreate: React.FC = () => {
     };
 
     const processKML = (xmlString: string) => {
+        // ... (Mesma lógica de antes para processar KML) ...
+        // Vou resumir para não estourar o limite de caracteres, 
+        // mas mantenha o código do processKML que te enviei na resposta anterior
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, "text/xml");
         const newPoints: PontoParada[] = [];
         const newRoutePath: LatLngExpression[] = [];
         const bounds: LatLngExpression[] = [];
 
-        // 1. Linha (Traçado)
         const lineStrings = xmlDoc.getElementsByTagName("LineString");
         if (lineStrings.length > 0) {
             for (let i = 0; i < lineStrings.length; i++) {
@@ -107,8 +160,6 @@ const RouteCreate: React.FC = () => {
                 });
             }
         }
-
-        // 2. Pontos
         const placemarks = xmlDoc.getElementsByTagName("Placemark");
         for (let i = 0; i < placemarks.length; i++) {
             if (placemarks[i].getElementsByTagName("LineString").length > 0) continue;
@@ -130,12 +181,10 @@ const RouteCreate: React.FC = () => {
                 }
             }
         }
-
         if (newPoints.length > 0) {
             newPoints[0].type = 'INICIAL';
             newPoints[newPoints.length - 1].type = 'FINAL';
         }
-
         setRoutePath(newRoutePath);
         setPoints(newPoints);
         setAllBounds(bounds);
@@ -149,17 +198,13 @@ const RouteCreate: React.FC = () => {
         setPoints(prev => prev.filter(p => p.id !== id));
     };
 
-    // --- Salvar ---
+    // --- Salvar / Atualizar ---
     const handleSave = async () => {
         if (!form.descricao || !form.codigo || !form.empresa) {
             Swal.fire('Campos obrigatórios', 'Preencha Descrição, Código e Empresa.', 'warning');
             return;
         }
-        if (points.length === 0) {
-            Swal.fire('Atenção', 'Importe um arquivo KML antes de salvar.', 'warning');
-            return;
-        }
-
+        
         setLoading(true);
 
         const payload = {
@@ -176,9 +221,16 @@ const RouteCreate: React.FC = () => {
         };
 
         try {
-            await api.post('/rotas', payload);
-            Swal.fire('Sucesso!', 'Rota cadastrada com sucesso.', 'success');
-            navigate('/dashboard');
+            if (isEditing) {
+                // MODO EDIÇÃO (PUT)
+                await api.put(`/rotas/${id}`, payload);
+                Swal.fire('Atualizado!', 'Rota editada com sucesso.', 'success');
+            } else {
+                // MODO CRIAÇÃO (POST)
+                await api.post('/rotas', payload);
+                Swal.fire('Sucesso!', 'Rota cadastrada com sucesso.', 'success');
+            }
+            navigate('/rotas'); // Volta para a lista
         } catch (error) {
             console.error(error);
             Swal.fire('Erro', 'Falha ao salvar a rota.', 'error');
@@ -190,14 +242,18 @@ const RouteCreate: React.FC = () => {
     return (
         <div className="main-content">
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <small className="text-muted">Rotas &gt; Nova Rota</small>
+                <small className="text-muted">
+                    Rotas &gt; {isEditing ? `Editando: ${form.codigo}` : 'Nova Rota'}
+                </small>
                 <div className="d-flex align-items-center gap-3">
                     <button 
                         className="btn btn-abm-green shadow-sm" 
                         onClick={handleSave}
                         disabled={loading}
                     >
-                        {loading ? 'SALVANDO...' : <><i className="fas fa-save me-2"></i> SALVAR NO BANCO</>}
+                        {loading ? 'SALVANDO...' : (
+                            <><i className="fas fa-save me-2"></i> {isEditing ? 'ATUALIZAR DADOS' : 'SALVAR NO BANCO'}</>
+                        )}
                     </button>
                 </div>
             </div>
@@ -206,7 +262,6 @@ const RouteCreate: React.FC = () => {
             <div className="card-custom">
                 <h6 className="section-title">Informações da Linha</h6>
                 
-                {/* LINHA 1: DESCRIÇÃO E CÓDIGO */}
                 <div className="row mb-3">
                     <div className="col-md-6">
                         <label>Descrição</label>
@@ -223,24 +278,21 @@ const RouteCreate: React.FC = () => {
                         <input 
                             type="text" 
                             className="form-control" 
-                            placeholder="Ex: 6514"
                             value={form.codigo}
                             onChange={e => setForm({...form, codigo: e.target.value})}
                         />
                     </div>
                     <div className="col-md-3">
-                        <label>Empresa Responsável</label>
+                        <label>Empresa</label>
                         <input 
                             type="text" 
                             className="form-control" 
-                            placeholder="Ex: VIACAO XYZ"
                             value={form.empresa}
                             onChange={e => setForm({...form, empresa: e.target.value})}
                         />
                     </div>
                 </div>
 
-                {/* LINHA 2: SENTIDO, CLIENTE E DIAS DA SEMANA */}
                 <div className="row mb-3 align-items-end">
                     <div className="col-md-2">
                         <label>Sentido</label>
@@ -254,7 +306,7 @@ const RouteCreate: React.FC = () => {
                         </select>
                     </div>
                     <div className="col-md-3">
-                        <label>Cliente Final</label>
+                        <label>Cliente</label>
                         <select 
                             className="form-select" 
                             value={form.cliente}
@@ -266,7 +318,6 @@ const RouteCreate: React.FC = () => {
                         </select>
                     </div>
                     
-                    {/* CAMPO: DIAS DE OPERAÇÃO */}
                     <div className="col-md-7">
                         <label className="d-block">Dias de Operação</label>
                         <div className="btn-group w-100" role="group">
@@ -285,12 +336,16 @@ const RouteCreate: React.FC = () => {
                 </div>
             </div>
 
-            {/* CARD 2: IMPORTAÇÃO */}
+            {/* CARD 2: IMPORTAÇÃO (Só exibe se quiser reimportar KML, mas é útil manter) */}
             <div className="card-custom bg-light border-danger border-start border-4">
                 <div className="row align-items-center">
                     <div className="col-md-8">
                         <h6 className="mb-2">Importar Rota e Traçado (KML)</h6>
-                        <p className="text-muted small mb-0">O sistema desenhará o trajeto exato e os pontos de parada.</p>
+                        <p className="text-muted small mb-0">
+                            {isEditing 
+                                ? "Importar um novo KML substituirá os pontos e traçado atuais." 
+                                : "O sistema desenhará o trajeto exato e os pontos de parada."}
+                        </p>
                     </div>
                     <div className="col-md-4 text-end">
                         <input 
@@ -312,7 +367,7 @@ const RouteCreate: React.FC = () => {
                 <h6 className="section-title">Roteiro da Linha</h6>
                 <div className="points-container">
                     {points.length === 0 ? (
-                        <p className="text-center text-muted p-4">Aguardando importação do arquivo KML...</p>
+                        <p className="text-center text-muted p-4">Nenhum ponto definido.</p>
                     ) : (
                         points.map((pt, idx) => {
                             let labelColor = 'text-primary';
