@@ -238,6 +238,7 @@ const Escala: React.FC = () => {
                         <option value="pendente">Aguardando RA</option>
                         <option value="confirmado">Confirmado</option>
                         <option value="manutencao">Manutenção</option>
+                        <option value="aguardando">Aguardando carro</option>
                         <option value="cobrir">Cobrir</option>
                     </select>
                 </div>
