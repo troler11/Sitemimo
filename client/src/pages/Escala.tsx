@@ -64,8 +64,13 @@ const Escala: React.FC = () => {
             const isCobrir = obsTexto.includes('cobrir');
 
             let statusItem = 'pendente';
-            if (item.manutencao) statusItem = 'manutencao';
-            else if (realizou) statusItem = 'confirmado';
+           if (item.manutencao) {
+            statusItem = 'manutencao';
+        } else if (item.aguardando) { // Adicionado a lógica do aguardando
+            statusItem = 'aguardando';
+        } else if (realizou) {
+            statusItem = 'confirmado';
+        }
             
             if (filtroStatus) {
                 if (filtroStatus === 'cobrir') {
