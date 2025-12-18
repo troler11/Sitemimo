@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
-            }, 120000);
+            }, 300000);
             return () => clearInterval(intervalPrevisao);
         }
     }, [isLoggedIn, loading, linhas.length, carregarPrevisoesAutomaticamente]);
