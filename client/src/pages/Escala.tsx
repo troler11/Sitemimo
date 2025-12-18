@@ -224,7 +224,7 @@ const Escala: React.FC = () => {
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">COBRIR</span>
-                        <span className="kpi-number text-info">{kpis.cobrir}</span>
+                        <span className="kpi-number text-red">{kpis.cobrir}</span>
                     </div>
                 </div>
             </div>
