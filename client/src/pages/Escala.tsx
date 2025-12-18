@@ -15,8 +15,8 @@ interface ItemEscala {
     h_real: string;
     obs: string;
     ra_val: string;
-    manutencao: boolean;
-    aguardando: boolean;
+    manutencao: string;
+    aguardando: string;
 }
 
 const Escala: React.FC = () => {
