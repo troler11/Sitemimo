@@ -215,7 +215,7 @@ const Escala: React.FC = () => {
 
                 {/* 6. COBRIR */}
                 <div className="kpi-card">
-                    <div className="kpi-icon text-info">
+                    <div className="kpi-icon text-red">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <polyline points="1 20 1 14 7 14"></polyline>
