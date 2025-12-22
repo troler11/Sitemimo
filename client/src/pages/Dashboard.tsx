@@ -46,6 +46,28 @@ function isLineAtrasada(l: Linha): boolean {
 
     return (realMin - progMin) > tolerancia;
 }
+function isPercursoAtrasado(l: Linha): boolean {
+    // 1. Verifica se é Sentido IDA (Assumindo que 1 = Ida, baseado no seu filtro)
+    if (Number(l.s) !== 1) return false;
+
+    // 2. Verifica se tem previsão de fim (TomTom) e fim programado
+    if (!l.pfn || l.pfn === 'N/D' || !l.pf) return false;
+
+    const progMin = timeToMinutes(l.pf);
+    const prevMin = timeToMinutes(l.pfn);
+
+    // 3. Verifica tolerância de 10 minutos
+    // (Previsão - Programado) > 10
+    return (prevMin - progMin) > 10;
+}
+
+const timeToMinutes = (time: string) => {
+    if (!time || time === 'N/D') return 0;
+    const limpo = time.split(' ')[0]; // Remove textos extras
+    if (!limpo.includes(':')) return 0;
+    const [h, m] = limpo.split(':').map(Number);
+    return h * 60 + m;
+};
 
 const Dashboard: React.FC = () => {
     const { isLoggedIn, isInitializing, logout } = useAuth();
@@ -490,10 +512,33 @@ const Dashboard: React.FC = () => {
                             // Tooltip explicativo
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
-                            let statusBadge;
-                            if (l.c === 'Carro desligado') statusBadge = <span className="badge badge-dark">Desligado</span>;
-                            else if (!jaSaiu) statusBadge = l.pi < horaServidor ? <span className="badge badge-red">Atrasado (Ini)</span> : <span className="badge badge-yellow">Deslocamento</span>;
-                            else statusBadge = isLineAtrasada(l) ? <span className="badge badge-red">Atrasado</span> : <span className="badge badge-green">Pontual</span>;
+                           // 1. Carro Desligado
+if (l.c === 'Carro desligado') {
+    statusBadge = <span className="badge badge-dark">Desligado</span>;
+} 
+// 2. Viagem NÃO Iniciou (Ainda no terminal ou aguardando)
+else if (!jaSaiu) {
+    statusBadge = l.pi < horaServidor 
+        ? <span className="badge badge-red">Atrasado (Ini)</span> 
+        : <span className="badge badge-yellow">Deslocamento</span>;
+} 
+// 3. Viagem JÁ Iniciou (Rodando)
+else {
+    // A prioridade 1 é se atrasou na SAÍDA
+    if (isLineAtrasada(l)) {
+        statusBadge = <span className="badge badge-red">Atrasado</span>;
+    }
+    // A prioridade 2 é se vai atrasar na CHEGADA (Nova Lógica)
+    else if (isPercursoAtrasado(l)) {
+        // Usei 'badge-warning' ou 'badge-orange' para diferenciar visualmente, 
+        // mas você pode usar 'badge-red' se quiser tudo vermelho.
+        statusBadge = <span className="badge badge-red" style={{border: '1px dashed white'}}>Atrasado (percurso)</span>;
+    }
+    // Se não atrasou na saída nem vai atrasar na chegada
+    else {
+        statusBadge = <span className="badge badge-green">Pontual</span>;
+    }
+}
 
                             return (
                                 <tr key={`${l.id}-${idx}`}>
