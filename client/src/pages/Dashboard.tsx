@@ -31,33 +31,31 @@ function isLineAtrasada(l: Linha): boolean {
     const tolerancia = 10;
     if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
     
-    // Função auxiliar para limpar "(Pt 2)" e pegar só a hora
-    const cleanTimeStr = (t: string) => t ? t.split(' ')[0] : ''; 
-
-    const timeToMinutes = (time: string) => {
-        const limpo = cleanTimeStr(time);
-        if (!limpo.includes(':')) return 0; // Proteção contra formato inválido
-        const [h, m] = limpo.split(':').map(Number);
-        return h * 60 + m;
-    };
-    
     const progMin = timeToMinutes(l.pi);
     const realMin = timeToMinutes(l.ri);
 
     return (realMin - progMin) > tolerancia;
 }
+
+    const timeToMinutes = (time: string) => {
+    if (!time || time === 'N/D') return 0;
+    const limpo = time.split(' ')[0]; 
+    if (!limpo.includes(':')) return 0;
+    const [h, m] = limpo.split(':').map(Number);
+    return h * 60 + m;
+};
+    
 function isPercursoAtrasado(l: Linha): boolean {
-    // 1. Verifica se é Sentido IDA (Assumindo que 1 = Ida, baseado no seu filtro)
+    // 1. Verifica se é Sentido IDA (1 = Ida)
     if (Number(l.s) !== 1) return false;
 
-    // 2. Verifica se tem previsão de fim (TomTom) e fim programado
+    // 2. Verifica se tem previsão TomTom e horário programado
     if (!l.pfn || l.pfn === 'N/D' || !l.pf) return false;
 
     const progMin = timeToMinutes(l.pf);
     const prevMin = timeToMinutes(l.pfn);
 
-    // 3. Verifica tolerância de 10 minutos
-    // (Previsão - Programado) > 10
+    // 3. Tolerância de 10 minutos
     return (prevMin - progMin) > 10;
 }
 
@@ -512,33 +510,33 @@ const Dashboard: React.FC = () => {
                             // Tooltip explicativo
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
-                           // 1. Carro Desligado
-if (l.c === 'Carro desligado') {
-    statusBadge = <span className="badge badge-dark">Desligado</span>;
-} 
-// 2. Viagem NÃO Iniciou (Ainda no terminal ou aguardando)
-else if (!jaSaiu) {
-    statusBadge = l.pi < horaServidor 
-        ? <span className="badge badge-red">Atrasado (Ini)</span> 
-        : <span className="badge badge-yellow">Deslocamento</span>;
-} 
-// 3. Viagem JÁ Iniciou (Rodando)
-else {
-    // A prioridade 1 é se atrasou na SAÍDA
-    if (isLineAtrasada(l)) {
-        statusBadge = <span className="badge badge-red">Atrasado</span>;
-    }
-    // A prioridade 2 é se vai atrasar na CHEGADA (Nova Lógica)
-    else if (isPercursoAtrasado(l)) {
-        // Usei 'badge-warning' ou 'badge-orange' para diferenciar visualmente, 
-        // mas você pode usar 'badge-red' se quiser tudo vermelho.
-        statusBadge = <span className="badge badge-red" style={{border: '1px dashed white'}}>Atrasado (percurso)</span>;
-    }
-    // Se não atrasou na saída nem vai atrasar na chegada
+                         let statusBadge: React.ReactNode; 
+
+    // 1. Carro Desligado
+    if (l.c === 'Carro desligado') {
+        statusBadge = <span className="badge badge-dark">Desligado</span>;
+    } 
+    // 2. Viagem NÃO Iniciou
+    else if (!jaSaiu) {
+        statusBadge = l.pi < horaServidor 
+            ? <span className="badge badge-red">Atrasado (Ini)</span> 
+            : <span className="badge badge-yellow">Deslocamento</span>;
+    } 
+    // 3. Viagem JÁ Iniciou
     else {
-        statusBadge = <span className="badge badge-green">Pontual</span>;
+        // Prioridade A: Atrasou na SAÍDA?
+        if (isLineAtrasada(l)) {
+            statusBadge = <span className="badge badge-red">Atrasado</span>;
+        }
+        // Prioridade B: Vai atrasar na CHEGADA (Sentido Ida)?
+        else if (isPercursoAtrasado(l)) {
+            statusBadge = <span className="badge badge-red" style={{border: '1px dashed white'}} title="Previsão de chegada atrasada">Atrasado (percurso)</span>;
+        }
+        // Prioridade C: Pontual
+        else {
+            statusBadge = <span className="badge badge-green">Pontual</span>;
+        }
     }
-}
 
                             return (
                                 <tr key={`${l.id}-${idx}`}>
