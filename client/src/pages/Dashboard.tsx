@@ -513,7 +513,7 @@ const Dashboard: React.FC = () => {
                             // 2. Viagem NÃO Iniciou
                             else if (!jaSaiu) {
                                 statusBadge = l.pi < horaServidor 
-                                    ? <span className="badge badge-red">Atrasado (Ini)</span> 
+                                    ? <span className="badge badge-red">Não iniciou</span> 
                                     : <span className="badge badge-yellow">Deslocamento</span>;
                             } 
                             // 3. Viagem JÁ Iniciou
