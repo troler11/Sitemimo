@@ -77,6 +77,20 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const idLinhaQuery = req.query.idLinha as string;
         const cleanPlaca = placa.replace(/[^A-Z0-9]/g, '').toUpperCase();
 
+        const { placa, tipo } = req.params; 
+        const idLinhaQuery = req.query.idLinha as string;
+        const cleanPlaca = placa.replace(/[^A-Z0-9]/g, '').toUpperCase();
+
+        // --- 1. BLOCO DE ECONOMIA (CACHE) ---
+        const cacheKey = `rota_${cleanPlaca}_${tipo}`; // Chave única por placa e tipo (inicial/final)
+        const cachedRoute = predictionCache.get(cacheKey) as any;
+
+        // Se existe cache e ele tem menos de 60 segundos (ajuste conforme necessidade)
+        if (cachedRoute && (Date.now() - cachedRoute.timestamp < 60000)) {
+        console.log(`[CACHE] Usando rota salva para ${cleanPlaca}`);
+        return res.json(cachedRoute.data);
+        }
+
         // 1. Posição Atual
         const veiculoData = await getVeiculoPosicao(cleanPlaca);
         let latAtual = parseFloat(veiculoData.latitude || veiculoData.loc?.[0] || 0);
@@ -202,19 +216,20 @@ export const calculateRoute = async (req: Request, res: Response) => {
         const minutos = Math.floor((segundos % 3600) / 60);
         const tempoTxt = horas > 0 ? `${horas}h ${minutos}min` : `${minutos} min`;
 
-        return res.json({
-            tempo: tempoTxt,
-            distancia: (metros / 1000).toFixed(2) + " km",
-            duracaoSegundos: segundos,
-            previsao_chegada: horarioChegadaFmt,
-            origem_endereco: veiculoData.endereco || `Lat: ${latAtual.toFixed(4)}, Lng: ${lngAtual.toFixed(4)}`,
-            destino_endereco: destinoFinal.nome,
-            veiculo_pos: [latAtual, lngAtual],
-            rastro_oficial: simplificarRota(rastroOficial), 
-            rastro_real: simplificarRota(rastroExecutado),
-            rastro_tomtom: simplificarRota(rastroTomTom), 
-            todos_pontos_visual: pontosMapa 
-        });
+// Objeto de resposta final
+const responseData = {
+    tempo: tempoTxt,
+    distancia: (metros / 1000).toFixed(2) + " km",
+    duracaoSegundos: segundos,
+    previsao_chegada: horarioChegadaFmt,
+    origem_endereco: veiculoData.endereco || `Lat: ${latAtual.toFixed(4)}, Lng: ${lngAtual.toFixed(4)}`,
+    destino_endereco: destinoFinal.nome,
+    veiculo_pos: [latAtual, lngAtual],
+    rastro_oficial: simplificarRota(rastroOficial), 
+    rastro_real: simplificarRota(rastroExecutado),
+    rastro_tomtom: simplificarRota(rastroTomTom), 
+    todos_pontos_visual: pontosMapa 
+};
 
     } catch (error: any) {
         console.error("Erro Rota:", error.message);
