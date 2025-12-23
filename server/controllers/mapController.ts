@@ -231,6 +231,22 @@ const responseData = {
     todos_pontos_visual: pontosMapa 
 };
 
+        // --- 2. SALVAR CACHE COMPLETO ---
+// Salva para a rota detalhada (cacheKey)
+predictionCache.set(cacheKey, { 
+    data: responseData, 
+    timestamp: Date.now() 
+});
+
+// Salva APENAS O HORÁRIO para o Dashboard (retrocompatibilidade com o outro arquivo)
+predictionCache.set(cleanPlaca, { 
+    horario: horarioChegadaFmt, 
+    timestamp: Date.now() 
+});
+// --------------------------------
+
+return res.json(responseData);
+
     } catch (error: any) {
         console.error("Erro Rota:", error.message);
         return res.status(500).json({ message: error.message || "Erro interno ao calcular rota" });
