@@ -3,7 +3,7 @@ import axios from 'axios';
 import NodeCache from 'node-cache';
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpJjRQ0KhIQtHA36CD_cugZyQD1GrftfIahwqxV9Nqxx1jnF5T2bt0tQgNM0kWfRArrQ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
 
 // --- FUNÇÃO DE PROCESSAMENTO (PORTADA DO PHP) ---
 const processarDados = (rows: any[]) => {
