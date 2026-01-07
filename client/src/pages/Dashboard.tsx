@@ -307,19 +307,28 @@ const Dashboard: React.FC = () => {
 
     
     const kpis = useMemo(() => {
+        // Inicializa os contadores
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
-        linhas.forEach(l => {
+        // CORREÇÃO: Usar 'dadosFiltrados' em vez de 'linhas'
+        dadosFiltrados.forEach(l => {
             counts.total++;
-            if (l.c === 'Carro desligado') { counts.desligados++; return; }
+            if (l.c === 'Carro desligado') { 
+                counts.desligados++; 
+                return; 
+            }
             const jaSaiu = l.ri && l.ri !== 'N/D';
+            
             if (jaSaiu) {
-                if (isLineAtrasada(l)) counts.atrasados++; else counts.pontual++;
+                if (isLineAtrasada(l)) counts.atrasados++; 
+                else counts.pontual++;
             } else {
-                if (l.pi < horaServidor) counts.semInicio++; else counts.deslocamento++;
+                if (l.pi < horaServidor) counts.semInicio++; 
+                else counts.deslocamento++;
             }
         });
         return counts;
-    }, [linhas, horaServidor]);
+    // CORREÇÃO: Adicionar 'dadosFiltrados' nas dependências e remover 'linhas'
+    }, [dadosFiltrados, horaServidor]);
 
     if (isInitializing || !isLoggedIn) return null;
 
