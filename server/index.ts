@@ -26,5 +26,11 @@ app.get('*', (req, res) => {
 // Servir o Frontend (Webpack Build) em produção
 app.use(express.static('../client/dist'));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
+// server/index.ts
+
+const PORT = parseInt(process.env.PORT || '3000');
+
+// Adicione '0.0.0.0' como segundo argumento
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Servidor rodando na porta ${PORT} e IP 0.0.0.0`);
+});
