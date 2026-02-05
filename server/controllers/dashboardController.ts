@@ -15,7 +15,7 @@ const HEADERS_DASHBOARD_MAIN = {
 };
 const TIMEZONE = 'America/Sao_Paulo';
 
-// Configuração do Agente HTTPS para evitar ECONNRESET
+// Configuração do Agente HTTPS
 const httpsAgent = new https.Agent({
     keepAlive: true,
     timeout: 60000,
@@ -30,8 +30,16 @@ const INPUT_FORMATS = [
     moment.ISO_8601
 ];
 
-// --- FUNÇÃO AUXILIAR PARA CALCULAR STATUS (NOVA) ---
-const calcularStatus = (categoria: string, pi: string, ri: string, pf: string, pfn: string, horaServidor: string) => {
+// --- FUNÇÃO AUXILIAR PARA CALCULAR STATUS (CORRIGIDA) ---
+const calcularStatus = (
+    categoria: string, 
+    pi: string, 
+    ri: string, 
+    pf: string, 
+    pfn: string, 
+    horaServidor: string,
+    sentidoIda: boolean // Novo parâmetro
+) => {
     // 1. Carro Desligado
     if (categoria === "Carro desligado") return "DESLIGADO";
 
@@ -39,13 +47,13 @@ const calcularStatus = (categoria: string, pi: string, ri: string, pf: string, p
     if (!ri || ri === "N/D") {
         if (!pi || pi === "N/D") return "INDEFINIDO";
         
-        // Se a hora programada for MENOR que a hora atual, já deveria ter saído (Deslocamento/Atraso na saída)
-        // Se a hora programada for MAIOR que a hora atual, está aguardando (Não Iniciou)
-        return pi < horaServidor ? "DESLOCAMENTO" : "NAO_INICIOU";
+        // LÓGICA CORRIGIDA (Igual ao Frontend):
+        // Se Programado (pi) < Hora Atual: Já deveria ter saído -> NAO_INICIOU (Atrasado na origem)
+        // Se Programado (pi) >= Hora Atual: Ainda vai sair -> DESLOCAMENTO
+        return pi < horaServidor ? "NAO_INICIOU" : "DESLOCAMENTO";
     }
 
-    // 3. Já saiu - Verificar Atraso na Saída
-    // Limpa o ri para garantir que pegamos só a hora "HH:mm" (remove " (Pt 2)")
+    // 3. Já saiu - Verificar Atraso na Saída (Origem)
     const cleanRi = ri.split(' ')[0];
     const hoje = moment().format('YYYY-MM-DD');
     
@@ -54,25 +62,29 @@ const calcularStatus = (categoria: string, pi: string, ri: string, pf: string, p
 
     if (mPi.isValid() && mRi.isValid()) {
         const diffMinutos = mRi.diff(mPi, 'minutes');
-        if (diffMinutos > 10) return "ATRASADO"; // Saiu com mais de 10 min de atraso
+        if (diffMinutos > 10) return "ATRASADO"; // Saiu atrasado da origem
     }
 
-    // 4. Verificar Atraso de Percurso (TomTom) - Opcional
-    // Se a previsão de chegada (pfn) for muito maior que a programada final (pf)
-    if (pfn && pfn !== "N/D" && pf && pf !== "N/D") {
-        const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-        const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-        
-        if (mPf.isValid() && mPfn.isValid()) {
-             const diffChegada = mPfn.diff(mPf, 'minutes');
-             if (diffChegada > 10) return "ATRASADO_PERCURSO";
+    // 4. Verificar Atraso de Percurso (TomTom)
+    // REGRA: Só verifica percurso se for SENTIDO IDA (Entrada)
+    if (sentidoIda === true) { 
+        if (pfn && pfn !== "N/D" && pf && pf !== "N/D") {
+            const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+            const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+            
+            if (mPf.isValid() && mPfn.isValid()) {
+                 const diffChegada = mPfn.diff(mPf, 'minutes');
+                 // Se a previsão for mais de 10 minutos maior que o programado
+                 if (diffChegada > 10) return "ATRASADO_PERCURSO";
+            }
         }
     }
 
+    // Se passou por tudo e não caiu em nenhum atraso
     return "PONTUAL";
 };
 
-// Helper para limpar data e parsear com segurança
+// Helper para parsear data
 const parseDateSafe = (dateInput: any): moment.Moment | null => {
     if (!dateInput) return null;
     const cleanStr = String(dateInput).trim();
@@ -84,7 +96,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user; 
         
-        // --- LÓGICA DE SEGURANÇA ---
         const isAdmin = user.role === 'admin';
         const allowedCompanies: string[] = user.allowed_companies || [];
         const allowedNorm = allowedCompanies.map(c => c.toUpperCase().trim());
@@ -114,23 +125,22 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
         const data: any = dashboardData;
         let todasLinhas: any[] = [];
-        const horaAtualServidor = moment().tz(TIMEZONE).format('HH:mm'); // Hora atual para comparações
+        const horaAtualServidor = moment().tz(TIMEZONE).format('HH:mm'); 
 
         const processarGrupo = (lista: any[], categoria: string) => {
             if (!lista) return;
             
             for (const l of lista) {
-                // --- FILTRO DE EMPRESA ---
+                // --- FILTROS ---
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
                 if (!isAdmin) {
                     if (!allowedNorm.includes(empNome)) continue;
                 }
 
-                // Filtro Finalizada
                 const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
                 if (finalizada) continue;
 
-                // --- VARIÁVEIS INICIAIS ---
+                // --- VARIÁVEIS ---
                 let pi = "N/D"; 
                 let ri = "N/D"; 
                 let pf = "N/D"; 
@@ -138,7 +148,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 let li = "N/D";
                 let lf = "N/D";
                 
-                // 1. LÓGICA DO ÚLTIMO REPORTE (SEM CONVERSÃO)
+                // Ultimo reporte
                 let u = "N/D";
                 let rawDate = null;
                 
@@ -152,25 +162,22 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 
                 let diffMinutosSaida = 0; 
                 let saiu = false;
+                const sentidoIda = l.sentidoIDA ? true : false; // Boolean explícito
 
-                // 2. EXTRAÇÃO DE DADOS DOS PONTOS
+                // --- EXTRAÇÃO DE PONTOS ---
                 if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                     for (const p of l.pontoDeParadas) {
                         const tipo = p.tipoPonto?.tipo;
                         const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
 
-                        // A. DADOS ESTÁTICOS (Ponto 1)
                         if (tipo === "Inicial") {
                             if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                             if (p.horario) pi = p.horario;
                         }
 
-                        // B. DADOS REAIS
-                        if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) { //PUXA ATE O 4 PONTO
-                            
-                            // Validação de tempoDiferenca (Aceita 0)
+                        if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
                             if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
-                                saiu = true; // Temporariamente assume que saiu, validaremos os 10min abaixo
+                                saiu = true; 
 
                                 const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
                                 const hojeStr = moment().format('YYYY-MM-DD');
@@ -201,7 +208,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                             }
                         }
 
-                        // C. FINAL
                         if (tipo === "Final") {
                             if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
                             if (p.horario) pf = p.horario;
@@ -209,19 +215,15 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     }
                 }
 
-                // =========================================================
-                // VALIDAÇÃO DE TOLERÂNCIA DE 40 MINUTOS
-                // =========================================================
+                // --- VALIDAÇÃO DE TOLERÂNCIA (40 min) ---
                 if (pi !== "N/D" && ri !== "N/D") {
                     const cleanRi = ri.split(' ')[0]; 
-                    
                     const hoje = moment().format('YYYY-MM-DD');
                     const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                     const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
 
                     if (mPi.isValid() && mRi.isValid()) {
                         const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
-
                         if (diffAbsoluta > 40) {
                             ri = "N/D";
                             saiu = false; 
@@ -229,9 +231,8 @@ export const getDashboardData = async (req: Request, res: Response) => {
                         }
                     }
                 }
-                // =========================================================
 
-                // 3. PREVISÃO DE CHEGADA
+                // --- PREVISÃO ---
                 const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
                 const cachedPred = predictionCache.get(placaLimpa) as any;
                 
@@ -247,10 +248,9 @@ export const getDashboardData = async (req: Request, res: Response) => {
                      pfn = "--:--"; 
                 }
 
-                // --- CALCULAR STATUS API (Novo!) ---
-                const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor);
+                // --- CALCULAR STATUS API (COM AS CORREÇÕES) ---
+                const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor, sentidoIda);
 
-                // Push na lista final
                 todasLinhas.push({
                     id: l.idLinha || l.id,
                     e: l.empresa?.nome || '',
@@ -265,7 +265,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     pfn: pfn,
                     u: u,
                     c: categoria,
-                    status_api: statusApi // <--- Campo Novo Aqui
+                    status_api: statusApi 
                 });
             }
         };
