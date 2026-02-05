@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import routes from './routes'; // Seu arquivo de rotas consolidado
+import routes from './routes'; 
 
 const app = express();
 
@@ -9,32 +9,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- 2. Rotas da API (A PRIORIDADE MÁXIMA) ---
-// Isso garante que qualquer requisição começando com /api seja tratada pelo backend.
-// Se o seu routes.ts tem 'router.post("/login")', aqui virará "/api/login".
+// --- 2. Rotas da API ---
 app.use('/api', routes);
 
-// ⚠️ AJUSTE IMPORTANTE NA ROTA EXTERNA:
-// Como montamos o routes com o prefixo '/api', verifique no seu arquivo 'routes.ts':
-// Se lá estiver: router.get('/api/v1/...'), o resultado final será /api/api/v1/... (duplicado).
-// O ideal no routes.ts é deixar: router.get('/v1/monitoramento/frota', ...).
-
 // --- 3. Arquivos Estáticos (Frontend) ---
-// Define onde está o build de produção do React (geralmente 'dist' ou 'build')
-// __dirname sobe um nível (..) e entra em client/dist
-const buildPath = path.join(__dirname, '../client/dist');
+// Usamos process.cwd() para garantir que partimos da raiz do projeto (/app)
+// Isso evita erros dependendo de onde o arquivo JS compilado está (dist/server/...)
+const buildPath = path.join(process.cwd(), 'client', 'dist');
+
+// Middleware para servir arquivos estáticos (JS, CSS, Imagens)
 app.use(express.static(buildPath));
 
-// --- 4. Fallback do React (SPA) - "Pega tudo que sobrou" ---
-// Se a requisição não foi atendida pelas rotas /api e não é um arquivo estático (js/css),
-// então devolve o index.html para o React gerenciar a rota via React Router.
+// --- 4. Fallback do React (SPA) ---
+// Se não for uma rota de API ou um arquivo estático, o React assume
 app.get('*', (req, res) => {
-    res.sendFile(path.join(buildPath, 'index.html'));
+    const indexPath = path.join(buildPath, 'index.html');
+    
+    // Verificação de segurança: se o arquivo não existir, avisa no log
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error(`❌ Erro ao enviar index.html: ${indexPath}`);
+            res.status(404).send("Erro: Frontend não encontrado. Certifique-se de que o build foi gerado.");
+        }
+    });
 });
 
 // --- 5. Inicialização do Servidor ---
 const PORT = parseInt(process.env.PORT || '3000');
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Servidor rodando na porta ${PORT}`);
-    console.log(`📂 Servindo frontend de: ${buildPath}`);
+    console.log(`🔍 Procurando frontend em: ${buildPath}`);
 });
