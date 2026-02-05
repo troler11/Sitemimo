@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { fetchDashboardData } from '../services/DashboardService';
+import { fetchDashboardData } from '../src/services/DashboardService';
 
 export const getDashboardData = async (req: Request, res: Response) => {
     try {
