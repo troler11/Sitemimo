@@ -2,7 +2,7 @@ import https from 'https';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import moment from 'moment-timezone';
-import { predictionCache } from '../utils/sharedCache'; 
+import { predictionCache } from '../../utils/sharedCache'; 
 
 // --- CONFIGURAÇÕES E CONSTANTES ---
 const appCache = new NodeCache({ stdTTL: 30 }); // Cache de 30 segundos
