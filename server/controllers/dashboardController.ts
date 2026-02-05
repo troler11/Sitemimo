@@ -30,6 +30,48 @@ const INPUT_FORMATS = [
     moment.ISO_8601
 ];
 
+// --- FUNÇÃO AUXILIAR PARA CALCULAR STATUS (NOVA) ---
+const calcularStatus = (categoria: string, pi: string, ri: string, pf: string, pfn: string, horaServidor: string) => {
+    // 1. Carro Desligado
+    if (categoria === "Carro desligado") return "DESLIGADO";
+
+    // 2. Não Iniciou (ri é N/D)
+    if (!ri || ri === "N/D") {
+        if (!pi || pi === "N/D") return "INDEFINIDO";
+        
+        // Se a hora programada for MENOR que a hora atual, já deveria ter saído (Deslocamento/Atraso na saída)
+        // Se a hora programada for MAIOR que a hora atual, está aguardando (Não Iniciou)
+        return pi < horaServidor ? "DESLOCAMENTO" : "NAO_INICIOU";
+    }
+
+    // 3. Já saiu - Verificar Atraso na Saída
+    // Limpa o ri para garantir que pegamos só a hora "HH:mm" (remove " (Pt 2)")
+    const cleanRi = ri.split(' ')[0];
+    const hoje = moment().format('YYYY-MM-DD');
+    
+    const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+    const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+
+    if (mPi.isValid() && mRi.isValid()) {
+        const diffMinutos = mRi.diff(mPi, 'minutes');
+        if (diffMinutos > 10) return "ATRASADO"; // Saiu com mais de 10 min de atraso
+    }
+
+    // 4. Verificar Atraso de Percurso (TomTom) - Opcional
+    // Se a previsão de chegada (pfn) for muito maior que a programada final (pf)
+    if (pfn && pfn !== "N/D" && pf && pf !== "N/D") {
+        const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+        const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+        
+        if (mPf.isValid() && mPfn.isValid()) {
+             const diffChegada = mPfn.diff(mPf, 'minutes');
+             if (diffChegada > 10) return "ATRASADO_PERCURSO";
+        }
+    }
+
+    return "PONTUAL";
+};
+
 // Helper para limpar data e parsear com segurança
 const parseDateSafe = (dateInput: any): moment.Moment | null => {
     if (!dateInput) return null;
@@ -72,6 +114,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
         const data: any = dashboardData;
         let todasLinhas: any[] = [];
+        const horaAtualServidor = moment().tz(TIMEZONE).format('HH:mm'); // Hora atual para comparações
 
         const processarGrupo = (lista: any[], categoria: string) => {
             if (!lista) return;
@@ -103,7 +146,6 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 else if (l.veiculo && l.veiculo.dataComunicacao) rawDate = l.veiculo.dataComunicacao;
                 else rawDate = l.ultimaData;
 
-                // ALTERAÇÃO AQUI: Se existe dado bruto, usa ele como String direto.
                 if (rawDate) {
                     u = String(rawDate);
                 }
@@ -168,10 +210,9 @@ export const getDashboardData = async (req: Request, res: Response) => {
                 }
 
                 // =========================================================
-                // VALIDAÇÃO DE TOLERÂNCIA DE 40 MINUTOS (NOVA REGRA)
+                // VALIDAÇÃO DE TOLERÂNCIA DE 40 MINUTOS
                 // =========================================================
                 if (pi !== "N/D" && ri !== "N/D") {
-                    // Limpa o texto "(Pt 2)" para pegar só a hora "14:30"
                     const cleanRi = ri.split(' ')[0]; 
                     
                     const hoje = moment().format('YYYY-MM-DD');
@@ -181,11 +222,10 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     if (mPi.isValid() && mRi.isValid()) {
                         const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
 
-                        // Se a diferença for maior que 40 minutos, considera que não é a viagem correta
                         if (diffAbsoluta > 40) {
                             ri = "N/D";
-                            saiu = false; // Cancela status de saída
-                            diffMinutosSaida = 0; // Zera diferença para não afetar previsão
+                            saiu = false; 
+                            diffMinutosSaida = 0; 
                         }
                     }
                 }
@@ -207,6 +247,9 @@ export const getDashboardData = async (req: Request, res: Response) => {
                      pfn = "--:--"; 
                 }
 
+                // --- CALCULAR STATUS API (Novo!) ---
+                const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor);
+
                 // Push na lista final
                 todasLinhas.push({
                     id: l.idLinha || l.id,
@@ -221,7 +264,8 @@ export const getDashboardData = async (req: Request, res: Response) => {
                     lf: lf,
                     pfn: pfn,
                     u: u,
-                    c: categoria
+                    c: categoria,
+                    status_api: statusApi // <--- Campo Novo Aqui
                 });
             }
         };
@@ -232,7 +276,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
         return res.json({ 
             todas_linhas: todasLinhas, 
-            hora: moment().tz(TIMEZONE).format('HH:mm') 
+            hora: horaAtualServidor
         });
 
     } catch (error) {
