@@ -28,7 +28,7 @@ router.delete('/users/:id', verifyToken, deleteUser);
 router.get('/escala', verifyToken, getEscala);
 
 // Rota para integração externa
-router.get('/api/v1/monitoramento/frota', getFrotaExterna);
+router.get('/v1/monitoramento/frota', getFrotaExterna);
 
 //Criar Rotas
 router.post('/rotas', createRota);
