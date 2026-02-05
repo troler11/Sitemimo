@@ -1,42 +1,47 @@
 import express from 'express';
 import cors from 'cors';
+import routes from './routes'; // Importa o arquivo acima
+import { getDashboardData } from './controllers/dashboardController';
+import { verifyToken } from './middleware/auth';
+import { login } from './controllers/authController'; // Você precisa criar este baseado no login.php
 import path from 'path';
-import routes from './routes'; 
 
 const app = express();
 
-// --- 1. Configurações Globais ---
 app.use(cors());
+
 app.use(express.json());
 
-// --- 2. Rotas da API ---
-app.use('/api', routes);
+// Rotas Publicas
+app.post('/api/login', login);
+app.get('/api/dashboard', verifyToken, getDashboardData); // <--- Mova para cima
+app.use('/api', routes); // Prefixo /api para tudo
 
-// --- 3. Arquivos Estáticos (Frontend) ---
-// Usamos process.cwd() para garantir que partimos da raiz do projeto (/app)
-// Isso evita erros dependendo de onde o arquivo JS compilado está (dist/server/...)
-const buildPath = path.join(process.cwd(), 'client', 'dist');
 
-// Middleware para servir arquivos estáticos (JS, CSS, Imagens)
-app.use(express.static(buildPath));
+// Serve os arquivos estáticos do React (JS, CSS)
 
-// --- 4. Fallback do React (SPA) ---
-// Se não for uma rota de API ou um arquivo estático, o React assume
+app.use(express.static(path.join(__dirname, '../client')));
+
 app.get('*', (req, res) => {
-    const indexPath = path.join(buildPath, 'index.html');
-    
-    // Verificação de segurança: se o arquivo não existir, avisa no log
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error(`❌ Erro ao enviar index.html: ${indexPath}`);
-            res.status(404).send("Erro: Frontend não encontrado. Certifique-se de que o build foi gerado.");
-        }
-    });
+
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+
 });
 
-// --- 5. Inicialização do Servidor ---
+// Servir o Frontend (Webpack Build) em produção
+
+app.use(express.static('../client/dist'));
+
+// server/index.ts
+
 const PORT = parseInt(process.env.PORT || '3000');
+
+
+
+// Adicione '0.0.0.0' como segundo argumento
+
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Servidor rodando na porta ${PORT}`);
-    console.log(`🔍 Procurando frontend em: ${buildPath}`);
+
+    console.log(`✅ Servidor rodando na porta ${PORT} e IP 0.0.0.0`);
+
 });
