@@ -18,7 +18,8 @@ interface Linha {
     pf: string; 
     pfn?: string; 
     u: string;  
-    c: string;  
+    c: string;
+    status_api?: string; // Novo campo vindo do Backend
 }
 
 // Configuração da ordenação
@@ -26,43 +27,6 @@ type SortConfig = {
     key: string; 
     direction: 'asc' | 'desc';
 } | null;
-
-// --- FUNÇÕES AUXILIARES ---
-
-// 1. Função de converter tempo (Declarada apenas UMA vez aqui no topo)
-const timeToMinutes = (time: string) => {
-    if (!time || time === 'N/D') return 0;
-    const limpo = time.split(' ')[0]; // Remove textos extras
-    if (!limpo.includes(':')) return 0;
-    const [h, m] = limpo.split(':').map(Number);
-    return h * 60 + m;
-};
-
-// 2. Função de atraso simples
-function isLineAtrasada(l: Linha): boolean {
-    const tolerancia = 10;
-    if (!l.pi || l.pi === 'N/D' || !l.ri || l.ri === 'N/D') return false;
-    
-    const progMin = timeToMinutes(l.pi);
-    const realMin = timeToMinutes(l.ri);
-
-    return (realMin - progMin) > tolerancia;
-}
-
-// 3. Função de atraso de percurso
-function isPercursoAtrasado(l: Linha): boolean {
-    // 1. Verifica se é Sentido IDA (1 = Ida)
-    if (Number(l.s) !== 1) return false;
-
-    // 2. Verifica se tem previsão TomTom e horário programado
-    if (!l.pfn || l.pfn === 'N/D' || !l.pf) return false;
-
-    const progMin = timeToMinutes(l.pf);
-    const prevMin = timeToMinutes(l.pfn);
-
-    // 3. Tolerância de 10 minutos
-    return (prevMin - progMin) > 10;
-}
 
 // --- COMPONENTE ---
 
@@ -112,6 +76,7 @@ const Dashboard: React.FC = () => {
                 if (prevLinhas.length === 0) return linhasServidor;
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
+                    // Mantém a previsão TomTom se o servidor ainda não atualizou mas o frontend já tinha
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
@@ -132,10 +97,12 @@ const Dashboard: React.FC = () => {
 
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
         if (!isLoggedIn) return;
+        // Filtra apenas quem está viajando para buscar TomTom
         const linhasAtivas = linhasRef.current.filter(l => 
             l.ri && l.ri !== 'N/D' && 
             l.c !== 'Carro desligado' && 
-            l.c !== 'Encerrado' && l.v
+            l.status_api !== 'DESLIGADO' && // Garante usando status novo
+            l.v
         );
 
         if (linhasAtivas.length === 0) return;
@@ -181,7 +148,6 @@ const Dashboard: React.FC = () => {
 
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
-    // Função para solicitar a ordenação ao clicar no cabeçalho
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -190,11 +156,8 @@ const Dashboard: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    // Helper para desenhar a setinha de ordenação
     const getSortIcon = (name: string) => {
-        if (!sortConfig || sortConfig.key !== name) {
-            return null; // ou <span style={{opacity: 0.3}}>⇅</span> se quiser mostrar sempre
-        }
+        if (!sortConfig || sortConfig.key !== name) return null;
         return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
     };
 
@@ -212,8 +175,11 @@ const Dashboard: React.FC = () => {
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
+    // --- FILTRAGEM REFEITA COM STATUS API ---
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
+            const st = l.status_api || 'INDEFINIDO';
+
             // 1. Busca Texto
             if (busca) {
                 const termo = busca.toLowerCase();
@@ -228,59 +194,48 @@ const Dashboard: React.FC = () => {
                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoReal) return false;
             }
-            // 4. Filtro Status
+            
+            // 4. Filtro Status (Simplificado)
             if (filtroStatus) {
-                const jaSaiu = l.ri && l.ri !== 'N/D';
-                const atrasado = isLineAtrasada(l);
-                const isDesligado = l.c === 'Carro desligado';
-
-                if (filtroStatus === 'desligado') {
-                    if (!isDesligado) return false;
-                }
-                else if (filtroStatus === 'atrasado') {
-                    if (isDesligado || !jaSaiu || !atrasado) return false;
-                }
-                else if (filtroStatus === 'pontual') {
-                    if (isDesligado || !jaSaiu || atrasado) return false;
-                }
-                else if (filtroStatus === 'nao_iniciou') {
-                    if (isDesligado || jaSaiu || l.pi >= horaServidor) return false;
-                }
-                else if (filtroStatus === 'deslocamento') {
-                    if (isDesligado || jaSaiu || l.pi < horaServidor) return false;
-                }
+                if (filtroStatus === 'desligado' && st !== 'DESLIGADO') return false;
+                if (filtroStatus === 'atrasado' && st !== 'ATRASADO' && st !== 'ATRASADO_PERCURSO') return false;
+                if (filtroStatus === 'pontual' && st !== 'PONTUAL') return false;
+                if (filtroStatus === 'nao_iniciou' && st !== 'NAO_INICIOU') return false;
+                if (filtroStatus === 'deslocamento' && st !== 'DESLOCAMENTO') return false;
             }
             return true;
         });
-    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, horaServidor]);
+    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
-    // Ordenação
+    // --- ORDENAÇÃO REFEITA ---
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 
-                // Função auxiliar para preparar o valor para ordenação
                 const getSortableValue = (item: Linha, key: string) => {
-                    // 1. Ordenação Especial de STATUS
+                    // Ordenação por Status (Peso)
                     if (key === 'status') {
-                        const jaSaiu = item.ri && item.ri !== 'N/D';
-                        const atrasado = isLineAtrasada(item);
-                        
-                        if (item.c === 'Carro desligado') return 0; // Desligado (Peso menor)
-                        if (!jaSaiu) return item.pi < horaServidor ? 1 : 4; // Atrasado (Ini) vs Aguardando
-                        return atrasado ? 2 : 3; // Atrasado vs Pontual
+                        const st = item.status_api || '';
+                        switch (st) {
+                            case 'DESLIGADO': return 0;
+                            case 'NAO_INICIOU': return 4;
+                            case 'ATRASADO': return 3;
+                            case 'ATRASADO_PERCURSO': return 2;
+                            case 'PONTUAL': return 1;
+                            default: return 0;
+                        }
                     }
 
-                    // 2. Ordenação de Horários (remove texto extra ex: "(Ponto 2)")
+                    // Ordenação de Horários
                     if (['ri', 'pfn', 'pi', 'pf', 'u'].includes(key)) {
                         // @ts-ignore
                         let val = item[key];
                         if (!val || val === 'N/D' || val === '--:--') return 'ZZZZ'; 
-                        return val.split(' ')[0]; // Pega só a hora HH:mm
+                        return val.split(' ')[0]; 
                     }
                     
-                    // 3. Padrão
+                    // Padrão
                     // @ts-ignore
                     const val = item[key];
                     return val !== undefined && val !== null ? val : '';
@@ -289,50 +244,56 @@ const Dashboard: React.FC = () => {
                 const aValue = getSortableValue(a, sortConfig.key);
                 const bValue = getSortableValue(b, sortConfig.key);
 
-                // MELHORIA: Tratamento para Strings vs Números
                 if (typeof aValue === 'string' && typeof bValue === 'string') {
                     return sortConfig.direction === 'asc' 
                         ? aValue.localeCompare(bValue) 
                         : bValue.localeCompare(aValue);
                 }
 
-                // Tratamento numérico padrão
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
         }
         return sortableItems;
-    }, [dadosFiltrados, sortConfig, horaServidor]);
+    }, [dadosFiltrados, sortConfig]);
 
     
+    // --- KPI CALCULADO COM STATUS API ---
     const kpis = useMemo(() => {
-        // Inicializa os contadores
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
-        // CORREÇÃO: Usar 'dadosFiltrados' em vez de 'linhas'
+        
         dadosFiltrados.forEach(l => {
             counts.total++;
-            if (l.c === 'Carro desligado') { 
-                counts.desligados++; 
-                return; 
-            }
-            const jaSaiu = l.ri && l.ri !== 'N/D';
-            
-            if (jaSaiu) {
-                if (isLineAtrasada(l)) counts.atrasados++; 
-                else counts.pontual++;
-            } else {
-                if (l.pi < horaServidor) counts.semInicio++; 
-                else counts.deslocamento++;
+            const st = l.status_api || 'INDEFINIDO';
+
+            switch (st) {
+                case 'DESLIGADO':
+                    counts.desligados++;
+                    break;
+                case 'ATRASADO':
+                case 'ATRASADO_PERCURSO':
+                    counts.atrasados++;
+                    break;
+                case 'PONTUAL':
+                    counts.pontual++;
+                    break;
+                case 'NAO_INICIOU':
+                    counts.semInicio++;
+                    break;
+                case 'DESLOCAMENTO':
+                    counts.deslocamento++;
+                    break;
+                default:
+                    // Caso indefinido, pode cair em pontual ou ignorar
+                    break;
             }
         });
         return counts;
-    // CORREÇÃO: Adicionar 'dadosFiltrados' nas dependências e remover 'linhas'
-    }, [dadosFiltrados, horaServidor]);
+    }, [dadosFiltrados]);
 
     if (isInitializing || !isLoggedIn) return null;
 
-    // Estilo inline para o cabeçalho ordenável
     const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none' };
 
     return (
@@ -372,17 +333,11 @@ const Dashboard: React.FC = () => {
                 </select>
             </div>
 
-            {/* KPI Cards - LINHA ÚNICA COM SVG (DESENHOS) */}
+            {/* KPI Cards */}
             <div className="kpi-row mb-4">
-                {/* 1. TOTAL (Grade/Grid) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-blue">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">TOTAL</span>
@@ -390,13 +345,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 2. ATRASADOS (Relógio Vermelho) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">ATRASADOS</span>
@@ -404,18 +355,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 3. PONTUAL (Relógio/Check Verde) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-green">
-                        {/* SVG Adaptado */}
-                        <svg 
-                            viewBox="0 0 512 512" 
-                            fill="currentColor" 
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <polygon points="211.344,306.703 160,256 128,288 211.414,368 384,176 351.703,144 "/>
-                            <path d="M256,0C114.609,0,0,114.609,0,256s114.609,256,256,256s256-114.609,256-256S397.391,0,256,0z M256,472c-119.297,0-216-96.703-216-216S136.703,40,256,40s216,96.703,216,216S375.297,472,256,472z"/>
-                        </svg>
+                        <svg viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="211.344,306.703 160,256 128,288 211.414,368 384,176 351.703,144 "/><path d="M256,0C114.609,0,0,114.609,0,256s114.609,256,256,256s256-114.609,256-256S397.391,0,256,0z M256,472c-119.297,0-216-96.703-216-216S136.703,40,256,40s216,96.703,216,216S375.297,472,256,472z"/></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">PONTUAL</span>
@@ -423,20 +365,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 4. DESLIGADOS (Usuário com X) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-dark">
-                        {/* Ícone Power Off limpo para React */}
-                        <svg 
-                            viewBox="0 0 24 24" 
-                            fill="currentColor" 
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path 
-                                fillRule="evenodd" 
-                                d="M17.7510477,5.00945512 C18.1156885,4.65317657 18.6832031,4.63202809 19.07193,4.94158256 L19.1651661,5.02585826 L19.2621783,5.12532271 C21.0085837,6.96960051 22,9.40828462 22,12 C22,17.5228475 17.5228475,22 12,22 C6.4771525,22 2,17.5228475 2,12 C2,9.5209679 2.90708036,7.18194928 4.52382631,5.35934352 L4.74867188,5.11404263 L4.83483391,5.02585826 C5.22080233,4.63083063 5.85392472,4.6234867 6.24895234,5.00945512 C6.61359323,5.36573366 6.64790008,5.93260493 6.34744581,6.32840766 L6.26535549,6.42357355 L6.1900436,6.50047785 C4.79197458,7.97689773 4,9.92499537 4,12 C4,16.418278 7.581722,20 12,20 C16.418278,20 20,16.418278 20,12 C20,10.0342061 19.2891973,8.18231218 18.0348658,6.74705738 L17.8208065,6.51175792 L17.7346445,6.42357355 C17.3486761,6.02854592 17.35602,5.39542354 17.7510477,5.00945512 Z M12,2 C12.5522847,2 13,2.44771525 13,3 L13,11 C13,11.5522847 12.5522847,12 12,12 C11.4477153,12 11,11.5522847 11,11 L11,3 C11,2.44771525 11.4477153,2 12,2 Z"
-                            />
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M17.7510477,5.00945512 C18.1156885,4.65317657 18.6832031,4.63202809 19.07193,4.94158256 L19.1651661,5.02585826 L19.2621783,5.12532271 C21.0085837,6.96960051 22,9.40828462 22,12 C22,17.5228475 17.5228475,22 12,22 C6.4771525,22 2,17.5228475 2,12 C2,9.5209679 2.90708036,7.18194928 4.52382631,5.35934352 L4.74867188,5.11404263 L4.83483391,5.02585826 C5.22080233,4.63083063 5.85392472,4.6234867 6.24895234,5.00945512 C6.61359323,5.36573366 6.64790008,5.93260493 6.34744581,6.32840766 L6.26535549,6.42357355 L6.1900436,6.50047785 C4.79197458,7.97689773 4,9.92499537 4,12 C4,16.418278 7.581722,20 12,20 C16.418278,20 20,16.418278 20,12 C20,10.0342061 19.2891973,8.18231218 18.0348658,6.74705738 L17.8208065,6.51175792 L17.7346445,6.42357355 C17.3486761,6.02854592 17.35602,5.39542354 17.7510477,5.00945512 Z M12,2 C12.5522847,2 13,2.44771525 13,3 L13,11 C13,11.5522847 12.5522847,12 12,12 C11.4477153,12 11,11.5522847 11,11 L11,3 C11,2.44771525 11.4477153,2 12,2 Z" /></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">DESLIGADOS</span>
@@ -444,18 +375,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 5. EM TRÂNSITO (Caminhão) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-yellow">
-                        <svg 
-                            viewBox="0 2 20 28" 
-                            fill="currentColor" 
-                            width="48" 
-                            height="48" 
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path d="M0 22.281v-13.563c0-0.438 0.25-1 0.594-1.344 0.094-0.094 0.219-0.156 0.313-0.219h0.031c1.5-1.156 3.469-2 5.719-2.469 1.188-0.219 2.438-0.344 3.75-0.344s2.563 0.125 3.75 0.344c2.25 0.469 4.219 1.313 5.719 2.469h0.031c0.094 0.063 0.188 0.125 0.281 0.219 0.344 0.344 0.625 0.906 0.625 1.344v13.563c0 1-0.688 1.781-1.594 2v1.813c0 0.844-0.688 1.563-1.531 1.563-0.875 0-1.563-0.719-1.563-1.563v-1.75h-11.438v1.75c0 0.844-0.719 1.563-1.563 1.563-0.875 0-1.563-0.719-1.563-1.563v-1.813c-0.906-0.219-1.563-1-1.563-2zM15.625 6.688h-10.438c-0.563 0-1.031 0.469-1.031 1.031 0 0.531 0.469 1 1.031 1h10.438c0.563 0 1-0.469 1-1 0-0.563-0.438-1.031-1-1.031zM3.125 17.063h14.531c0.563 0 1.031-0.5 1.031-1.063v-5.156c0-0.563-0.469-1.063-1.031-1.063h-14.531c-0.563 0-1 0.5-1 1.063v5.156c0 0.563 0.438 1.063 1 1.063zM4.25 22.281c0.906 0 1.625-0.75 1.625-1.656 0-0.938-0.719-1.656-1.625-1.656-0.938 0-1.656 0.719-1.656 1.656 0 0.906 0.719 1.656 1.656 1.656zM16.531 22.281c0.938 0 1.688-0.75 1.688-1.656 0-0.938-0.75-1.656-1.688-1.656-0.906 0-1.625 0.719-1.625 1.656 0 0.906 0.719 1.656 1.625 1.656z"/>
-                        </svg>
+                        <svg viewBox="0 2 20 28" fill="currentColor" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><path d="M0 22.281v-13.563c0-0.438 0.25-1 0.594-1.344 0.094-0.094 0.219-0.156 0.313-0.219h0.031c1.5-1.156 3.469-2 5.719-2.469 1.188-0.219 2.438-0.344 3.75-0.344s2.563 0.125 3.75 0.344c2.25 0.469 4.219 1.313 5.719 2.469h0.031c0.094 0.063 0.188 0.125 0.281 0.219 0.344 0.344 0.625 0.906 0.625 1.344v13.563c0 1-0.688 1.781-1.594 2v1.813c0 0.844-0.688 1.563-1.531 1.563-0.875 0-1.563-0.719-1.563-1.563v-1.75h-11.438v1.75c0 0.844-0.719 1.563-1.563 1.563-0.875 0-1.563-0.719-1.563-1.563v-1.813c-0.906-0.219-1.563-1-1.563-2zM15.625 6.688h-10.438c-0.563 0-1.031 0.469-1.031 1.031 0 0.531 0.469 1 1.031 1h10.438c0.563 0 1-0.469 1-1 0-0.563-0.438-1.031-1-1.031zM3.125 17.063h14.531c0.563 0 1.031-0.5 1.031-1.063v-5.156c0-0.563-0.469-1.063-1.031-1.063h-14.531c-0.563 0-1 0.5-1 1.063v5.156c0 0.563 0.438 1.063 1 1.063zM4.25 22.281c0.906 0 1.625-0.75 1.625-1.656 0-0.938-0.719-1.656-1.625-1.656-0.938 0-1.656 0.719-1.656 1.656 0 0.906 0.719 1.656 1.656 1.656zM16.531 22.281c0.938 0 1.688-0.75 1.688-1.656 0-0.938-0.75-1.656-1.688-1.656-0.906 0-1.625 0.719-1.625 1.656 0 0.906 0.719 1.656 1.625 1.656z"/></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">DESLOCAMENTO</span>
@@ -463,12 +385,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 6. NÃO INICIOU (Círculo Vazio) */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-grey">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>
                     </div>
                     <div className="kpi-info">
                         <span className="kpi-label">NÃO INICIOU</span>
@@ -481,7 +400,7 @@ const Dashboard: React.FC = () => {
             <div className="table-responsive table-card">
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
-                       <tr>
+                        <tr>
                             <th style={thStyle} onClick={() => requestSort('e')}>Empresa {getSortIcon('e')}</th>
                             <th style={thStyle} onClick={() => requestSort('r')}>Rota {getSortIcon('r')}</th>
                             <th style={thStyle} onClick={() => requestSort('s')}>Sentido {getSortIcon('s')}</th>
@@ -513,32 +432,30 @@ const Dashboard: React.FC = () => {
 
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
+                            // --- NOVA LÓGICA DE BADGE BASEADA NO BACKEND ---
                             let statusBadge: React.ReactNode; 
+                            const st = l.status_api || 'INDEFINIDO';
 
-                            // 1. Carro Desligado
-                            if (l.c === 'Carro desligado') {
-                                statusBadge = <span className="badge badge-dark">Desligado</span>;
-                            } 
-                            // 2. Viagem NÃO Iniciou
-                            else if (!jaSaiu) {
-                                statusBadge = l.pi < horaServidor 
-                                    ? <span className="badge badge-red">Não iniciou</span> 
-                                    : <span className="badge badge-yellow">Deslocamento</span>;
-                            } 
-                            // 3. Viagem JÁ Iniciou
-                            else {
-                                // Prioridade A: Atrasou na SAÍDA?
-                                if (isLineAtrasada(l)) {
+                            switch (st) {
+                                case 'DESLIGADO':
+                                    statusBadge = <span className="badge badge-dark">Desligado</span>;
+                                    break;
+                                case 'NAO_INICIOU':
+                                    statusBadge = <span className="badge badge-red">Não iniciou</span>;
+                                    break;
+                                case 'DESLOCAMENTO':
+                                    statusBadge = <span className="badge badge-yellow">Deslocamento</span>;
+                                    break;
+                                case 'ATRASADO':
                                     statusBadge = <span className="badge badge-red">Atrasado</span>;
-                                }
-                                // Prioridade B: Vai atrasar na CHEGADA (Sentido Ida)?
-                                else if (isPercursoAtrasado(l)) {
+                                    break;
+                                case 'ATRASADO_PERCURSO':
                                     statusBadge = <span className="badge badge-red" style={{border: '1px dashed white'}} title="Previsão de chegada atrasada">Atrasado (percurso)</span>;
-                                }
-                                // Prioridade C: Pontual
-                                else {
+                                    break;
+                                case 'PONTUAL':
+                                default:
                                     statusBadge = <span className="badge badge-green">Pontual</span>;
-                                }
+                                    break;
                             }
 
                             return (
@@ -547,6 +464,7 @@ const Dashboard: React.FC = () => {
                                     <td className="text-truncate" style={{maxWidth: '220px'}} title={l.r}>{l.r}</td>
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                     <td className="fw-bold text-red">{l.v}</td>
+                                    {/* Usa a mesma logica visual: vermelho se passou da hora de iniciar */}
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
                                {/* --- COLUNA REAL INÍCIO --- */}
                                     <td className="text-nowrap">
