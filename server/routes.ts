@@ -5,6 +5,7 @@ import { calculateRoute } from './controllers/mapController'; // <--- Importe
 import { getUsers, createUser, updateUser, deleteUser } from './controllers/userController';
 import { getEscala } from './controllers/escalaController';
 import { verifyToken } from './middleware/auth';
+import { getFrotaExterna } from './src/controllers/ExternalApiController';
 import {createRota, getRotas, getRotaById, updateRota, deleteRota} from './controllers/rotaController';
 
 const router = Router();
@@ -25,6 +26,9 @@ router.delete('/users/:id', verifyToken, deleteUser);
 
 // Escala
 router.get('/escala', verifyToken, getEscala);
+
+// Rota para integração externa
+router.get('/api/v1/monitoramento/frota', getFrotaExterna);
 
 //Criar Rotas
 router.post('/rotas', createRota);
