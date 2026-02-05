@@ -9,17 +9,17 @@ import './Dashboard.css';
 
 interface Linha {
     id: string;
-    e: string; 
-    r: string; 
-    v: string; 
-    s: number; 
-    pi: string; 
-    ri: string; 
-    pf: string; 
-    pfn?: string; 
-    u: string;  
-    c: string;
-    status_api?: string; // Novo campo vindo do Backend
+    e: string;      // Empresa
+    r: string;      // Rota
+    v: string;      // Veículo
+    s: number;      // Sentido
+    pi: string;     // Prog. Início
+    ri: string;     // Real Início
+    pf: string;     // Prog. Fim
+    pfn?: string;   // Prev. Fim Nova
+    u: string;      // Último Reporte
+    c: string;      // Categoria (Status Bruto)
+    status_api?: string; // NOVO CAMPO: O status calculado pelo Backend
 }
 
 // Configuração da ordenação
@@ -27,8 +27,6 @@ type SortConfig = {
     key: string; 
     direction: 'asc' | 'desc';
 } | null;
-
-// --- COMPONENTE ---
 
 const Dashboard: React.FC = () => {
     const { isLoggedIn, isInitializing, logout } = useAuth();
@@ -38,14 +36,16 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [horaServidor, setHoraServidor] = useState('00:00');
     
+    // Filtros
     const [busca, setBusca] = useState('');
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
 
-    // Estado para controle de ordenação
+    // Ordenação
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
+    // Modal de Mapa
     const [selectedMap, setSelectedMap] = useState<{
         placa: string, idLinha: string, tipo: 'inicial'|'final', pf: string 
     } | null>(null);
@@ -53,6 +53,7 @@ const Dashboard: React.FC = () => {
     const linhasRef = useRef(linhas);
     const isMountedRef = useRef(true);
 
+    // Atualiza ref para usar dentro de intervalos/callbacks
     useEffect(() => { linhasRef.current = linhas; }, [linhas]);
 
     useEffect(() => {
@@ -66,17 +67,20 @@ const Dashboard: React.FC = () => {
         }
     }, [isInitializing, isLoggedIn, navigate]);
 
+    // --- 1. BUSCA DADOS DO BACKEND ---
     const fetchData = useCallback(async () => {
         if (!isLoggedIn) return;
         try {
-            const res = await api.get('/dashboard');
+            const res = await api.get('/dashboard'); // Essa rota agora usa o DashboardService
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
             
             setLinhas(prevLinhas => {
                 if (prevLinhas.length === 0) return linhasServidor;
+                
+                // Mescla dados novos com previsões TomTom que já existiam no front (para não piscar)
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
-                    // Mantém a previsão TomTom se o servidor ainda não atualizou mas o frontend já tinha
+                    // Se o servidor não mandou previsão nova, mas a gente já tinha uma, mantém.
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
@@ -95,18 +99,21 @@ const Dashboard: React.FC = () => {
         }
     }, [isLoggedIn, logout, navigate]);
 
+    // --- 2. ATUALIZAÇÃO TOMTOM (Front-end Polling) ---
+    // Isso atualiza apenas o HORÁRIO de previsão visualmente, o Status permanece o do Backend
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
         if (!isLoggedIn) return;
-        // Filtra apenas quem está viajando para buscar TomTom
+        
+        // Filtra quem está ativo e não desligado
         const linhasAtivas = linhasRef.current.filter(l => 
             l.ri && l.ri !== 'N/D' && 
-            l.c !== 'Carro desligado' && 
-            l.status_api !== 'DESLIGADO' && // Garante usando status novo
+            l.status_api !== 'DESLIGADO' && 
             l.v
         );
 
         if (linhasAtivas.length === 0) return;
         const BATCH_SIZE = 5;
+        
         for (let i = 0; i < linhasAtivas.length; i += BATCH_SIZE) {
             if (!isMountedRef.current) break; 
             const batch = linhasAtivas.slice(i, i + BATCH_SIZE);
@@ -128,10 +135,11 @@ const Dashboard: React.FC = () => {
         }
     }, [isLoggedIn]);
 
+    // Efeitos de Intervalo
     useEffect(() => {
         if (isLoggedIn) {
             fetchData();
-            const intervalPrincipal = setInterval(fetchData, 30000);
+            const intervalPrincipal = setInterval(fetchData, 30000); // Atualiza tudo a cada 30s
             return () => clearInterval(intervalPrincipal);
         }
     }, [isLoggedIn, fetchData]);
@@ -141,13 +149,14 @@ const Dashboard: React.FC = () => {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
-            }, 300000);
+            }, 300000); // Atualiza TomTom a cada 5 min
             return () => clearInterval(intervalPrevisao);
         }
     }, [isLoggedIn, loading, linhas.length, carregarPrevisoesAutomaticamente]);
 
     const empresasUnicas = useMemo(() => [...new Set(linhas.map(l => l.e).filter(Boolean))].sort(), [linhas]);
 
+    // --- SORT ---
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -161,6 +170,7 @@ const Dashboard: React.FC = () => {
         return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
     };
 
+    // Helper visual para previsão
     const getPrevisaoInteligente = (linha: Linha) => {
         const temTomTom = linha.pfn && linha.pfn !== 'N/D';
         const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
@@ -175,7 +185,7 @@ const Dashboard: React.FC = () => {
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
-    // --- FILTRAGEM REFEITA COM STATUS API ---
+    // --- FILTRAGEM (USANDO STATUS API) ---
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
             const st = l.status_api || 'INDEFINIDO';
@@ -195,7 +205,7 @@ const Dashboard: React.FC = () => {
                 if (filtroSentido !== sentidoReal) return false;
             }
             
-            // 4. Filtro Status (Simplificado)
+            // 4. Filtro Status (Baseado no Backend)
             if (filtroStatus) {
                 if (filtroStatus === 'desligado' && st !== 'DESLIGADO') return false;
                 if (filtroStatus === 'atrasado' && st !== 'ATRASADO' && st !== 'ATRASADO_PERCURSO') return false;
@@ -207,7 +217,7 @@ const Dashboard: React.FC = () => {
         });
     }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
-    // --- ORDENAÇÃO REFEITA ---
+    // --- ORDENAÇÃO ---
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
@@ -258,8 +268,7 @@ const Dashboard: React.FC = () => {
         return sortableItems;
     }, [dadosFiltrados, sortConfig]);
 
-    
-    // --- KPI CALCULADO COM STATUS API ---
+    // --- KPIs (Baseados no Status API) ---
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         
@@ -285,7 +294,6 @@ const Dashboard: React.FC = () => {
                     counts.deslocamento++;
                     break;
                 default:
-                    // Caso indefinido, pode cair em pontual ou ignorar
                     break;
             }
         });
@@ -432,7 +440,7 @@ const Dashboard: React.FC = () => {
 
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
-                            // --- NOVA LÓGICA DE BADGE BASEADA NO BACKEND ---
+                            // --- BADGE BASEADO NO BACKEND ---
                             let statusBadge: React.ReactNode; 
                             const st = l.status_api || 'INDEFINIDO';
 
@@ -464,9 +472,7 @@ const Dashboard: React.FC = () => {
                                     <td className="text-truncate" style={{maxWidth: '220px'}} title={l.r}>{l.r}</td>
                                     <td>{valSentido === 1 ? 'Entrada' : 'Saida'}</td>
                                     <td className="fw-bold text-red">{l.v}</td>
-                                    {/* Usa a mesma logica visual: vermelho se passou da hora de iniciar */}
                                     <td className={!jaSaiu && l.pi < horaServidor ? 'text-danger' : ''}>{l.pi}</td>
-                               {/* --- COLUNA REAL INÍCIO --- */}
                                     <td className="text-nowrap">
                                         {textoExibicao}
                                         {matchPonto && (
@@ -479,7 +485,6 @@ const Dashboard: React.FC = () => {
                                             </span>
                                         )}
                                     </td>
-                                    {/* ------------------------- */}
                                     <td>{l.pf}</td>
                                     <td className={previsao.classe}>
                                         {previsao.horario || 'N/D'}
