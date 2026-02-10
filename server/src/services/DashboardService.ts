@@ -115,7 +115,8 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             const sentidoIda = !!l.sentidoIDA;
 
             if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
-                l.pontoDeParadas.forEach((p, index) => {
+                // CORREÇÃO TS7006: Tipando explicitamente 'p' e 'index'
+                l.pontoDeParadas.forEach((p: any, index: number) => {
                     const tipo = p.tipoPonto?.tipo;
                     const idx = index + 1;
                     if (tipo === "Inicial") {
@@ -166,7 +167,6 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
         });
 
         const resultados = await Promise.all(promessas);
-        // Filtro corrigido para TypeScript reconhecer que removeu nulos
         resultados.forEach(res => { if (res) todasLinhas.push(res); });
     };
 
