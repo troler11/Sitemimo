@@ -44,7 +44,8 @@ export interface LinhaOutput {
     c: string;      // Categoria (Status Bruto)
     li?: string;    // Lat/Long Inicial
     lf?: string;    // Lat/Long Final
-    status_api: string; // Status Calculado (ATRASADO, PONTUAL, ETC)
+    status_api: string; // Status Calculado
+    mapa_trajeto?: string; // URL da imagem do mapa
 }
 
 // --- FUNÇÃO AUXILIAR: CALCULAR STATUS ---
@@ -57,46 +58,33 @@ const calcularStatus = (
     horaServidor: string,
     sentidoIda: boolean
 ): string => {
-    // 1. Carro Desligado
     if (categoria === "Carro desligado") return "DESLIGADO";
 
-    // 2. Não Iniciou (ri é N/D ou vazio)
     if (!ri || ri === "N/D") {
         if (!pi || pi === "N/D") return "INDEFINIDO";
-        
-        // Se a hora programada (pi) já passou (< horaServidor), é atraso na origem (NAO_INICIOU)
-        // Se a hora programada é futura (>= horaServidor), está aguardando (DESLOCAMENTO)
         return pi < horaServidor ? "NAO_INICIOU" : "DESLOCAMENTO";
     }
 
-    // 3. Já saiu - Verificar Atraso na Saída (Origem)
-    const cleanRi = ri.split(' ')[0]; // Remove "(Pt 2)" se houver
+    const cleanRi = ri.split(' ')[0];
     const hoje = moment().format('YYYY-MM-DD');
-    
     const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
     const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
 
     if (mPi.isValid() && mRi.isValid()) {
         const diffMinutos = mRi.diff(mPi, 'minutes');
-        if (diffMinutos > 10) return "ATRASADO"; // Saiu com mais de 10 min de atraso
+        if (diffMinutos > 10) return "ATRASADO";
     }
 
-    // 4. Verificar Atraso de Percurso (TomTom/Estimativa)
-    // REGRA: Só verifica percurso se for SENTIDO IDA (Entrada)
     if (sentidoIda === true) { 
         if (pfn && pfn !== "N/D" && pf && pf !== "N/D" && pfn !== "--:--") {
             const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
             const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-            
             if (mPf.isValid() && mPfn.isValid()) {
                  const diffChegada = mPfn.diff(mPf, 'minutes');
-                 // Se a previsão de chegada for > 10 min que a tabela
                  if (diffChegada > 10) return "ATRASADO_PERCURSO";
             }
         }
     }
-
-    // Se passou por todas as validações sem cair em erro
     return "PONTUAL";
 };
 
@@ -104,7 +92,6 @@ const calcularStatus = (
 export const fetchDashboardData = async (allowedCompanies: string[] | null = null) => {
     let dashboardData = appCache.get('dashboard_main');
     
-    // 1. Busca na API Externa se não estiver em cache
     if (!dashboardData) {
         try {
             const response = await axios.get(URL_DASHBOARD_MAIN, { 
@@ -119,130 +106,61 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             dashboardData = response.data;
             appCache.set('dashboard_main', dashboardData);
         } catch (apiError: any) {
-            console.error("⚠️ Service: Falha na API Externa:", apiError.code || apiError.message);
-            // Retorna estrutura vazia para não quebrar a aplicação
-            dashboardData = { 
-                linhasAndamento: [], 
-                linhasCarroDesligado: [], 
-                linhasComecaramSemPrimeiroPonto: [] 
-            };
+            console.error("⚠️ Service Error:", apiError.message);
+            dashboardData = { linhasAndamento: [], linhasCarroDesligado: [], linhasComecaramSemPrimeiroPonto: [] };
         }
     }
 
     const data: any = dashboardData;
     let todasLinhas: LinhaOutput[] = [];
     const horaAtualServidor = moment().tz(TIMEZONE).format('HH:mm');
-
-    // Normaliza lista de empresas permitidas (se houver restrição)
     const allowedNorm = allowedCompanies ? allowedCompanies.map(c => c.toUpperCase().trim()) : null;
 
-    // Função interna para processar cada grupo de linhas
     const processarGrupo = (lista: any[], categoria: string) => {
         if (!lista) return;
         
         for (const l of lista) {
-            // A. Filtro de Empresa
+            // Filtro Empresa
             if (allowedNorm) {
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
                 if (!allowedNorm.includes(empNome)) continue;
             }
 
-
-            const coordenadasTrajeto = l.pontoDeParadas
-    .filter((p: any) => p.latitude && p.longitude)
-    .map((p: any) => `${p.longitude},${p.latitude}`) // Yandex usa [Long, Lat]
-    .join(',');
-
-// 2. Coleta os pontos onde o ônibus JÁ PASSOU (Trajeto Realizado)
-// Usaremos marcadores azuis para o que já passou e vermelhos para o que falta
-const marcadores = l.pontoDeParadas
-    .filter((p: any) => p.latitude && p.longitude)
-    .map((p: any, index: number) => {
-        const cor = p.passou ? 'gn' : 'rd'; // gn (verde/passou), rd (vermelho/não passou)
-        return `pt=${p.longitude},${p.latitude},pm2${cor}m${index + 1}`;
-    })
-    .join('&');
-
-// 3. Posição atual do Veículo (Marcador de Ônibus ou destaque)
-const latAtual = l.veiculo?.latitude;
-const lonAtual = l.veiculo?.longitude;
-const marcadorVeiculo = latAtual ? `&pt=${lonAtual},${latAtual},pmlbm` : '';
-
-// 4. Monta a URL Final (Grátis - Yandex Static Maps)
-// l=map (tipo mapa), pl (polyline/linha)
-const urlMapaFoto = coordenadasTrajeto 
-    ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=${coordenadasTrajeto}${marcadorVeiculo}&${marcadores}`
-    : 'N/D';
-
-            // B. Ignorar linhas finalizadas
+            // Ignorar finalizadas
             const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
             if (finalizada) continue;
 
-            // --- PROCESSAMENTO DE DADOS ---
-            let pi = "N/D"; 
-            let ri = "N/D"; 
-            let pf = "N/D"; 
-            let pfn = "N/D"; 
-            let li = "N/D";
-            let lf = "N/D";
-            
-            // Ultimo reporte
-            let u = "N/D";
+            // Variáveis de Horário
+            let pi = "N/D", ri = "N/D", pf = "N/D", pfn = "N/D", li = "N/D", lf = "N/D";
             let rawDate = l.veiculo?.dataHora || l.veiculo?.dataComunicacao || l.ultimaData;
-            if (rawDate) u = String(rawDate);
-            
-            let diffMinutosSaida = 0; 
-            let saiu = false;
-            const sentidoIda = l.sentidoIDA ? true : false;
+            let u = rawDate ? String(rawDate) : "N/D";
+            let diffMinutosSaida = 0, saiu = false;
+            const sentidoIda = !!l.sentidoIDA;
 
-            // C. Loop nos Pontos de Parada
+            // Processar Pontos e coordenadas para o Mapa
             if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                 for (const p of l.pontoDeParadas) {
                     const tipo = p.tipoPonto?.tipo;
                     const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
 
-                    // Ponto Inicial (Tabela)
                     if (tipo === "Inicial") {
                         if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
                         if (p.horario) pi = p.horario;
                     }
 
-                    // Ponto Real (Onde está ou passou)
-                    // Pega até o 4º ponto para definir inicio de viagem
                     if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
                         if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
                             saiu = true; 
-
-                            const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
-                            const hojeStr = moment().format('YYYY-MM-DD');
-                            const baseTime = moment.tz(`${hojeStr} ${horaTabelaDestePonto}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                            const baseTime = moment.tz(`${moment().format('YYYY-MM-DD')} ${p.horario || '00:00'}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                            let dm = typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':') 
+                                ? (parseInt(p.tempoDiferenca.split(':')[0]) * 60 + parseInt(p.tempoDiferenca.split(':')[1]))
+                                : parseInt(p.tempoDiferenca);
                             
-                            let dm = 0;
-                            if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
-                                const parts = p.tempoDiferenca.split(':');
-                                dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-                            } else {
-                                dm = parseInt(p.tempoDiferenca);
-                            }
-                            
-                            if (diffMinutosSaida === 0) {
-                                diffMinutosSaida = p.atrasado ? dm : -dm;
-                            }
-
-                            if (p.atrasado) baseTime.add(dm, 'minutes');
-                            else baseTime.subtract(dm, 'minutes');
-                            
-                            const horaCalculada = baseTime.format('HH:mm');
-
-                            if (tipo !== "Inicial" && indexPonto > 1) {
-                                ri = `${horaCalculada} (Pt ${indexPonto})`;
-                            } else {
-                                ri = horaCalculada;
-                            }
+                            diffMinutosSaida = p.atrasado ? dm : -dm;
+                            p.atrasado ? baseTime.add(dm, 'minutes') : baseTime.subtract(dm, 'minutes');
+                            ri = tipo !== "Inicial" ? `${baseTime.format('HH:mm')} (Pt ${indexPonto})` : baseTime.format('HH:mm');
                         }
                     }
-
-                    // Ponto Final (Tabela)
                     if (tipo === "Final") {
                         if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
                         if (p.horario) pf = p.horario;
@@ -250,72 +168,54 @@ const urlMapaFoto = coordenadasTrajeto
                 }
             }
 
-            // D. Validação de Tolerância (Bug de GPS/Viagem errada > 40min)
-            if (pi !== "N/D" && ri !== "N/D") {
-                const cleanRi = ri.split(' ')[0]; 
-                const hoje = moment().format('YYYY-MM-DD');
-                const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-
-                if (mPi.isValid() && mRi.isValid()) {
-                    const diffAbsoluta = Math.abs(mRi.diff(mPi, 'minutes'));
-                    if (diffAbsoluta > 40) {
-                        ri = "N/D";
-                        saiu = false; 
-                        diffMinutosSaida = 0; 
-                    }
-                }
-            }
-
-            // E. Previsão de Chegada (Cache ou Cálculo)
+            // Previsão TomTom
             const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
             const cachedPred = predictionCache.get(placaLimpa) as any;
-            
-            if (cachedPred && cachedPred.horario) {
-                pfn = cachedPred.horario;
-            } 
+            if (cachedPred?.horario) pfn = cachedPred.horario;
             else if (pf !== "N/D" && saiu) {
-                const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                progFimObj.add(diffMinutosSaida, 'minutes');
-                pfn = progFimObj.format('HH:mm');
-            }
-            else if (pf !== "N/D" && !saiu) {
-                 pfn = "--:--"; 
-            }
+                pfn = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE).add(diffMinutosSaida, 'minutes').format('HH:mm');
+            } else if (pf !== "N/D") pfn = "--:--";
 
-            // F. Cálculo do STATUS FINAL
+            // --- GERAÇÃO DA URL DO MAPA (YANDEX GRÁTIS) ---
+            const coordenadasLinha = l.pontoDeParadas
+                ?.filter((p: any) => p.latitude && p.longitude)
+                .map((p: any) => `${p.longitude},${p.latitude}`)
+                .slice(0, 50) // Limite de 50 pontos para não quebrar a URL
+                .join(',');
+
+            const marcadoresParadas = l.pontoDeParadas
+                ?.filter((p: any) => p.latitude && p.longitude)
+                .slice(0, 20) // Mostra as primeiras 20 paradas como ícones
+                .map((p: any, idx: number) => `pt=${p.longitude},${p.latitude},pm2${p.passou ? 'gn' : 'rd'}m${idx + 1}`)
+                .join('&');
+
+            const latV = l.veiculo?.latitude;
+            const lonV = l.veiculo?.longitude;
+            const marcadorBus = latV && lonV ? `&pt=${lonV},${latV},pmlbm` : '';
+
+            const urlMapaFinal = coordenadasLinha 
+                ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=${coordenadasLinha}${marcadorBus}&${marcadoresParadas}`
+                : 'N/D';
+
             const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor, sentidoIda);
 
-            // G. Montagem do Objeto
             todasLinhas.push({
                 id: l.idLinha || l.id,
                 e: l.empresa?.nome || '',
                 r: l.descricaoLinha || '',
                 v: l.veiculo?.veiculo || '',
-                s: l.sentidoIDA ? 1 : 0, 
-                pi: pi,
-                ri: ri,
-                pf: pf,
-                li: li,
-                lf: lf,
-                pfn: pfn,
-                u: u,
+                s: sentidoIda ? 1 : 0, 
+                pi, ri, pf, pfn, u, li, lf,
                 c: categoria,
-                status_api: statusApi, 
-                mapa_trajeto: urlMapaFoto
-        ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&ll=${lon},${lat}&z=15&l=map&size=450,300&pt=${lon},${lat},pm2rdm`
-        : 'N/D'
+                status_api: statusApi,
+                mapa_trajeto: urlMapaFinal
             });
         }
     };
 
-    // Executa para os 3 grupos da API original
     processarGrupo(data.linhasAndamento, "Em andamento");
     processarGrupo(data.linhasCarroDesligado, "Carro desligado");
     processarGrupo(data.linhasComecaramSemPrimeiroPonto, "Começou sem ponto");
 
-    return { 
-        todas_linhas: todasLinhas, 
-        hora: horaAtualServidor 
-    };
+    return { todas_linhas: todasLinhas, hora: horaAtualServidor };
 };
