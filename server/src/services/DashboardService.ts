@@ -147,6 +147,33 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 if (!allowedNorm.includes(empNome)) continue;
             }
 
+
+            const coordenadasTrajeto = l.pontoDeParadas
+    .filter((p: any) => p.latitude && p.longitude)
+    .map((p: any) => `${p.longitude},${p.latitude}`) // Yandex usa [Long, Lat]
+    .join(',');
+
+// 2. Coleta os pontos onde o ônibus JÁ PASSOU (Trajeto Realizado)
+// Usaremos marcadores azuis para o que já passou e vermelhos para o que falta
+const marcadores = l.pontoDeParadas
+    .filter((p: any) => p.latitude && p.longitude)
+    .map((p: any, index: number) => {
+        const cor = p.passou ? 'gn' : 'rd'; // gn (verde/passou), rd (vermelho/não passou)
+        return `pt=${p.longitude},${p.latitude},pm2${cor}m${index + 1}`;
+    })
+    .join('&');
+
+// 3. Posição atual do Veículo (Marcador de Ônibus ou destaque)
+const latAtual = l.veiculo?.latitude;
+const lonAtual = l.veiculo?.longitude;
+const marcadorVeiculo = latAtual ? `&pt=${lonAtual},${latAtual},pmlbm` : '';
+
+// 4. Monta a URL Final (Grátis - Yandex Static Maps)
+// l=map (tipo mapa), pl (polyline/linha)
+const urlMapaFoto = coordenadasTrajeto 
+    ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=${coordenadasTrajeto}${marcadorVeiculo}&${marcadores}`
+    : 'N/D';
+
             // B. Ignorar linhas finalizadas
             const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
             if (finalizada) continue;
@@ -274,7 +301,10 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 pfn: pfn,
                 u: u,
                 c: categoria,
-                status_api: statusApi 
+                status_api: statusApi, 
+                mapa_trajeto: urlMapaFoto
+        ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&ll=${lon},${lat}&z=15&l=map&size=450,300&pt=${lon},${lat},pm2rdm`
+        : 'N/D'
             });
         }
     };
