@@ -14,38 +14,29 @@ const HEADERS_DASHBOARD_MAIN = {
     "Authorization": process.env.TOKEN_ABMBUS
 };
 
-// Agente HTTPS para evitar ECONNRESET em conexões longas/instáveis
 const httpsAgent = new https.Agent({
     keepAlive: true,
     timeout: 60000,
     scheduling: 'lifo'
 });
 
-const INPUT_FORMATS = [
-    "DD/MM/YYYY HH:mm:ss", 
-    "DD/MM/YYYY HH:mm", 
-    "YYYY-MM-DD HH:mm:ss",
-    "YYYY-MM-DDTHH:mm:ss",
-    moment.ISO_8601
-];
-
 // --- INTERFACES ---
 export interface LinhaOutput {
     id: string;
     e: string;      // Empresa
     r: string;      // Rota
-    v: string;      // Veículo (Placa)
-    s: number;      // Sentido (1=Ida, 0=Volta)
+    v: string;      // Veículo
+    s: number;      // Sentido
     pi: string;     // Programado Início
     ri: string;     // Real Início
     pf: string;     // Programado Fim
-    pfn: string;    // Previsão Fim Nova (Estimada)
+    pfn: string;    // Previsão Fim Nova
     u: string;      // Último Reporte
-    c: string;      // Categoria (Status Bruto)
+    c: string;      // Categoria
     li?: string;    // Lat/Long Inicial
     lf?: string;    // Lat/Long Final
-    status_api: string; // Status Calculado
-    mapa_trajeto?: string; // URL da imagem do mapa
+    status_api: string; 
+    mapa_trajeto?: string; // URL da imagem estática do trajeto
 }
 
 // --- FUNÇÃO AUXILIAR: CALCULAR STATUS ---
@@ -75,14 +66,12 @@ const calcularStatus = (
         if (diffMinutos > 10) return "ATRASADO";
     }
 
-    if (sentidoIda === true) { 
-        if (pfn && pfn !== "N/D" && pf && pf !== "N/D" && pfn !== "--:--") {
-            const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-            const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-            if (mPf.isValid() && mPfn.isValid()) {
-                 const diffChegada = mPfn.diff(mPf, 'minutes');
-                 if (diffChegada > 10) return "ATRASADO_PERCURSO";
-            }
+    if (sentidoIda === true && pfn && pfn !== "N/D" && pf && pf !== "N/D" && pfn !== "--:--") {
+        const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+        const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+        if (mPf.isValid() && mPfn.isValid()) {
+             const diffChegada = mPfn.diff(mPf, 'minutes');
+             if (diffChegada > 10) return "ATRASADO_PERCURSO";
         }
     }
     return "PONTUAL";
@@ -95,18 +84,14 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
     if (!dashboardData) {
         try {
             const response = await axios.get(URL_DASHBOARD_MAIN, { 
-                headers: {
-                    ...HEADERS_DASHBOARD_MAIN,
-                    "Connection": "keep-alive",
-                    "User-Agent": "Node.js/Service"
-                }, 
+                headers: { ...HEADERS_DASHBOARD_MAIN, "Connection": "keep-alive" }, 
                 timeout: 60000,
                 httpsAgent: httpsAgent 
             });
             dashboardData = response.data;
             appCache.set('dashboard_main', dashboardData);
         } catch (apiError: any) {
-            console.error("⚠️ Service Error:", apiError.message);
+            console.error("⚠️ Falha na API Externa:", apiError.message);
             dashboardData = { linhasAndamento: [], linhasCarroDesligado: [], linhasComecaramSemPrimeiroPonto: [] };
         }
     }
@@ -120,55 +105,52 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
         if (!lista) return;
         
         for (const l of lista) {
-            // Filtro Empresa
             if (allowedNorm) {
                 const empNome = (l.empresa?.nome || '').toUpperCase().trim();
                 if (!allowedNorm.includes(empNome)) continue;
             }
 
-            // Ignorar finalizadas
             const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
             if (finalizada) continue;
 
-            // Variáveis de Horário
             let pi = "N/D", ri = "N/D", pf = "N/D", pfn = "N/D", li = "N/D", lf = "N/D";
             let rawDate = l.veiculo?.dataHora || l.veiculo?.dataComunicacao || l.ultimaData;
             let u = rawDate ? String(rawDate) : "N/D";
             let diffMinutosSaida = 0, saiu = false;
             const sentidoIda = !!l.sentidoIDA;
 
-            // Processar Pontos e coordenadas para o Mapa
-            if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
-                for (const p of l.pontoDeParadas) {
-                    const tipo = p.tipoPonto?.tipo;
-                    const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
+            // --- PROCESSAMENTO DE PONTOS ---
+            const pontosValidos = l.pontoDeParadas?.filter((p: any) => p.latitude && p.longitude) || [];
 
-                    if (tipo === "Inicial") {
-                        if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
-                        if (p.horario) pi = p.horario;
-                    }
+            for (const p of l.pontoDeParadas || []) {
+                const tipo = p.tipoPonto?.tipo;
+                const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
 
-                    if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
-                        if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
-                            saiu = true; 
-                            const baseTime = moment.tz(`${moment().format('YYYY-MM-DD')} ${p.horario || '00:00'}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-                            let dm = typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':') 
-                                ? (parseInt(p.tempoDiferenca.split(':')[0]) * 60 + parseInt(p.tempoDiferenca.split(':')[1]))
-                                : parseInt(p.tempoDiferenca);
-                            
-                            diffMinutosSaida = p.atrasado ? dm : -dm;
-                            p.atrasado ? baseTime.add(dm, 'minutes') : baseTime.subtract(dm, 'minutes');
-                            ri = tipo !== "Inicial" ? `${baseTime.format('HH:mm')} (Pt ${indexPonto})` : baseTime.format('HH:mm');
-                        }
+                if (tipo === "Inicial") {
+                    if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
+                    if (p.horario) pi = p.horario;
+                }
+
+                if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
+                    if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
+                        saiu = true; 
+                        const baseTime = moment.tz(`${moment().format('YYYY-MM-DD')} ${p.horario || '00:00'}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+                        let dm = typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':') 
+                            ? (parseInt(p.tempoDiferenca.split(':')[0]) * 60 + parseInt(p.tempoDiferenca.split(':')[1]))
+                            : parseInt(p.tempoDiferenca);
+                        
+                        diffMinutosSaida = p.atrasado ? dm : -dm;
+                        p.atrasado ? baseTime.add(dm, 'minutes') : baseTime.subtract(dm, 'minutes');
+                        ri = tipo !== "Inicial" ? `${baseTime.format('HH:mm')} (Pt ${indexPonto})` : baseTime.format('HH:mm');
                     }
-                    if (tipo === "Final") {
-                        if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
-                        if (p.horario) pf = p.horario;
-                    }
+                }
+                if (tipo === "Final") {
+                    if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
+                    if (p.horario) pf = p.horario;
                 }
             }
 
-            // Previsão TomTom
+            // --- LÓGICA DE PREVISÃO ---
             const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
             const cachedPred = predictionCache.get(placaLimpa) as any;
             if (cachedPred?.horario) pfn = cachedPred.horario;
@@ -176,25 +158,28 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 pfn = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE).add(diffMinutosSaida, 'minutes').format('HH:mm');
             } else if (pf !== "N/D") pfn = "--:--";
 
-            // --- GERAÇÃO DA URL DO MAPA (YANDEX GRÁTIS) ---
-            const coordenadasLinha = l.pontoDeParadas
-                ?.filter((p: any) => p.latitude && p.longitude)
+            // --- DESENHO DO MAPA OTIMIZADO ---
+            const polyline = pontosValidos
                 .map((p: any) => `${p.longitude},${p.latitude}`)
-                .slice(0, 50) // Limite de 50 pontos para não quebrar a URL
+                .slice(0, 60) // Limite para evitar URL quebrada
                 .join(',');
 
-            const marcadoresParadas = l.pontoDeParadas
-                ?.filter((p: any) => p.latitude && p.longitude)
-                .slice(0, 20) // Mostra as primeiras 20 paradas como ícones
-                .map((p: any, idx: number) => `pt=${p.longitude},${p.latitude},pm2${p.passou ? 'gn' : 'rd'}m${idx + 1}`)
+            const marcadoresParadas = pontosValidos
+                .slice(0, 35) // Máximo de marcadores visíveis
+                .map((p: any, idx: number) => {
+                    const cor = p.passou ? 'gn' : 'rd';
+                    const formato = (idx === 0 || idx === pontosValidos.length - 1) ? 'pm2b' : 'pm2';
+                    return `pt=${p.longitude},${p.latitude},${formato}${cor}m${idx + 1}`;
+                })
                 .join('&');
 
             const latV = l.veiculo?.latitude;
             const lonV = l.veiculo?.longitude;
             const marcadorBus = latV && lonV ? `&pt=${lonV},${latV},pmlbm` : '';
 
-            const urlMapaFinal = coordenadasLinha 
-                ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=${coordenadasLinha}${marcadorBus}&${marcadoresParadas}`
+            // Cor azul claro (4ec4ff) com espessura 5
+            const urlMapaFinal = polyline 
+                ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=c:4ec4ff77,w:5,${polyline}${marcadorBus}&${marcadoresParadas}`
                 : 'N/D';
 
             const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor, sentidoIda);
