@@ -161,23 +161,29 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             // --- DESENHO DO MAPA OTIMIZADO ---
             const polyline = pontosValidos
                 .map((p: any) => `${p.longitude},${p.latitude}`)
-                .slice(0, 60) // Limite para evitar URL quebrada
+                .slice(0, 60) 
                 .join(',');
 
-            const marcadoresParadas = pontosValidos
-                .slice(0, 35) // Máximo de marcadores visíveis
+           const marcadoresParadas = pontosValidos
+                .slice(0, 30) // Reduzi para 30 para garantir estabilidade da URL
                 .map((p: any, idx: number) => {
+                    // Cor: gn (verde) para passou, rd (vermelho) para não passou
                     const cor = p.passou ? 'gn' : 'rd';
-                    const formato = (idx === 0 || idx === pontosValidos.length - 1) ? 'pm2b' : 'pm2';
-                    return `pt=${p.longitude},${p.latitude},${formato}${cor}m${idx + 1}`;
+                    // Nome padrão: pm2 + cor + m (médio) + número
+                    return `pt=${p.longitude},${p.latitude},pm2${cor}m${idx + 1}`;
                 })
                 .join('&');
 
+            // 3. Posição atual do Ônibus (Marcador Azul)
             const latV = l.veiculo?.latitude;
             const lonV = l.veiculo?.longitude;
-            const marcadorBus = latV && lonV ? `&pt=${lonV},${latV},pmlbm` : '';
+            let marcadorBus = '';
+            if (latV && lonV) {
+                // pm2blm = Bala Azul Média (Padrão Yandex)
+                marcadorBus = `&pt=${lonV},${latV},pm2blm`;
+            }
 
-            // Cor azul claro (4ec4ff) com espessura 5
+            // 4. Montagem da URL Final
             const urlMapaFinal = polyline 
                 ? `https://static-maps.yandex.ru/1.x/?lang=pt_BR&l=map&size=600,450&pl=c:4ec4ff77,w:5,${polyline}${marcadorBus}&${marcadoresParadas}`
                 : 'N/D';
