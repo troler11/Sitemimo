@@ -138,7 +138,7 @@ const RelatorioAtrasos: React.FC = () => {
 
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-center border-collapse min-w-[1200px]">
-          <thead className="text-white">
+          <thead className="text-black">
             <tr>
               {[
                 { label: "Empresa / Linha", key: "empresa" },
@@ -166,7 +166,7 @@ const RelatorioAtrasos: React.FC = () => {
               const pFim = item.pontoDeParadaRelatorio[item.pontoDeParadaRelatorio.length - 1];
               const pRef = item.sentido === 'Saída' ? pInic : pFim;
               return (
-                <tr key={item.id} className="border-b hover:bg-gray-50 transition">
+                <tr key={item.id} style={{ borderBottom: '1px solid #eee', textAlign: 'center' }}>
                   <td className="p-3 text-left">
                     <div className="font-bold">{item.empresa?.nome}</div>
                     <div className="text-xs text-gray-500">{item.linhaDescricao} ({item.linhaCodigo})</div>
