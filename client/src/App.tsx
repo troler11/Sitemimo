@@ -12,6 +12,7 @@ import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas';
 import AdminPage from './pages/Admin';
 import EscalaPage from './pages/Escala';
+import AtrasosPage from './pages/RelatorioAtrasos';
 import Relatorios from './pages/Relatorios';
 import AcessoNegadoPage from './pages/AcessoNegadoPage';
 
@@ -64,7 +65,7 @@ const App: React.FC = () => {
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="escala" />}>
-                            <Route path="/escala" element={<EscalaPage />} />
+                            <Route path="/escala" element={<AtrasosPage />} />
                         </Route>
 
                        <Route element={<AuthGuard requiredMenu="atrasos" />}>
