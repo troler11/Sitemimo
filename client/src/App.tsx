@@ -65,11 +65,11 @@ const App: React.FC = () => {
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="escala" />}>
-                            <Route path="/escala" element={<AtrasosPage />} />
+                            <Route path="/escala" element={<EscalaPage />} />
                         </Route>
 
                        <Route element={<AuthGuard requiredMenu="atrasos" />}>
-                            <Route path="/atrasos" element={<EscalaPage />} />
+                            <Route path="/atrasos" element={<AtrasosPag />} />
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="relatorios" />}>
