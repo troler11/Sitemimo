@@ -103,6 +103,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                         </Link>
                     )}
 
+                    {/* Power B.I (Relatórios) */}
+                    {hasPermission('atrasos') && (
+                        <Link to="/atrasos" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/atrasos')}`} title="Atrasos">
+                            <i className="bi bi-bar-chart-line fs-5 me-3"></i>
+                            {isOpen && <span>Atrasos</span>}
+                        </Link>
+                    )}
+
                     {/* Divisor Admin */}
                     {currentUser?.role === 'admin' && isOpen && <hr className="my-2 mx-3 text-muted" />}
 
