@@ -168,7 +168,7 @@ const RelatorioAtrasos: React.FC = () => {
               return (
                 <tr key={item.id} style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
                   <td className="p-3 text-left">
-                    <div className="font-bold">{item.empresa?.nome}</div>
+                    <strong>{item.empresa?.nome}</strong>
                     <div className="text-xs text-gray-500">{item.linhaDescricao} ({item.linhaCodigo})</div>
                   </td>
                   <td className="p-3 font-medium">{item.descricaoVeiculo}</td>
