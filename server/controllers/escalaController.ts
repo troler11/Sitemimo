@@ -93,7 +93,7 @@ export const getEscala = async (req: Request, res: Response) => {
         const response = await axios.get(GOOGLE_SCRIPT_URL, {
             params: { action: 'read', data: dataFiltro },
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 20000
+            timeout: 70000
         });
 
         // Processa os dados brutos aqui no servidor
