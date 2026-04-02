@@ -501,7 +501,7 @@ const Dashboard: React.FC = () => {
 
                                     <td className="text-center">
                                         {temDesvio && (
-                                            <span className="fw-bold text-danger">
+                                            <span className="badge badge-red">
                                                 Sim
                                             </span>
                                         )}
