@@ -68,6 +68,7 @@ const Dashboard: React.FC = () => {
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
+    const [filtroDesvio, setFiltroDesvio] = useState(false); // Estado do ícone do cabeçalho
 
     // Ordenação
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -98,7 +99,7 @@ const Dashboard: React.FC = () => {
     const fetchData = useCallback(async () => {
         if (!isLoggedIn) return;
         try {
-            const res = await api.get('/dashboard'); // Essa rota agora usa o DashboardService
+            const res = await api.get('/dashboard'); 
             const linhasServidor: Linha[] = res.data.todas_linhas || [];
             
             setLinhas(prevLinhas => {
@@ -107,7 +108,6 @@ const Dashboard: React.FC = () => {
                 // Mescla dados novos com previsões TomTom que já existiam no front (para não piscar)
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
-                    // Se o servidor não mandou previsão nova, mas a gente já tinha uma, mantém.
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
                         return { ...serverLinha, pfn: linhaAnterior.pfn };
                     }
@@ -127,7 +127,6 @@ const Dashboard: React.FC = () => {
     }, [isLoggedIn, logout, navigate]);
 
     // --- 2. ATUALIZAÇÃO TOMTOM (Front-end Polling) ---
-    // Isso atualiza apenas o HORÁRIO de previsão visualmente, o Status permanece o do Backend
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
         if (!isLoggedIn) return;
         
@@ -212,7 +211,7 @@ const Dashboard: React.FC = () => {
         return { horario: horarioExibicao, classe: classeCor, origem: temTomTom ? 'TomTom' : 'Tabela' };
     };
 
-    // --- FILTRAGEM (USANDO STATUS API) ---
+    // --- FILTRAGEM ---
     const dadosFiltrados = useMemo(() => {
         return linhas.filter(l => {
             const st = l.status_api || 'INDEFINIDO';
@@ -223,7 +222,7 @@ const Dashboard: React.FC = () => {
                 const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
                 if (!textoLinha.includes(termo)) return false;
             }
-           // 2. Filtro Empresa
+            // 2. Filtro Empresa
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             
             // 3. Filtro Sentido
@@ -232,7 +231,7 @@ const Dashboard: React.FC = () => {
                 if (filtroSentido !== sentidoReal) return false;
             }
             
-            // 4. Filtro Status (Baseado no Backend)
+            // 4. Filtro Status
             if (filtroStatus) {
                 if (filtroStatus === 'desligado' && st !== 'DESLIGADO') return false;
                 if (filtroStatus === 'atrasado' && st !== 'ATRASADO' && st !== 'ATRASADO_PERCURSO') return false;
@@ -240,18 +239,23 @@ const Dashboard: React.FC = () => {
                 if (filtroStatus === 'nao_iniciou' && st !== 'NAO_INICIOU') return false;
                 if (filtroStatus === 'deslocamento' && st !== 'DESLOCAMENTO') return false;
             }
+
+            // 5. Filtro Desvio (via clique no TH da tabela)
+            if (filtroDesvio) {
+                const temDesvio = detectarDesvio(l.pontos);
+                if (!temDesvio) return false;
+            }
+
             return true;
         });
-    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
+    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, filtroDesvio]);
 
     // --- ORDENAÇÃO ---
     const dadosOrdenados = useMemo(() => {
         let sortableItems = [...dadosFiltrados];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                
                 const getSortableValue = (item: Linha, key: string) => {
-                    // Ordenação por Status (Peso)
                     if (key === 'status') {
                         const st = item.status_api || '';
                         switch (st) {
@@ -264,7 +268,6 @@ const Dashboard: React.FC = () => {
                         }
                     }
 
-                    // Ordenação de Horários
                     if (['ri', 'pfn', 'pi', 'pf', 'u'].includes(key)) {
                         // @ts-ignore
                         let val = item[key];
@@ -272,7 +275,6 @@ const Dashboard: React.FC = () => {
                         return val.split(' ')[0]; 
                     }
                     
-                    // Padrão
                     // @ts-ignore
                     const val = item[key];
                     return val !== undefined && val !== null ? val : '';
@@ -295,7 +297,7 @@ const Dashboard: React.FC = () => {
         return sortableItems;
     }, [dadosFiltrados, sortConfig]);
 
-    // --- KPIs (Baseados no Status API) ---
+    // --- KPIs ---
     const kpis = useMemo(() => {
         let counts = { total: 0, atrasados: 0, pontual: 0, desligados: 0, deslocamento: 0, semInicio: 0 };
         
@@ -347,8 +349,8 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filtros */}
-            <div className="filters-flex mb-4">
+            {/* Filtros Básicos */}
+            <div className="filters-flex mb-4 gap-2 d-flex align-items-center">
                 <select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
                     <option value="">Todas as Empresas</option>
                     {empresasUnicas.map(emp => <option key={emp} value={emp}>{emp}</option>)}
@@ -358,7 +360,7 @@ const Dashboard: React.FC = () => {
                     <option value="ida">Entrada</option>
                     <option value="volta">Saida</option>
                 </select>
-                 <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
                     <option value="">Status: Todos</option>
                     <option value="atrasado">Atrasados</option>
                     <option value="pontual">Pontual</option>
@@ -445,7 +447,18 @@ const Dashboard: React.FC = () => {
                             <th style={thStyle} onClick={() => requestSort('pf')}>Prog. Fim {getSortIcon('pf')}</th>
                             <th style={thStyle} onClick={() => requestSort('pfn')}>Prev. Fim (Real) {getSortIcon('pfn')}</th>
                             <th style={thStyle} onClick={() => requestSort('u')}>Ult. Reporte {getSortIcon('u')}</th>
-                            <th style={thStyle} onClick={() => requestSort('status')}>Status {getSortIcon('status')}</th>
+                            <th style={thStyle} onClick={() => requestSort('status')}>
+                                Status {getSortIcon('status')}
+                                <i 
+                                    className={`bi bi-exclamation-triangle-fill ms-2 ${filtroDesvio ? 'text-danger' : 'text-secondary'}`}
+                                    style={{ fontSize: '1.1rem' }}
+                                    title={filtroDesvio ? "Remover filtro de desvios" : "Filtrar apenas desvios"}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFiltroDesvio(!filtroDesvio);
+                                    }}
+                                ></i>
+                            </th>
                             <th className="text-center">Ações</th>
                         </tr>
                     </thead>
@@ -457,10 +470,8 @@ const Dashboard: React.FC = () => {
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
                             
-                            // Chama a função para checar se houve desvio
                             const temDesvio = detectarDesvio(l.pontos);
 
-                           // --- LÓGICA DE EXIBIÇÃO ---
                             const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
                             const hora = matchPonto ? l.ri.split(' ')[0] : l.ri;
                             
@@ -470,7 +481,6 @@ const Dashboard: React.FC = () => {
 
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
-                            // --- BADGE BASEADO NO BACKEND ---
                             let statusBadge: React.ReactNode; 
                             const st = l.status_api || 'INDEFINIDO';
 
@@ -522,7 +532,6 @@ const Dashboard: React.FC = () => {
                                     </td>
                                     <td>{l.u}</td>
                                     
-                                    {/* COLUNA DE STATUS E DESVIO CORRIGIDA AQUI */}
                                     <td>
                                         <div className="d-flex align-items-center">
                                             {statusBadge}
