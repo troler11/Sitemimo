@@ -7,11 +7,6 @@ import { useAuth } from '../hooks/useAuth';
 // Importante: Importar o CSS atualizado
 import './Dashboard.css';
 
-interface Ponto {
-    ordem: number;
-    atendido: boolean;
-}
-
 interface Linha {
     id: string;
     e: string;      // Empresa
@@ -25,7 +20,7 @@ interface Linha {
     u: string;      // Último Reporte
     c: string;      // Categoria (Status Bruto)
     status_api?: string; // Status calculado pelo Backend
-    pontos?: Ponto[]; // Array de pontos para cálculo de desvio
+    pontos?: any[]; // Array de pontos (pode ser [true, false] ou [{atendido: true}])
 }
 
 // Configuração da ordenação
@@ -35,20 +30,24 @@ type SortConfig = {
 } | null;
 
 // Função auxiliar para detectar desvio na rota
-const detectarDesvio = (pontos?: Ponto[]): boolean => {
-    if (!pontos || pontos.length === 0) return false;
+const detectarDesvio = (pontos?: any[]): boolean => {
+    // Se não houver pontos no JSON da API, não tem como calcular
+    if (!pontos || !Array.isArray(pontos) || pontos.length === 0) return false;
+
+    // Normaliza o array para booleanos puros, caso o backend mande como objeto {atendido: true}
+    const atendidos = pontos.map(p => typeof p === 'object' && p !== null ? p.atendido : p);
 
     // Encontra o índice do último ponto que foi atendido (true)
-    const ultimoAtendidoIdx = [...pontos].reverse().findIndex(p => p.atendido);
+    const ultimoAtendidoIdx = [...atendidos].reverse().findIndex(p => p === true);
     
     if (ultimoAtendidoIdx === -1) return false; // Nenhum ponto atendido ainda
 
-    const realUltimoIdx = pontos.length - 1 - ultimoAtendidoIdx;
+    const realUltimoIdx = atendidos.length - 1 - ultimoAtendidoIdx;
 
-    // Verifica se existe algum ponto 'false' entre o primeiro e o último atendido
+    // Verifica se existe algum ponto 'false' antes do último atendido
     for (let i = 0; i < realUltimoIdx; i++) {
-        if (!pontos[i].atendido) {
-            return true; // Encontrou um ponto não atendido no meio do caminho
+        if (atendidos[i] === false) {
+            return true; // Encontrou um 'buraco' (ponto pulado)
         }
     }
 
@@ -68,7 +67,6 @@ const Dashboard: React.FC = () => {
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroSentido, setFiltroSentido] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
-    const [filtroDesvio, setFiltroDesvio] = useState(false); // Estado do ícone do cabeçalho
 
     // Ordenação
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -216,22 +214,18 @@ const Dashboard: React.FC = () => {
         return linhas.filter(l => {
             const st = l.status_api || 'INDEFINIDO';
 
-            // 1. Busca Texto
             if (busca) {
                 const termo = busca.toLowerCase();
                 const textoLinha = `${l.e || ''} ${l.r || ''} ${l.v || ''}`.toLowerCase();
                 if (!textoLinha.includes(termo)) return false;
             }
-            // 2. Filtro Empresa
             if (filtroEmpresa && l.e !== filtroEmpresa) return false;
             
-            // 3. Filtro Sentido
             if (filtroSentido) {
                const sentidoReal = Number(l.s) === 1 ? 'ida' : 'volta';
                 if (filtroSentido !== sentidoReal) return false;
             }
             
-            // 4. Filtro Status
             if (filtroStatus) {
                 if (filtroStatus === 'desligado' && st !== 'DESLIGADO') return false;
                 if (filtroStatus === 'atrasado' && st !== 'ATRASADO' && st !== 'ATRASADO_PERCURSO') return false;
@@ -240,15 +234,9 @@ const Dashboard: React.FC = () => {
                 if (filtroStatus === 'deslocamento' && st !== 'DESLOCAMENTO') return false;
             }
 
-            // 5. Filtro Desvio (via clique no TH da tabela)
-            if (filtroDesvio) {
-                const temDesvio = detectarDesvio(l.pontos);
-                if (!temDesvio) return false;
-            }
-
             return true;
         });
-    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus, filtroDesvio]);
+    }, [linhas, busca, filtroEmpresa, filtroSentido, filtroStatus]);
 
     // --- ORDENAÇÃO ---
     const dadosOrdenados = useMemo(() => {
@@ -306,24 +294,13 @@ const Dashboard: React.FC = () => {
             const st = l.status_api || 'INDEFINIDO';
 
             switch (st) {
-                case 'DESLIGADO':
-                    counts.desligados++;
-                    break;
+                case 'DESLIGADO': counts.desligados++; break;
                 case 'ATRASADO':
-                case 'ATRASADO_PERCURSO':
-                    counts.atrasados++;
-                    break;
-                case 'PONTUAL':
-                    counts.pontual++;
-                    break;
-                case 'NAO_INICIOU':
-                    counts.semInicio++;
-                    break;
-                case 'DESLOCAMENTO':
-                    counts.deslocamento++;
-                    break;
-                default:
-                    break;
+                case 'ATRASADO_PERCURSO': counts.atrasados++; break;
+                case 'PONTUAL': counts.pontual++; break;
+                case 'NAO_INICIOU': counts.semInicio++; break;
+                case 'DESLOCAMENTO': counts.deslocamento++; break;
+                default: break;
             }
         });
         return counts;
@@ -447,18 +424,7 @@ const Dashboard: React.FC = () => {
                             <th style={thStyle} onClick={() => requestSort('pf')}>Prog. Fim {getSortIcon('pf')}</th>
                             <th style={thStyle} onClick={() => requestSort('pfn')}>Prev. Fim (Real) {getSortIcon('pfn')}</th>
                             <th style={thStyle} onClick={() => requestSort('u')}>Ult. Reporte {getSortIcon('u')}</th>
-                            <th style={thStyle} onClick={() => requestSort('status')}>
-                                Status {getSortIcon('status')}
-                                <i 
-                                    className={`bi bi-exclamation-triangle-fill ms-2 ${filtroDesvio ? 'text-danger' : 'text-secondary'}`}
-                                    style={{ fontSize: '1.1rem' }}
-                                    title={filtroDesvio ? "Remover filtro de desvios" : "Filtrar apenas desvios"}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setFiltroDesvio(!filtroDesvio);
-                                    }}
-                                ></i>
-                            </th>
+                            <th style={thStyle} onClick={() => requestSort('status')}>Status {getSortIcon('status')}</th>
                             <th className="text-center">Ações</th>
                         </tr>
                     </thead>
@@ -539,10 +505,8 @@ const Dashboard: React.FC = () => {
                                                 <span 
                                                     className="ms-2 fw-bold text-danger animate-pulse" 
                                                     style={{ fontSize: '0.85rem' }}
-                                                    title="Desvio de rota detectado"
                                                 >
-                                                    <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                                                    DESVIO
+                                                    (desvio)
                                                 </span>
                                             )}
                                         </div>
