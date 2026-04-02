@@ -12,6 +12,16 @@
     --border-radius: 8px;
 }
 
+.animate-pulse {
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
 body {
     background-color: var(--mimo-gray);
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
