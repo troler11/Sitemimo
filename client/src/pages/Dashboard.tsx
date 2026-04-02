@@ -20,7 +20,7 @@ interface Linha {
     u: string;      // Último Reporte
     c: string;      // Categoria (Status Bruto)
     status_api?: string; // Status calculado pelo Backend
-    pontos?: any[]; // Array de pontos (pode ser [true, false] ou [{atendido: true}])
+    pontos?: any[]; // Array de pontos para cálculo de desvio
 }
 
 // Configuração da ordenação
@@ -31,23 +31,19 @@ type SortConfig = {
 
 // Função auxiliar para detectar desvio na rota
 const detectarDesvio = (pontos?: any[]): boolean => {
-    // Se não houver pontos no JSON da API, não tem como calcular
     if (!pontos || !Array.isArray(pontos) || pontos.length === 0) return false;
 
-    // Normaliza o array para booleanos puros, caso o backend mande como objeto {atendido: true}
     const atendidos = pontos.map(p => typeof p === 'object' && p !== null ? p.atendido : p);
 
-    // Encontra o índice do último ponto que foi atendido (true)
     const ultimoAtendidoIdx = [...atendidos].reverse().findIndex(p => p === true);
     
-    if (ultimoAtendidoIdx === -1) return false; // Nenhum ponto atendido ainda
+    if (ultimoAtendidoIdx === -1) return false;
 
     const realUltimoIdx = atendidos.length - 1 - ultimoAtendidoIdx;
 
-    // Verifica se existe algum ponto 'false' antes do último atendido
     for (let i = 0; i < realUltimoIdx; i++) {
         if (atendidos[i] === false) {
-            return true; // Encontrou um 'buraco' (ponto pulado)
+            return true; 
         }
     }
 
@@ -79,7 +75,6 @@ const Dashboard: React.FC = () => {
     const linhasRef = useRef(linhas);
     const isMountedRef = useRef(true);
 
-    // Atualiza ref para usar dentro de intervalos/callbacks
     useEffect(() => { linhasRef.current = linhas; }, [linhas]);
 
     useEffect(() => {
@@ -103,7 +98,6 @@ const Dashboard: React.FC = () => {
             setLinhas(prevLinhas => {
                 if (prevLinhas.length === 0) return linhasServidor;
                 
-                // Mescla dados novos com previsões TomTom que já existiam no front (para não piscar)
                 return linhasServidor.map(serverLinha => {
                     const linhaAnterior = prevLinhas.find(l => l.id === serverLinha.id);
                     if (!serverLinha.pfn && linhaAnterior?.pfn) {
@@ -128,7 +122,6 @@ const Dashboard: React.FC = () => {
     const carregarPrevisoesAutomaticamente = useCallback(async () => {
         if (!isLoggedIn) return;
         
-        // Filtra quem está ativo e não desligado
         const linhasAtivas = linhasRef.current.filter(l => 
             l.ri && l.ri !== 'N/D' && 
             l.status_api !== 'DESLIGADO' && 
@@ -159,11 +152,10 @@ const Dashboard: React.FC = () => {
         }
     }, [isLoggedIn]);
 
-    // Efeitos de Intervalo
     useEffect(() => {
         if (isLoggedIn) {
             fetchData();
-            const intervalPrincipal = setInterval(fetchData, 30000); // Atualiza tudo a cada 30s
+            const intervalPrincipal = setInterval(fetchData, 30000); 
             return () => clearInterval(intervalPrincipal);
         }
     }, [isLoggedIn, fetchData]);
@@ -173,7 +165,7 @@ const Dashboard: React.FC = () => {
             carregarPrevisoesAutomaticamente(); 
             const intervalPrevisao = setInterval(() => {
                 carregarPrevisoesAutomaticamente();
-            }, 300000); // Atualiza TomTom a cada 5 min
+            }, 300000); 
             return () => clearInterval(intervalPrevisao);
         }
     }, [isLoggedIn, loading, linhas.length, carregarPrevisoesAutomaticamente]);
@@ -194,7 +186,6 @@ const Dashboard: React.FC = () => {
         return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
     };
 
-    // Helper visual para previsão
     const getPrevisaoInteligente = (linha: Linha) => {
         const temTomTom = linha.pfn && linha.pfn !== 'N/D';
         const horarioExibicao = temTomTom ? linha.pfn : linha.pf;
@@ -435,8 +426,14 @@ const Dashboard: React.FC = () => {
                             const previsao = getPrevisaoInteligente(l);
                             const valSentido = Number(l.s);
                             const jaSaiu = l.ri && l.ri !== 'N/D';
+                            const st = l.status_api || 'INDEFINIDO';
                             
-                            const temDesvio = detectarDesvio(l.pontos);
+                            // ---- NOVA REGRA DE DESVIO AQUI ----
+                            // Só verifica se for Entrada (1) E se o status for Pontual, Atrasado ou Atrasado_Percurso
+                            let temDesvio = false;
+                            if (valSentido === 1 && ['PONTUAL', 'ATRASADO', 'ATRASADO_PERCURSO'].includes(st)) {
+                                temDesvio = detectarDesvio(l.pontos);
+                            }
 
                             const matchPonto = l.ri && l.ri.match(/\(Pt (\d+)\)/);
                             const hora = matchPonto ? l.ri.split(' ')[0] : l.ri;
@@ -448,7 +445,6 @@ const Dashboard: React.FC = () => {
                             const tooltipRi = matchPonto ? `Linha iniciada a partir do ponto ${matchPonto[1]}` : '';
                             
                             let statusBadge: React.ReactNode; 
-                            const st = l.status_api || 'INDEFINIDO';
 
                             switch (st) {
                                 case 'DESLIGADO':
