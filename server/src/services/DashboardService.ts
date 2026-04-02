@@ -45,6 +45,7 @@ export interface LinhaOutput {
     li?: string;    // Lat/Long Inicial
     lf?: string;    // Lat/Long Final
     status_api: string; // Status Calculado (ATRASADO, PONTUAL, ETC)
+    pontos?: any[]; // Array de pontos para checagem de desvio no frontend
 }
 
 // --- FUNÇÃO AUXILIAR: CALCULAR STATUS ---
@@ -168,11 +169,19 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             let saiu = false;
             const sentidoIda = l.sentidoIDA ? true : false;
 
+            const pontosSimplificados: any[] = []; // Array para guardar os pontos para o Frontend
+
             // C. Loop nos Pontos de Parada
             if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
                 for (const p of l.pontoDeParadas) {
                     const tipo = p.tipoPonto?.tipo;
                     const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
+
+                    // Salva se o ponto foi atendido para o cálculo de desvio
+                    pontosSimplificados.push({
+                        ordem: indexPonto,
+                        atendido: p.passou === true
+                    });
 
                     // Ponto Inicial (Tabela)
                     if (tipo === "Inicial") {
@@ -274,7 +283,8 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 pfn: pfn,
                 u: u,
                 c: categoria,
-                status_api: statusApi 
+                status_api: statusApi,
+                pontos: pontosSimplificados // Enviando os pontos mapeados para o front-end
             });
         }
     };
