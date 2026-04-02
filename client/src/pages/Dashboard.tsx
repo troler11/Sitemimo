@@ -519,19 +519,20 @@ const detectarDesvio = (pontos?: Ponto[]): boolean => {
                                         {previsao.origem === 'TomTom' && <i className="fas fa-broadcast-tower ms-1 small blink-icon" title="TomTom"></i>}
                                     </td>
                                     <td>{l.u}</td>
-                                    <div className="d-flex align-items-center">
-                {statusBadge}
-                {temDesvio && (
-                    <span 
-                        className="ms-2 fw-bold text-danger animate-pulse" 
-                        style={{ fontSize: '0.85rem' }}
-                    >
-                        <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                        DESVIO
-                    </span>
-                )}
-            </div>
-        </td>
+                                    <td>
+    <div className="d-flex align-items-center">
+        {statusBadge}
+        {temDesvio && (
+            <span 
+                className="ms-2 fw-bold text-danger animate-pulse" 
+                style={{ fontSize: '0.85rem' }}
+            >
+                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                DESVIO
+            </span>
+        )}
+    </div>
+</td>
                                     
                                     <td className="text-center">
                                         <div className="d-flex justify-content-center gap-2">
