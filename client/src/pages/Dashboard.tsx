@@ -416,12 +416,13 @@ const Dashboard: React.FC = () => {
                             <th style={thStyle} onClick={() => requestSort('pfn')}>Prev. Fim (Real) {getSortIcon('pfn')}</th>
                             <th style={thStyle} onClick={() => requestSort('u')}>Ult. Reporte {getSortIcon('u')}</th>
                             <th style={thStyle} onClick={() => requestSort('status')}>Status {getSortIcon('status')}</th>
+                            <th className="text-center">Desvio</th>
                             <th className="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={11} className="text-center py-4">Carregando dados da frota...</td></tr>
+                            <tr><td colSpan={12} className="text-center py-4">Carregando dados da frota...</td></tr>
                         ) : dadosOrdenados.map((l, idx) => {
                             const previsao = getPrevisaoInteligente(l);
                             const valSentido = Number(l.s);
@@ -495,17 +496,15 @@ const Dashboard: React.FC = () => {
                                     <td>{l.u}</td>
                                     
                                     <td>
-                                        <div className="d-flex align-items-center">
-                                            {statusBadge}
-                                            {temDesvio && (
-                                                <span 
-                                                    className="ms-2 fw-bold text-danger animate-pulse" 
-                                                    style={{ fontSize: '0.85rem' }}
-                                                >
-                                                    (desvio)
-                                                </span>
-                                            )}
-                                        </div>
+                                        {statusBadge}
+                                    </td>
+
+                                    <td className="text-center">
+                                        {temDesvio && (
+                                            <span className="fw-bold text-danger">
+                                                Sim
+                                            </span>
+                                        )}
                                     </td>
                                     
                                     <td className="text-center">
