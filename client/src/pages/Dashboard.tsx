@@ -7,19 +7,26 @@ import { useAuth } from '../hooks/useAuth';
 // Importante: Importar o CSS atualizado
 import './Dashboard.css';
 
+interface Ponto {
+    ordem: number;
+    atendido: boolean;
+}
+
 interface Linha {
     id: string;
-    e: string;      // Empresa
-    r: string;      // Rota
-    v: string;      // Veículo
-    s: number;      // Sentido
-    pi: string;     // Prog. Início
-    ri: string;     // Real Início
-    pf: string;     // Prog. Fim
-    pfn?: string;   // Prev. Fim Nova
-    u: string;      // Último Reporte
-    c: string;      // Categoria (Status Bruto)
-    status_api?: string; // NOVO CAMPO: O status calculado pelo Backend
+    e: string;
+    r: string;
+    v: string;
+    s: number;
+    pi: string;
+    ri: string;
+    pf: string;
+    pfn?: string;
+    u: string;
+    c: string;
+    status_api?: string;
+    // Adicione os pontos para o cálculo
+    pontos?: Ponto[]; 
 }
 
 // Configuração da ordenação
@@ -169,7 +176,27 @@ const Dashboard: React.FC = () => {
         if (!sortConfig || sortConfig.key !== name) return null;
         return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
     };
+const detectarDesvio = (pontos?: Ponto[]): boolean => {
+    if (!pontos || pontos.length === 0) return false;
 
+    // Encontra o índice do último ponto que foi atendido (true)
+    const ultimoAtendidoIdx = [...pontos].reverse().findIndex(p => p.atendido);
+    
+    if (ultimoAtendidoIdx === -1) return false; // Nenhum ponto atendido ainda
+
+    const realUltimoIdx = pontos.length - 1 - ultimoAtendidoIdx;
+
+    // Verifica se existe algum ponto 'false' entre o primeiro e o último atendido
+    for (let i = 0; i < realUltimoIdx; i++) {
+        if (!pontos[i].atendido) {
+            return true; // Encontrou um ponto não atendido no meio do caminho
+        }
+    }
+
+    return false;
+};
+
+    
     // Helper visual para previsão
     const getPrevisaoInteligente = (linha: Linha) => {
         const temTomTom = linha.pfn && linha.pfn !== 'N/D';
@@ -465,6 +492,7 @@ const Dashboard: React.FC = () => {
                                     statusBadge = <span className="badge badge-green">Pontual</span>;
                                     break;
                             }
+            const temDesvio = detectarDesvio(l.pontos);
 
                             return (
                                 <tr key={`${l.id}-${idx}`}>
@@ -491,7 +519,20 @@ const Dashboard: React.FC = () => {
                                         {previsao.origem === 'TomTom' && <i className="fas fa-broadcast-tower ms-1 small blink-icon" title="TomTom"></i>}
                                     </td>
                                     <td>{l.u}</td>
-                                    <td>{statusBadge}</td>
+                                    <div className="d-flex align-items-center">
+                {statusBadge}
+                {temDesvio && (
+                    <span 
+                        className="ms-2 fw-bold text-danger animate-pulse" 
+                        style={{ fontSize: '0.85rem' }}
+                    >
+                        <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                        DESVIO
+                    </span>
+                )}
+            </div>
+        </td>
+                                    
                                     <td className="text-center">
                                         <div className="d-flex justify-content-center gap-2">
                                             <button className="btn-action-outline" onClick={() => setSelectedMap({ placa: l.v, idLinha: l.id, tipo: 'inicial', pf: l.pi || '--:--' })}>
