@@ -1,9 +1,23 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
+import { google } from 'googleapis'; // <-- IMPORTANTE: Instalar com 'npm install googleapis'
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
+
+// ==========================================
+// CONFIGURAÇÕES PARA A ATUALIZAÇÃO (PUT)
+// ==========================================
+const SPREADSHEET_ID = 'COLE_AQUI_O_ID_DA_PLANILHA'; // Fica na URL da sua planilha do Sheets
+const SHEET_NAME = 'Página1'; // Nome da aba exata onde os dados estão
+
+// Requer o arquivo 'credentials.json' na raiz do seu backend
+const auth = new google.auth.GoogleAuth({
+    keyFile: './credentials.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
 
 // --- FUNÇÃO DE PROCESSAMENTO (PORTADA DO PHP) ---
 const processarDados = (rows: any[]) => {
@@ -82,6 +96,9 @@ const processarDados = (rows: any[]) => {
     });
 };
 
+// ==========================================
+// ROTA GET: BUSCAR DADOS
+// ==========================================
 export const getEscala = async (req: Request, res: Response) => {
     const dataFiltro = req.query.data as string || new Date().toLocaleDateString('pt-BR');
     const cacheKey = `escala_v2_${dataFiltro}`;
@@ -105,5 +122,83 @@ export const getEscala = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Erro Escala:", error);
         return res.status(500).json({ error: "Erro ao buscar dados externos" });
+    }
+};
+
+// ==========================================
+// ROTA PUT: ATUALIZAR DADOS
+// ==========================================
+export const atualizarEscala = async (req: Request, res: Response) => {
+    const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota } = req.body;
+
+    try {
+        const client = await auth.getClient();
+        const sheets = google.sheets({ version: 'v4', auth: client as any });
+
+        // Puxamos a planilha toda para achar a linha correta
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A:Z`,
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ error: 'Planilha vazia' });
+        }
+
+        let rowIndex = -1;
+
+        // ATENÇÃO: Você precisa definir onde estão essas informações na sua planilha original
+        // No JavaScript, Coluna A = 0, B = 1, C = 2...
+        const INDICE_DATA = 12;      // Ex: Se a data fica na Coluna M, é 12
+        const INDICE_EMPRESA = 0;    // Ex: Se a Empresa fica na Coluna A, é 0
+        const INDICE_ROTA = 1;       // Ex: Se a Rota fica na Coluna B, é 1
+        const INDICE_HORARIO = 5;    // Ex: Se o H.Prog fica na Coluna F, é 5
+
+        for (let i = 1; i < rows.length; i++) { // i=1 para pular o cabeçalho
+            const row = rows[i];
+            
+            const rowData = row[INDICE_DATA] ? String(row[INDICE_DATA]).trim() : '';
+            const rowEmpresa = row[INDICE_EMPRESA] ? String(row[INDICE_EMPRESA]).trim() : '';
+            const rowRota = row[INDICE_ROTA] ? String(row[INDICE_ROTA]).trim() : '';
+            const rowProg = row[INDICE_HORARIO] ? String(row[INDICE_HORARIO]).trim().substring(0, 5) : '';
+
+            // Verifica se achou a linha exata que o usuário editou
+            if (rowData === data_escala && rowEmpresa === empresa && rowRota === rota && rowProg === h_prog) {
+                rowIndex = i + 1; // +1 porque a API conta a partir do 1
+                break;
+            }
+        }
+
+        if (rowIndex === -1) {
+            return res.status(404).json({ error: 'Viagem exata não encontrada na planilha.' });
+        }
+
+        // ATENÇÃO: Ajuste a LETRA exata das colunas que você quer escrever (ex: C e E)
+        
+        // Atualiza Motorista (Exemplo: Coluna C)
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!C${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[novo_motorista]] }
+        });
+
+        // Atualiza Frota Enviada (Exemplo: Coluna E)
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!E${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[nova_frota]] }
+        });
+
+        // 🚀 CRÍTICO: Limpa o cache para forçar a nova leitura!
+        const cacheKey = `escala_v2_${data_escala}`;
+        escalaCache.del(cacheKey);
+
+        return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
+    } catch (error) {
+        console.error("Erro ao atualizar o Sheets:", error);
+        return res.status(500).json({ error: 'Erro interno ao salvar as alterações.' });
     }
 };
