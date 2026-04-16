@@ -383,16 +383,16 @@ setDados(Array.isArray(res.data) ? res.data : []);
                                             {emEdicao ? (
                                                 <>
                                                     <input 
-                                                        type="text" 
-                                                        className="form-control form-control-sm border-warning" 
-                                                        value={formEdicao.motorista} 
-                                                        onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
-                                                        placeholder="Pesquise o Motorista"
-                                                        list={`lista-motoristas-${i}`} 
-                                                    />
-                                                    <datalist id={`lista-motoristas-${i}`}>
-    {Array.isArray(listaMotoristas) && listaMotoristas.map((mot, idx) => (
-        <option key={idx} value={mot} />
+    type="text" 
+    className="form-control" 
+    value={formEdicao.motorista} 
+    onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
+    placeholder="Digite para pesquisar..."
+    list="lista-geral-motoristas" // Nome do ID do datalist
+/>
+<datalist id="lista-geral-motoristas">
+    {listaMotoristas.map((nome, index) => (
+        <option key={index} value={nome} />
     ))}
 </datalist>
                                                 </>
