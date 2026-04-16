@@ -96,6 +96,48 @@ const processarDados = (rows: any[]) => {
     });
 };
 
+
+// ==========================================
+// ROTA GET: BUSCAR LISTA DE MOTORISTAS
+// ==========================================
+export const getMotoristas = async (req: Request, res: Response): Promise<Response> => {
+    const cacheKey = 'lista_motoristas';
+    const cached = escalaCache.get(cacheKey);
+    
+    // Como a lista de motoristas não muda a cada minuto, podemos usar o cache!
+    if (cached) return res.json(cached);
+
+    try {
+        const client = await auth.getClient();
+        const sheets = google.sheets({ version: 'v4', auth: client as any });
+
+        // ATENÇÃO: Verifique se o nome da aba é exatamente esse
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'BASE CONSULTA MOTORISTAS!A:A', // Pega a coluna A inteira
+        });
+
+        const rows = response.data.values;
+        if (!rows) return res.json([]);
+
+        // Limpa os dados: pega só a string, remove vazios e tira o cabeçalho (se houver)
+        const motoristas = rows
+            .map(row => row[0] ? String(row[0]).trim() : '')
+            .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista'); // Ignora a palavra "motorista" se for cabeçalho
+
+        // Remove nomes duplicados e coloca em ordem alfabética
+        const motoristasUnicos = [...new Set(motoristas)].sort();
+
+        // Salva no cache por 1 hora (3600 segundos) para não pesar no Sheets
+        escalaCache.set(cacheKey, motoristasUnicos, 3600);
+
+        return res.json(motoristasUnicos);
+    } catch (error) {
+        console.error("Erro ao buscar motoristas:", error);
+        return res.status(500).json({ error: 'Erro ao buscar a lista de motoristas.' });
+    }
+};
+
 // ==========================================
 // ROTA GET: BUSCAR DADOS
 // ==========================================
