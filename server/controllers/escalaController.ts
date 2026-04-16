@@ -138,7 +138,53 @@ export const getEscala = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Erro ao buscar dados externos" });
     }
 };
+// ==========================================
+// RECEBE AS REQUISIÇÕES DE ATUALIZAÇÃO (POST)
+// ==========================================
+function doPost(e) {
+  try {
+    var params = JSON.parse(e.postData.contents);
+    
+    if (params.action === 'update') {
+      var sheetName = params.data_escala;
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+      
+      if (!sheet) return ContentService.createTextOutput(JSON.stringify({error: "Aba com a data não encontrada"})).setMimeType(ContentService.MimeType.JSON);
+      
+      // 🔥 A MÁGICA: getDisplayValues() lê exatamente o texto visível na tela ("05:30")
+      var data = sheet.getDataRange().getDisplayValues(); 
+      var rowIndex = -1;
+      
+      // Procura a linha exata
+      for (var i = 1; i < data.length; i++) {
+        var rowEmpresa = String(data[i][0]).trim(); // Coluna A
+        var rowRota = String(data[i][1]).trim();    // Coluna B
+        var rowProg = String(data[i][5]).trim().substring(0, 5); // Coluna F
+        
+        // Verifica se a Empresa, a Rota e o Horário batem perfeitamente
+        if (rowEmpresa === params.empresa && rowRota === params.rota && rowProg === params.h_prog) {
+          rowIndex = i + 1; // +1 porque a API conta a partir do 1
+          break;
+        }
+      }
+      
+      if (rowIndex === -1) {
+        // Se não achar, devolve exatamente o que ele tentou procurar para ajudar no debug
+        return ContentService.createTextOutput(JSON.stringify({error: "Viagem não encontrada. Procurou por: " + params.empresa + " | " + params.rota + " | " + params.h_prog})).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // Atualiza a Frota na Coluna H (Índice 8)
+      sheet.getRange(rowIndex, 8).setValue(params.nova_frota);
 
+      // Atualiza o Motorista na Coluna K (Índice 11)
+      sheet.getRange(rowIndex, 11).setValue(params.novo_motorista);
+      
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON);
+  }
+};
 // ==========================================
 // ROTA PUT: ATUALIZAR DADOS (VIA SCRIPT POST)
 // ==========================================
