@@ -13,16 +13,10 @@ const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M';
 
 // Requer o arquivo 'credentials.json' na raiz do seu backend
 // Puxa o JSON lá das variáveis de ambiente do Easypanel
-const credenciaisGoogle = process.env.GOOGLE_CREDENTIALS 
-    ? JSON.parse(process.env.GOOGLE_CREDENTIALS) 
-    : {};
+// Apague o bloco do const credenciaisGoogle = ...
 
 const auth = new google.auth.GoogleAuth({
-    credentials: {
-        client_email: credenciaisGoogle.client_email,
-        // O replace garante que as quebras de linha da chave funcionem no Docker
-        private_key: credenciaisGoogle.private_key?.replace(/\\n/g, '\n'),
-    },
+    keyFile: './credentials.json', // Voltamos a ler o arquivo diretamente!
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
