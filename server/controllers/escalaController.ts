@@ -18,6 +18,9 @@ const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M';
 // ==========================================
 // AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
 // ==========================================
+// ==========================================
+// AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
+// ==========================================
 let auth: any;
 
 if (process.env.GOOGLE_CREDENTIALS_BASE64) {
@@ -28,7 +31,8 @@ if (process.env.GOOGLE_CREDENTIALS_BASE64) {
     auth = new google.auth.GoogleAuth({
         credentials: {
             client_email: credenciaisGoogle.client_email,
-            private_key: credenciaisGoogle.private_key,
+            // Corrige o bug das quebras de linha da chave privada
+            private_key: credenciaisGoogle.private_key.replace(/\\n/g, '\n'),
         },
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
