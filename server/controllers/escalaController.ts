@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { google } from 'googleapis'; 
+// 👇 Importa as credenciais diretamente do seu novo arquivo TS
+import { credenciais } from './googleCreds'; 
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
@@ -21,30 +23,13 @@ const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M';
 // ==========================================
 // AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
 // ==========================================
-let auth: any;
-
-if (process.env.GOOGLE_CREDENTIALS_BASE64) {
-    // 1. Em Produção (Easypanel): Decodifica a variável Base64 e transforma em JSON
-    const decodedString = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf-8');
-    const credenciaisGoogle = JSON.parse(decodedString);
-
-    auth = new google.auth.GoogleAuth({
-        credentials: {
-            client_email: credenciaisGoogle.client_email,
-            // Corrige o bug das quebras de linha da chave privada
-            private_key: credenciaisGoogle.private_key.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    console.log("✅ Autenticado no Google via Variável Base64");
-} else {
-    // 2. Localmente (Seu PC): Lê o arquivo físico normalmente
-    auth = new google.auth.GoogleAuth({
-        keyFile: './credentials.json',
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    console.log("✅ Autenticado no Google via Arquivo Físico");
-}
+const auth = new google.auth.GoogleAuth({
+    credentials: {
+        client_email: credenciais.client_email,
+        private_key: credenciais.private_key,
+    },
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
 
 // --- FUNÇÃO DE PROCESSAMENTO (PORTADA DO PHP) ---
 const processarDados = (rows: any[]) => {
