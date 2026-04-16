@@ -23,10 +23,12 @@ const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M';
 // ==========================================
 // AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
 // ==========================================
+// 👇 A autenticação fica super simples, mas agora forçando as quebras de linha corretas!
 const auth = new google.auth.GoogleAuth({
     credentials: {
         client_email: credenciais.client_email,
-        private_key: credenciais.private_key,
+        // A MÁGICA AQUI: Transforma o texto "\n" em quebras de linha reais que o Node exige
+        private_key: credenciais.private_key.replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
