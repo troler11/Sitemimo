@@ -100,42 +100,50 @@ const processarDados = (rows: any[]) => {
 // ==========================================
 // ROTA GET: BUSCAR LISTA DE MOTORISTAS
 // ==========================================
+// ==========================================
+// ROTA GET: BUSCAR LISTA DE MOTORISTAS (MODO DEBUG)
+// ==========================================
 export const getMotoristas = async (req: Request, res: Response): Promise<Response> => {
-    const cacheKey = 'lista_motoristas';
-    const cached = escalaCache.get(cacheKey);
-    
-    if (cached) return res.json(cached);
-
+    // DESATIVAMOS O CACHE TEMPORARIAMENTE PARA TESTES
     try {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: client as any });
 
-        // 🔥 CORREÇÃO AQUI: Aspas simples adicionadas em volta do nome da aba!
+        console.log("🕵️ Buscando a aba 'BASE CONSULTA MOTORISTAS' no Google Sheets...");
+
+        // Mudamos de A:A para A:Z temporariamente para ver se os dados estão em outra coluna
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "'BASE CONSULTA MOTORISTAS'!A:A", 
+            range: "'BASE CONSULTA MOTORISTAS'!A:Z", 
         });
 
         const rows = response.data.values;
-        if (!rows) return res.json([]);
+        
+        if (!rows || rows.length === 0) {
+            console.log("❌ O Google respondeu, mas disse que a aba não existe ou está 100% vazia.");
+            return res.json([]);
+        }
 
-        // Limpa os dados
+        console.log(`✅ O Google encontrou ${rows.length} linhas!`);
+        console.log("👀 Amostra da Linha 1 (Cabeçalho):", rows[0]);
+        console.log("👀 Amostra da Linha 2 (Primeiro dado):", rows[1] || "Vazia");
+
+        // Assumindo que os nomes estão na Coluna A (Índice 0). 
+        // Se no log acima o nome aparecer na posição 1, mude row[0] para row[1]
         const motoristas = rows
             .map(row => row[0] ? String(row[0]).trim() : '')
-            .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista');
+            .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista' && nome.toLowerCase() !== 'nome');
 
-        // Remove duplicados e ordena
         const motoristasUnicos = [...new Set(motoristas)].sort();
 
-        escalaCache.set(cacheKey, motoristasUnicos, 3600);
+        console.log(`🚗 Total de motoristas únicos extraídos: ${motoristasUnicos.length}`);
 
         return res.json(motoristasUnicos);
     } catch (error) {
-        console.error("Erro ao buscar motoristas:", error);
+        console.error("🚨 Erro fatal ao buscar motoristas no Sheets:", error);
         return res.status(500).json({ error: 'Erro ao buscar a lista de motoristas.' });
     }
 };
-
 // ==========================================
 // ROTA GET: BUSCAR DADOS DA ESCALA
 // ==========================================
