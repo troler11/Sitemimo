@@ -20,21 +20,24 @@ interface ItemEscala {
 }
 
 const Escala: React.FC = () => {
+    // --- ESTADOS GERAIS ---
     const [dados, setDados] = useState<ItemEscala[]>([]);
     const [loading, setLoading] = useState(true);
     const [filtroData, setFiltroData] = useState(new Date().toLocaleDateString('pt-BR'));
     
+    // --- ESTADOS DE FILTRO ---
     const [filtroEmpresa, setFiltroEmpresa] = useState('');
     const [filtroStatus, setFiltroStatus] = useState(''); 
     const [busca, setBusca] = useState('');
 
-    // --- NOVOS ESTADOS PARA EDIÇÃO ---
+    // --- ESTADOS PARA EDIÇÃO E LISTA SUSPENSA ---
     const [linhaEmEdicao, setLinhaEmEdicao] = useState<number | null>(null);
     const [formEdicao, setFormEdicao] = useState({ frota_enviada: '', motorista: '' });
     const [salvando, setSalvando] = useState(false);
+    const [listaMotoristas, setListaMotoristas] = useState<string[]>([]); // NOVA LISTA DE MOTORISTAS
 
+    // --- BUSCA OS DADOS DA ESCALA ---
     const fetchData = useCallback(async (isAutoUpdate = false) => {
-        // Não mostra loading se for atualização automática ou se estiver editando uma linha
         if (!isAutoUpdate && linhaEmEdicao === null) setLoading(true);
         try {
             const res = await api.get('/escala', { params: { data: filtroData } });
@@ -46,13 +49,14 @@ const Escala: React.FC = () => {
         }
     }, [filtroData, linhaEmEdicao]);
 
+    // --- EFFECT: CARREGA ESCALA ---
     useEffect(() => {
         fetchData(); 
     }, [fetchData]);
 
+    // --- EFFECT: ATUALIZAÇÃO AUTOMÁTICA (1 min) ---
     useEffect(() => {
         const intervalo = setInterval(() => {
-            // Só atualiza automaticamente se não estiver no meio de uma edição
             if (linhaEmEdicao === null) {
                 fetchData(true); 
             }
@@ -60,6 +64,20 @@ const Escala: React.FC = () => {
         return () => clearInterval(intervalo);
     }, [fetchData, linhaEmEdicao]);
 
+    // --- EFFECT: CARREGA A LISTA DE MOTORISTAS (UMA VEZ) ---
+    useEffect(() => {
+        const fetchMotoristas = async () => {
+            try {
+                const res = await api.get('/motoristas');
+                setListaMotoristas(res.data);
+            } catch (err) {
+                console.error("Erro ao carregar lista de motoristas:", err);
+            }
+        };
+        fetchMotoristas();
+    }, []);
+
+    // --- PROCESSAMENTO DE DADOS (MEMOIZADOS) ---
     const empresasUnicas = useMemo(() => {
         return Array.from(new Set(dados.map(d => d.empresa))).sort();
     }, [dados]);
@@ -181,10 +199,9 @@ const Escala: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- KPI CARDS (LINHA ÚNICA COM SVG) --- */}
+            {/* --- KPI CARDS --- */}
             <div className="kpi-row mb-4">
                 
-                {/* 1. TOTAL */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-dark">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -200,7 +217,6 @@ const Escala: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 2. CONFIRMADAS */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-green">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -214,7 +230,6 @@ const Escala: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 3. PENDENTES */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-warning">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -228,7 +243,6 @@ const Escala: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 4. MANUTENÇÃO */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -241,7 +255,6 @@ const Escala: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 5. AGUARDANDO */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-warning">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -257,7 +270,6 @@ const Escala: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 6. COBRIR */}
                 <div className="kpi-card">
                     <div className="kpi-icon text-red">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -313,7 +325,7 @@ const Escala: React.FC = () => {
                             <th style={{width: '15%'}}>Detalhes</th>
                             <th className="text-center" style={{width: '10%'}}>Status</th>
                             <th className="text-end" style={{width: '10%'}}>Horário</th>
-                            <th className="text-center" style={{width: '5%'}}>Ações</th> {/* Nova coluna */}
+                            <th className="text-center" style={{width: '5%'}}>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -360,16 +372,24 @@ const Escala: React.FC = () => {
                                             )}
                                         </td>
                                         
-                                        {/* COLUNA: MOTORISTA */}
+                                        {/* COLUNA: MOTORISTA COM DATALIST */}
                                         <td>
                                             {emEdicao ? (
-                                                <input 
-                                                    type="text" 
-                                                    className="form-control form-control-sm border-warning" 
-                                                    value={formEdicao.motorista} 
-                                                    onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
-                                                    placeholder="Novo Motorista"
-                                                />
+                                                <>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control form-control-sm border-warning" 
+                                                        value={formEdicao.motorista} 
+                                                        onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
+                                                        placeholder="Pesquise o Motorista"
+                                                        list={`lista-motoristas-${i}`} 
+                                                    />
+                                                    <datalist id={`lista-motoristas-${i}`}>
+                                                        {listaMotoristas.map((mot, idx) => (
+                                                            <option key={idx} value={mot} />
+                                                        ))}
+                                                    </datalist>
+                                                </>
                                             ) : (
                                                 <>
                                                     <div className="d-flex align-items-center">
