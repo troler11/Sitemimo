@@ -52,7 +52,7 @@ const Escala: React.FC = () => {
 
     useEffect(() => {
         const intervalo = setInterval(() => {
-            // Só atualiza automaticamente se não estiver no meio de uma edição (para não bugar o input)
+            // Só atualiza automaticamente se não estiver no meio de uma edição
             if (linhaEmEdicao === null) {
                 fetchData(true); 
             }
@@ -73,13 +73,13 @@ const Escala: React.FC = () => {
             const isCobrir = obsTexto.includes('cobrir');
 
             let statusItem = 'pendente';
-           if (item.manutencao) {
-            statusItem = 'manutencao';
-        } else if (item.aguardando) {
-            statusItem = 'aguardando';
-        } else if (realizou) {
-            statusItem = 'confirmado';
-        }
+            if (item.manutencao) {
+                statusItem = 'manutencao';
+            } else if (item.aguardando) {
+                statusItem = 'aguardando';
+            } else if (realizou) {
+                statusItem = 'confirmado';
+            }
             
             if (filtroStatus) {
                 if (filtroStatus === 'cobrir') {
@@ -136,8 +136,6 @@ const Escala: React.FC = () => {
     const salvarEdicao = async (row: ItemEscala) => {
         setSalvando(true);
         try {
-            // Aqui enviamos para a sua API. 
-            // Você precisa enviar algo que identifique a linha exata no Sheets (ex: data, empresa, rota, h_prog)
             await api.put('/escala/atualizar', {
                 data_escala: filtroData,
                 empresa: row.empresa,
@@ -159,11 +157,152 @@ const Escala: React.FC = () => {
 
     return (
         <div className="main-content">
-            {/* O cabeçalho, KPIs e Filtros continuam exatamente iguais... */}
-            {/* (Vou omitir os divs superiores aqui na visualização para focar na tabela, mas MANTENHA o seu código original lá) */}
             
-            {/* Cole tudo do <div className="header-flex mb-4"> até o final de <div className="filters-flex mb-4"> que já existe no seu código aqui */}
+            {/* --- HEADER --- */}
+            <div className="header-flex mb-4">
+                <div>
+                    <h2 className="page-title">Escala Diária</h2>
+                    <p className="text-muted small mb-0 mt-1">
+                        <i className="fas fa-sync-alt me-1"></i> Atualização automática (1m)
+                    </p>
+                </div>
+                <div className="d-flex gap-2 align-items-center">
+                    <input 
+                        type="text" 
+                        className="form-control red-border text-center fw-bold" 
+                        value={filtroData} 
+                        onChange={e => setFiltroData(e.target.value)} 
+                        placeholder="dd/mm/aaaa"
+                        style={{width: '140px'}}
+                    />
+                    <button className="btn-action-outline" onClick={() => fetchData(false)} title="Atualizar Agora">
+                        <i className="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
 
+            {/* --- KPI CARDS (LINHA ÚNICA COM SVG) --- */}
+            <div className="kpi-row mb-4">
+                
+                {/* 1. TOTAL */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">TOTAL LINHAS</span>
+                        <span className="kpi-number text-dark">{kpis.total}</span>
+                    </div>
+                </div>
+
+                {/* 2. CONFIRMADAS */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">CONFIRMADAS</span>
+                        <span className="kpi-number text-green">{kpis.confirmados}</span>
+                    </div>
+                </div>
+
+                {/* 3. PENDENTES */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">PENDENTES</span>
+                        <span className="kpi-number text-warning">{kpis.pendentes}</span>
+                    </div>
+                </div>
+
+                {/* 4. MANUTENÇÃO */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">MANUTENÇÃO</span>
+                        <span className="kpi-number text-red">{kpis.manutencao}</span>
+                    </div>
+                </div>
+
+                {/* 5. AGUARDANDO */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 22h14"></path>
+                            <path d="M5 2h14"></path>
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">AGUARDANDO</span>
+                        <span className="kpi-number text-warning">{kpis.aguardando}</span>
+                    </div>
+                </div>
+
+                {/* 6. COBRIR */}
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">COBRIR</span>
+                        <span className="kpi-number text-red">{kpis.cobrir}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- FILTROS --- */}
+            <div className="filters-flex mb-4">
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                        <option value="">Todas as Empresas</option>
+                        {empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                </div>
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                        <option value="">Status Visual: Todos</option>
+                        <option value="pendente">Aguardando RA</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="manutencao">Manutenção</option>
+                        <option value="aguardando">Aguardando carro</option>
+                        <option value="cobrir">Cobrir</option>
+                    </select>
+                </div>
+                <div style={{flex: 1}}>
+                    <input 
+                        type="text" 
+                        className="form-control red-border" 
+                        placeholder="Buscar motorista, frota, rota..." 
+                        value={busca} 
+                        onChange={e => setBusca(e.target.value)} 
+                    />
+                </div>
+            </div>
+
+            {/* --- TABELA --- */}
             <div className="table-responsive table-card">
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
@@ -187,7 +326,7 @@ const Escala: React.FC = () => {
                                 const divergencia = row.frota_escala != row.frota_enviada && row.frota_enviada !== '---';
                                 const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
                                 const isCobrir = (row.obs || '').toLowerCase().includes('cobrir');
-                                const emEdicao = linhaEmEdicao === i; // Verifica se a linha atual está sendo editada
+                                const emEdicao = linhaEmEdicao === i; 
                                 
                                 return (
                                     <tr key={i} className={emEdicao ? 'table-warning' : ''}>
