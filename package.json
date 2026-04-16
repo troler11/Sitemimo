@@ -27,6 +27,7 @@
     "moment-timezone": "^0.5.43",
     "node-cache": "^5.1.2",
     "pg": "^8.11.3",
+    "googleapis": "^144.0.0", // <-- Vai aparecer aqui!
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
