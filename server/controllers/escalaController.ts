@@ -11,24 +11,22 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgB
 // ==========================================
 // CONFIGURAÇÕES GERAIS
 // ==========================================
+// ==========================================
+// CONFIGURAÇÕES GERAIS E AUTENTICAÇÃO
+// ==========================================
 const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M'; 
 
-// Requer o arquivo 'credentials.json' na raiz do seu backend
-// Puxa o JSON lá das variáveis de ambiente do Easypanel
-// Apague o bloco do const credenciaisGoogle = ...
+// 1. Limpeza forçada da chave privada
+// Isso garante que tanto '\n' literal quanto quebras de linha reais funcionem perfeitamente.
+const chavePrivada = credenciais.private_key
+    ? credenciais.private_key.split('\\n').join('\n').trim()
+    : '';
 
-// ==========================================
-// AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
-// ==========================================
-// ==========================================
-// AUTENTICAÇÃO DO GOOGLE (Base64 Seguro)
-// ==========================================
-// 👇 A autenticação fica super simples, mas agora forçando as quebras de linha corretas!
+// 2. Autenticação com a chave limpa
 const auth = new google.auth.GoogleAuth({
     credentials: {
         client_email: credenciais.client_email,
-        // A MÁGICA AQUI: Transforma o texto "\n" em quebras de linha reais que o Node exige
-        private_key: credenciais.private_key.replace(/\\n/g, '\n'),
+        private_key: chavePrivada,
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
