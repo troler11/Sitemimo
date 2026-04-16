@@ -1,23 +1,21 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { google } from 'googleapis'; // <-- IMPORTANTE: Instalar com 'npm install googleapis'
+import { google } from 'googleapis'; 
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
 
 // ==========================================
-// CONFIGURAÇÕES PARA A ATUALIZAÇÃO (PUT)
+// CONFIGURAÇÕES GERAIS
 // ==========================================
-const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M'; // Fica na URL da sua planilha do Sheets
-const SHEET_NAME = 'Página1'; // Nome da aba exata onde os dados estão
+const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M'; 
 
 // Requer o arquivo 'credentials.json' na raiz do seu backend
 const auth = new google.auth.GoogleAuth({
     keyFile: './credentials.json',
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
-
 
 // --- FUNÇÃO DE PROCESSAMENTO (PORTADA DO PHP) ---
 const processarDados = (rows: any[]) => {
@@ -36,7 +34,7 @@ const processarDados = (rows: any[]) => {
         return -1;
     };
 
-    // 3. Mapeamento (Igual ao PHP)
+    // 3. Mapeamento
     const map = {
         empresa: findCol(['clientes', 'cliente', 'empresa', 'clientes']),
         rota: findCol(['rota', 'linha', 'itinerario']),
@@ -96,7 +94,6 @@ const processarDados = (rows: any[]) => {
     });
 };
 
-
 // ==========================================
 // ROTA GET: BUSCAR LISTA DE MOTORISTAS
 // ==========================================
@@ -111,7 +108,6 @@ export const getMotoristas = async (req: Request, res: Response): Promise<Respon
         const client = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: client as any });
 
-        // ATENÇÃO: Verifique se o nome da aba é exatamente esse
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: 'BASE CONSULTA MOTORISTAS!A:A', // Pega a coluna A inteira
@@ -120,10 +116,10 @@ export const getMotoristas = async (req: Request, res: Response): Promise<Respon
         const rows = response.data.values;
         if (!rows) return res.json([]);
 
-        // Limpa os dados: pega só a string, remove vazios e tira o cabeçalho (se houver)
+        // Limpa os dados: pega só a string, remove vazios e tira o cabeçalho
         const motoristas = rows
             .map(row => row[0] ? String(row[0]).trim() : '')
-            .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista'); // Ignora a palavra "motorista" se for cabeçalho
+            .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista');
 
         // Remove nomes duplicados e coloca em ordem alfabética
         const motoristasUnicos = [...new Set(motoristas)].sort();
@@ -139,10 +135,15 @@ export const getMotoristas = async (req: Request, res: Response): Promise<Respon
 };
 
 // ==========================================
-// ROTA GET: BUSCAR DADOS
+// ROTA GET: BUSCAR DADOS DA ESCALA
 // ==========================================
 export const getEscala = async (req: Request, res: Response) => {
-    const dataFiltro = req.query.data as string || new Date().toLocaleDateString('pt-BR');
+    const dataFiltro = req.query.data as string; 
+    
+    if (!dataFiltro) {
+        return res.status(400).json({ error: "Data não informada pelo frontend" });
+    }
+
     const cacheKey = `escala_v2_${dataFiltro}`;
 
     const cached = escalaCache.get(cacheKey);
@@ -155,7 +156,6 @@ export const getEscala = async (req: Request, res: Response) => {
             timeout: 20000
         });
 
-        // Processa os dados brutos aqui no servidor
         const dadosLimpos = processarDados(response.data);
 
         escalaCache.set(cacheKey, dadosLimpos);
@@ -173,31 +173,38 @@ export const getEscala = async (req: Request, res: Response) => {
 export const atualizarEscala = async (req: Request, res: Response) => {
     const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota } = req.body;
 
+    if (!data_escala) {
+        return res.status(400).json({ error: "Data não informada para atualização" });
+    }
+
+    // 🔥 O nome da aba passa a ser a própria data!
+    const SHEET_NAME = data_escala; 
+
     try {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: client as any });
 
         // Puxamos a planilha toda para achar a linha correta
+        // Note as aspas simples ('') em volta de ${SHEET_NAME} por causa das barras da data
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A:Z`,
+            range: `'${SHEET_NAME}'!A:Z`,
         });
 
         const rows = response.data.values;
         if (!rows || rows.length === 0) {
-            return res.status(404).json({ error: 'Planilha vazia' });
+            return res.status(404).json({ error: `Aba ${SHEET_NAME} não encontrada ou vazia.` });
         }
 
         let rowIndex = -1;
 
-        // ATENÇÃO: Você precisa definir onde estão essas informações na sua planilha original
-        // No JavaScript, Coluna A = 0, B = 1, C = 2...
-        const INDICE_DATA = 12;      // Ex: Se a data fica na Coluna M, é 12
-        const INDICE_EMPRESA = 0;    // Ex: Se a Empresa fica na Coluna A, é 0
-        const INDICE_ROTA = 1;       // Ex: Se a Rota fica na Coluna B, é 1
-        const INDICE_HORARIO = 5;    // Ex: Se o H.Prog fica na Coluna F, é 5
+        // ATENÇÃO: Verifique as colunas exatas da sua planilha
+        const INDICE_DATA = 12;      // Ex: Coluna M = 12
+        const INDICE_EMPRESA = 0;    // Ex: Coluna A = 0
+        const INDICE_ROTA = 1;       // Ex: Coluna B = 1
+        const INDICE_HORARIO = 5;    // Ex: Coluna F = 5
 
-        for (let i = 1; i < rows.length; i++) { // i=1 para pular o cabeçalho
+        for (let i = 1; i < rows.length; i++) { 
             const row = rows[i];
             
             const rowData = row[INDICE_DATA] ? String(row[INDICE_DATA]).trim() : '';
@@ -216,20 +223,18 @@ export const atualizarEscala = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Viagem exata não encontrada na planilha.' });
         }
 
-        // ATENÇÃO: Ajuste a LETRA exata das colunas que você quer escrever (ex: C e E)
-        
-        // Atualiza Motorista (Exemplo: Coluna C)
+        // Atualiza Motorista (Exemplo: Coluna C) -> Sempre com aspas simples no SHEET_NAME
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!C${rowIndex}`,
+            range: `'${SHEET_NAME}'!C${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: [[novo_motorista]] }
         });
 
-        // Atualiza Frota Enviada (Exemplo: Coluna E)
+        // Atualiza Frota Enviada (Exemplo: Coluna E) -> Sempre com aspas simples no SHEET_NAME
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!E${rowIndex}`,
+            range: `'${SHEET_NAME}'!E${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: { values: [[nova_frota]] }
         });
@@ -241,6 +246,6 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
     } catch (error) {
         console.error("Erro ao atualizar o Sheets:", error);
-        return res.status(500).json({ error: 'Erro interno ao salvar as alterações.' });
+        return res.status(500).json({ error: 'Erro interno ao salvar as alterações. Verifique se a aba com esta data existe.' });
     }
 };
