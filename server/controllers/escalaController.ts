@@ -4,11 +4,11 @@ import NodeCache from 'node-cache';
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
 
-// 👇 Coloque aqui a URL do seu Google Apps Script (Terminada em /exec)
+// A sua URL atualizada do Google Apps Script
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhQNK2NnlOmWKX1Ahd4xRBrnXPX8IIXH35vSWE8YnQh8eL2mKxcHI67TLwtwF01wKO/exec';
 
 // ==========================================
-// FUNÇÃO DE PROCESSAMENTO (MANTIDA INTACTA)
+// FUNÇÃO DE PROCESSAMENTO
 // ==========================================
 const processarDados = (rows: any[]) => {
     if (!Array.isArray(rows) || rows.length < 2) return [];
@@ -79,10 +79,7 @@ const processarDados = (rows: any[]) => {
 };
 
 // ==========================================
-// ROTA GET: BUSCAR MOTORISTAS (VIA SCRIPT)
-// ==========================================
-// ==========================================
-// ROTA GET: BUSCAR MOTORISTAS (SEM CACHE!)
+// ROTA GET: BUSCAR MOTORISTAS (Sem Cache)
 // ==========================================
 export const getMotoristas = async (req: Request, res: Response) => {
     try {
@@ -95,7 +92,6 @@ export const getMotoristas = async (req: Request, res: Response) => {
         const motoristasUnicos = response.data;
         
         if (Array.isArray(motoristasUnicos)) {
-            console.log(`Encontrou ${motoristasUnicos.length} motoristas!`);
             return res.json(motoristasUnicos);
         } else {
             return res.json([]);
@@ -124,7 +120,7 @@ export const getEscala = async (req: Request, res: Response) => {
         const response = await axios.get(GOOGLE_SCRIPT_URL, {
             params: { action: 'read', data: dataFiltro },
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 20000
+            timeout: 60000 // ⏳ Limite aumentado para 60s
         });
 
         const dadosLimpos = processarDados(response.data);
@@ -137,55 +133,9 @@ export const getEscala = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Erro ao buscar dados externos" });
     }
 };
-// ==========================================
-// RECEBE AS REQUISIÇÕES DE ATUALIZAÇÃO (POST)
-// ==========================================
-function doPost(e) {
-  try {
-    var params = JSON.parse(e.postData.contents);
-    
-    if (params.action === 'update') {
-      var sheetName = params.data_escala;
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-      
-      if (!sheet) return ContentService.createTextOutput(JSON.stringify({error: "Aba com a data não encontrada"})).setMimeType(ContentService.MimeType.JSON);
-      
-      // 🔥 A MÁGICA: getDisplayValues() lê exatamente o texto visível na tela ("05:30")
-      var data = sheet.getDataRange().getDisplayValues(); 
-      var rowIndex = -1;
-      
-      // Procura a linha exata
-      for (var i = 1; i < data.length; i++) {
-        var rowEmpresa = String(data[i][0]).trim(); // Coluna A
-        var rowRota = String(data[i][1]).trim();    // Coluna B
-        var rowProg = String(data[i][5]).trim().substring(0, 5); // Coluna F
-        
-        // Verifica se a Empresa, a Rota e o Horário batem perfeitamente
-        if (rowEmpresa === params.empresa && rowRota === params.rota && rowProg === params.h_prog) {
-          rowIndex = i + 1; // +1 porque a API conta a partir do 1
-          break;
-        }
-      }
-      
-      if (rowIndex === -1) {
-        // Se não achar, devolve exatamente o que ele tentou procurar para ajudar no debug
-        return ContentService.createTextOutput(JSON.stringify({error: "Viagem não encontrada. Procurou por: " + params.empresa + " | " + params.rota + " | " + params.h_prog})).setMimeType(ContentService.MimeType.JSON);
-      }
-      
-      // Atualiza a Frota na Coluna H (Índice 8)
-      sheet.getRange(rowIndex, 8).setValue(params.nova_frota);
 
-      // Atualiza o Motorista na Coluna K (Índice 11)
-      sheet.getRange(rowIndex, 11).setValue(params.novo_motorista);
-      
-      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
-    }
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({error: err.message})).setMimeType(ContentService.MimeType.JSON);
-  }
-};
 // ==========================================
-// ROTA PUT: ATUALIZAR DADOS (VIA SCRIPT POST)
+// ROTA PUT: ATUALIZAR DADOS (Manda pro Google Salvar)
 // ==========================================
 export const atualizarEscala = async (req: Request, res: Response) => {
     const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota } = req.body;
@@ -195,7 +145,6 @@ export const atualizarEscala = async (req: Request, res: Response) => {
     }
 
     try {
-        // Envia os dados para o Google Apps Script fazer a edição
         const response = await axios.post(GOOGLE_SCRIPT_URL, {
             action: 'update',
             data_escala: data_escala,
@@ -205,10 +154,10 @@ export const atualizarEscala = async (req: Request, res: Response) => {
             novo_motorista: novo_motorista,
             nova_frota: nova_frota
         }, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 60000 // ⏳ Limite aumentado para 60s
         });
 
-        // Se o Script do Google retornar um erro formatado
         if (response.data && response.data.error) {
             return res.status(404).json({ error: response.data.error });
         }
