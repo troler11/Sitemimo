@@ -9,24 +9,15 @@ const escalaCache = new NodeCache({ stdTTL: 60 });
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
 
 // ==========================================
-// CONFIGURAÇÕES GERAIS
-// ==========================================
-// ==========================================
 // CONFIGURAÇÕES GERAIS E AUTENTICAÇÃO
 // ==========================================
 const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M'; 
 
-// 1. Limpeza forçada da chave privada
-// Isso garante que tanto '\n' literal quanto quebras de linha reais funcionem perfeitamente.
-const chavePrivada = credenciais.private_key
-    ? credenciais.private_key.split('\\n').join('\n').trim()
-    : '';
-
-// 2. Autenticação com a chave limpa
+// Autenticação Pura: Sem replace, sem hacks! O TS resolve sozinho.
 const auth = new google.auth.GoogleAuth({
     credentials: {
         client_email: credenciais.client_email,
-        private_key: chavePrivada,
+        private_key: credenciais.private_key, 
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
