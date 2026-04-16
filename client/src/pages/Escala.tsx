@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 
+// Reutilizamos o CSS do Dashboard para manter a identidade visual
 import './Dashboard.css';
 
 interface ItemEscala {
@@ -38,6 +39,7 @@ const Escala: React.FC = () => {
     const [listaMotoristas, setListaMotoristas] = useState<string[]>([]);
     const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
 
+    // --- BUSCA OS DADOS DA ESCALA ---
     const fetchData = useCallback(async (isAutoUpdate = false) => {
         if (!isAutoUpdate && linhaEmEdicao === null) setLoading(true);
         try {
@@ -73,35 +75,40 @@ const Escala: React.FC = () => {
         fetchMotoristas();
     }, []);
 
-    // Filtra as sugestões baseado no que o usuário digitou
+    // --- FUNÇÕES DO AUTOCOMPLETE ---
     const sugestoesFiltradas = useMemo(() => {
         if (!formEdicao.motorista) return listaMotoristas;
         const termo = formEdicao.motorista.toLowerCase();
         return listaMotoristas.filter(mot => mot.toLowerCase().includes(termo));
     }, [listaMotoristas, formEdicao.motorista]);
 
-    // Função que é chamada ao clicar num nome da lista suspensa
     const selecionarMotorista = (nome: string) => {
         setFormEdicao({ ...formEdicao, motorista: nome });
-        setMostrarSugestoes(false); // Fecha a lista após escolher
+        setMostrarSugestoes(false); 
     };
 
+    // --- PROCESSAMENTO DE DADOS (MEMOIZADOS) ---
     const empresasUnicas = useMemo(() => Array.from(new Set(dados.map(d => d.empresa))).sort(), [dados]);
 
     const dadosFiltrados = useMemo(() => {
         return dados.filter(item => {
             if (filtroEmpresa && item.empresa !== filtroEmpresa) return false;
+            
             const realizou = item.ra_val && String(item.ra_val).trim() !== '' && String(item.ra_val).trim() !== '0';
-            const isCobrir = (item.obs || '').toLowerCase().includes('cobrir');
+            const obsTexto = (item.obs || '').toLowerCase();
+            const isCobrir = obsTexto.includes('cobrir');
 
             let statusItem = 'pendente';
             if (item.manutencao) statusItem = 'manutencao';
             else if (item.aguardando) statusItem = 'aguardando';
             else if (realizou) statusItem = 'confirmado';
             
-            if (filtroStatus && filtroStatus === 'cobrir' && !isCobrir) return false;
-            if (filtroStatus && filtroStatus !== 'cobrir' && filtroStatus !== statusItem) return false;
-            
+            if (filtroStatus) {
+                if (filtroStatus === 'cobrir') {
+                    if (!isCobrir) return false;
+                } else if (filtroStatus !== statusItem) return false;
+            }
+
             if (busca) {
                 const termo = busca.toLowerCase();
                 const texto = `${item.empresa} ${item.rota} ${item.motorista} ${item.frota_escala} ${item.obs}`.toLowerCase();
@@ -118,20 +125,27 @@ const Escala: React.FC = () => {
         baseCalculo.forEach(row => {
             k.total++;
             const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
-            if (row.manutencao) k.manutencao++; else if (realizou) k.confirmados++; else k.pendentes++;
+            const obsTexto = (row.obs || '').toLowerCase();
+            const isCobrir = obsTexto.includes('cobrir');
+
+            if (row.manutencao) k.manutencao++;
+            else if (realizou) k.confirmados++;
+            else k.pendentes++;
+
             if (row.aguardando) k.aguardando++;
-            if ((row.obs || '').toLowerCase().includes('cobrir')) k.cobrir++;
+            if (isCobrir) k.cobrir++;
         });
         return k;
     }, [dados, filtroEmpresa]);
 
+    // --- FUNÇÕES DE EDIÇÃO ---
     const iniciarEdicao = (index: number, row: ItemEscala) => {
         setLinhaEmEdicao(index);
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
             motorista: row.motorista
         });
-        setMostrarSugestoes(false); // Garante que a lista comece fechada
+        setMostrarSugestoes(false);
     };
 
     const cancelarEdicao = () => {
@@ -157,8 +171,9 @@ const Escala: React.FC = () => {
 
     return (
         <div className="main-content">
-            {/* ... HEADER, KPIS E FILTROS IGUAIS AO SEU CÓDIGO ANTERIOR ... */}
-             <div className="header-flex mb-4">
+            
+            {/* --- HEADER --- */}
+            <div className="header-flex mb-4">
                 <div>
                     <h2 className="page-title">Escala Diária</h2>
                     <p className="text-muted small mb-0 mt-1">
@@ -166,21 +181,133 @@ const Escala: React.FC = () => {
                     </p>
                 </div>
                 <div className="d-flex gap-2 align-items-center">
-                    <input type="text" className="form-control red-border text-center fw-bold" value={filtroData} onChange={e => setFiltroData(e.target.value)} placeholder="dd/mm/aaaa" style={{width: '140px'}} />
-                    <button className="btn-action-outline" onClick={() => fetchData(false)} title="Atualizar Agora"><i className="fas fa-arrow-right"></i></button>
+                    <input 
+                        type="text" 
+                        className="form-control red-border text-center fw-bold" 
+                        value={filtroData} 
+                        onChange={e => setFiltroData(e.target.value)} 
+                        placeholder="dd/mm/aaaa"
+                        style={{width: '140px'}}
+                    />
+                    <button className="btn-action-outline" onClick={() => fetchData(false)} title="Atualizar Agora">
+                        <i className="fas fa-arrow-right"></i>
+                    </button>
                 </div>
             </div>
 
+            {/* --- KPI CARDS (RESTAURADOS) --- */}
             <div className="kpi-row mb-4">
-                <div className="kpi-card"><div className="kpi-info"><span className="kpi-label">TOTAL</span><span className="kpi-number text-dark">{kpis.total}</span></div></div>
-                <div className="kpi-card"><div className="kpi-info"><span className="kpi-label">CONFIRMADAS</span><span className="kpi-number text-green">{kpis.confirmados}</span></div></div>
-                <div className="kpi-card"><div className="kpi-info"><span className="kpi-label">PENDENTES</span><span className="kpi-number text-warning">{kpis.pendentes}</span></div></div>
+                
+                <div className="kpi-card">
+                    <div className="kpi-icon text-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">TOTAL LINHAS</span>
+                        <span className="kpi-number text-dark">{kpis.total}</span>
+                    </div>
+                </div>
+
+                <div className="kpi-card">
+                    <div className="kpi-icon text-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">CONFIRMADAS</span>
+                        <span className="kpi-number text-green">{kpis.confirmados}</span>
+                    </div>
+                </div>
+
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">PENDENTES</span>
+                        <span className="kpi-number text-warning">{kpis.pendentes}</span>
+                    </div>
+                </div>
+
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">MANUTENÇÃO</span>
+                        <span className="kpi-number text-red">{kpis.manutencao}</span>
+                    </div>
+                </div>
+
+                <div className="kpi-card">
+                    <div className="kpi-icon text-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 22h14"></path>
+                            <path d="M5 2h14"></path>
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">AGUARDANDO</span>
+                        <span className="kpi-number text-warning">{kpis.aguardando}</span>
+                    </div>
+                </div>
+
+                <div className="kpi-card">
+                    <div className="kpi-icon text-red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </div>
+                    <div className="kpi-info">
+                        <span className="kpi-label">COBRIR</span>
+                        <span className="kpi-number text-red">{kpis.cobrir}</span>
+                    </div>
+                </div>
             </div>
 
+            {/* --- FILTROS --- */}
             <div className="filters-flex mb-4">
-                <div style={{width: '25%'}}><select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}><option value="">Todas as Empresas</option>{empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}</select></div>
-                <div style={{width: '25%'}}><select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}><option value="">Status Visual: Todos</option><option value="pendente">Aguardando RA</option></select></div>
-                <div style={{flex: 1}}><input type="text" className="form-control red-border" placeholder="Buscar..." value={busca} onChange={e => setBusca(e.target.value)} /></div>
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
+                        <option value="">Todas as Empresas</option>
+                        {empresasUnicas.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                </div>
+                <div style={{width: '25%'}}>
+                    <select className="form-select red-border" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+                        <option value="">Status Visual: Todos</option>
+                        <option value="pendente">Aguardando RA</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="manutencao">Manutenção</option>
+                        <option value="aguardando">Aguardando carro</option>
+                        <option value="cobrir">Cobrir</option>
+                    </select>
+                </div>
+                <div style={{flex: 1}}>
+                    <input 
+                        type="text" 
+                        className="form-control red-border" 
+                        placeholder="Buscar motorista, frota, rota..." 
+                        value={busca} 
+                        onChange={e => setBusca(e.target.value)} 
+                    />
+                </div>
             </div>
 
             {/* --- TABELA --- */}
@@ -213,16 +340,28 @@ const Escala: React.FC = () => {
                                     <tr key={i} className={emEdicao ? 'table-warning' : ''}>
                                         <td>
                                             <div className="fw-bold text-dark">{row.empresa}</div>
-                                            <div className="text-muted small text-truncate" style={{maxWidth: '250px'}} title={row.rota}>{row.rota}</div>
+                                            <div className="text-muted small text-truncate" style={{maxWidth: '250px'}} title={row.rota}>
+                                                {row.rota}
+                                            </div>
                                         </td>
                                         
                                         <td className="text-center">
                                             {emEdicao ? (
-                                                <input type="text" className="form-control form-control-sm text-center border-warning" value={formEdicao.frota_enviada} onChange={e => setFormEdicao({...formEdicao, frota_enviada: e.target.value})} placeholder="Nova Frota" />
+                                                <input 
+                                                    type="text" 
+                                                    className="form-control form-control-sm text-center border-warning" 
+                                                    value={formEdicao.frota_enviada} 
+                                                    onChange={e => setFormEdicao({...formEdicao, frota_enviada: e.target.value})}
+                                                    placeholder="Nova Frota"
+                                                />
                                             ) : (
                                                 <div className="d-flex flex-column align-items-center">
                                                     <span className="badge badge-gray mb-1">{row.frota_escala}</span>
-                                                    {divergencia ? <span className="badge badge-red">{row.frota_enviada}</span> : <span className="text-muted small" style={{fontSize: '0.7rem'}}>{row.frota_enviada}</span>}
+                                                    {divergencia ? (
+                                                        <span className="badge badge-red">{row.frota_enviada}</span>
+                                                    ) : (
+                                                        <span className="text-muted small" style={{fontSize: '0.7rem'}}>{row.frota_enviada}</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
@@ -237,24 +376,24 @@ const Escala: React.FC = () => {
                                                         value={formEdicao.motorista} 
                                                         onChange={e => {
                                                             setFormEdicao({...formEdicao, motorista: e.target.value});
-                                                            setMostrarSugestoes(true); // Abre a lista ao digitar
+                                                            setMostrarSugestoes(true);
                                                         }}
-                                                        onFocus={() => setMostrarSugestoes(true)} // Abre ao clicar
-                                                        onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)} // Fecha ao sair (timeout para dar tempo do click na opção)
+                                                        onFocus={() => setMostrarSugestoes(true)}
+                                                        onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
                                                         placeholder="Pesquise o Motorista..."
                                                         autoComplete="off"
                                                     />
                                                     
-                                                    {/* MENU SUSPENSO */}
+                                                    {/* MENU SUSPENSO FLUTUANTE */}
                                                     {mostrarSugestoes && sugestoesFiltradas.length > 0 && (
-                                                        <ul className="list-group position-absolute w-100 shadow-sm" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto', top: '100%', left: 0 }}>
+                                                        <ul className="list-group position-absolute w-100 shadow-sm border border-secondary" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto', top: '100%', left: 0 }}>
                                                             {sugestoesFiltradas.map((mot, idx) => (
                                                                 <li 
                                                                     key={idx} 
-                                                                    className="list-group-item list-group-item-action py-1 px-2 small cursor-pointer"
+                                                                    className="list-group-item list-group-item-action py-2 px-2 small cursor-pointer"
                                                                     style={{ cursor: 'pointer' }}
                                                                     onMouseDown={(e) => {
-                                                                        e.preventDefault(); // Previne o blur do input
+                                                                        e.preventDefault(); 
                                                                         selecionarMotorista(mot);
                                                                     }}
                                                                 >
@@ -274,28 +413,52 @@ const Escala: React.FC = () => {
 
                                         <td>
                                             <div className="d-flex flex-column">
-                                                {row.obs && <small className="fst-italic" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>{row.obs}</small>}
+                                                {row.obs && (
+                                                    <small className="fst-italic" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
+                                                        {isCobrir && <i className="fas fa-sync-alt me-1"></i>}
+                                                        {row.obs}
+                                                    </small>
+                                                )}
                                                 {realizou && <small className="text-green fw-bold mt-1">RA: {row.ra_val}</small>}
                                             </div>
                                         </td>
                                         <td className="text-center">
-                                            {row.manutencao ? <span className="badge badge-red">Manutenção</span> : realizou ? <span className="badge badge-green">Confirmado</span> : row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> : <span className="badge badge-gray">Pendente</span>}
+                                            {row.manutencao ? <span className="badge badge-red">Manutenção</span> :
+                                             realizou ? <span className="badge badge-green">Confirmado</span> :
+                                             row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
+                                             <span className="badge badge-gray">Pendente</span>}
                                         </td>
                                         <td className="text-end">
                                             <div className="small text-muted">Prog: {row.h_prog}</div>
-                                            {(row.h_real && row.h_real.length > 2) && <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>Real: {row.h_real}</div>}
+                                            {(row.h_real && row.h_real.length > 2) && (
+                                                <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
+                                                    Real: {row.h_real}
+                                                </div>
+                                            )}
                                         </td>
 
                                         <td className="text-center">
                                             {emEdicao ? (
                                                 <div className="d-flex gap-1 justify-content-center">
-                                                    <button className="btn btn-sm btn-success" onClick={() => salvarEdicao(row)} disabled={salvando}>{salvando ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}</button>
-                                                    <button className="btn btn-sm btn-outline-danger" onClick={cancelarEdicao} disabled={salvando}><i className="fas fa-times"></i></button>
+                                                    <button 
+                                                        className="btn btn-sm btn-success" 
+                                                        title="Salvar" 
+                                                        onClick={() => salvarEdicao(row)}
+                                                        disabled={salvando}
+                                                    >
+                                                        {salvando ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}
+                                                    </button>
+                                                    <button className="btn btn-sm btn-outline-danger" title="Cancelar" onClick={cancelarEdicao} disabled={salvando}>
+                                                        <i className="fas fa-times"></i>
+                                                    </button>
                                                 </div>
                                             ) : (
-                                                <button className="btn btn-sm text-primary" onClick={() => iniciarEdicao(i, row)}><i className="fas fa-pencil-alt"></i></button>
+                                                <button className="btn btn-sm text-primary" title="Editar Motorista/Frota" onClick={() => iniciarEdicao(i, row)}>
+                                                    <i className="fas fa-pencil-alt"></i>
+                                                </button>
                                             )}
                                         </td>
+                                        
                                     </tr>
                                 );
                             })
