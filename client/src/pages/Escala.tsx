@@ -41,8 +41,8 @@ const Escala: React.FC = () => {
         if (!isAutoUpdate && linhaEmEdicao === null) setLoading(true);
         try {
            const res = await api.get('/escala', { params: { data: filtroData } });
-// Garante que se a API retornar erro, seta um array vazio para não quebrar a tela
-setDados(Array.isArray(res.data) ? res.data : []);
+           // Garante que se a API retornar erro, seta um array vazio para não quebrar a tela
+           setDados(Array.isArray(res.data) ? res.data : []);
         } catch (err) { 
             console.error("Erro ao carregar escala:", err); 
         } finally { 
@@ -320,6 +320,14 @@ setDados(Array.isArray(res.data) ? res.data : []);
                 </div>
             </div>
 
+            {/* 🔥 LISTA SUSPENSA GLOBAL DE MOTORISTAS 🔥 */}
+            {/* Fica fora da tabela, criando uma fonte única para todos os inputs */}
+            <datalist id="lista-geral-motoristas">
+                {listaMotoristas && listaMotoristas.map((nome, index) => (
+                    <option key={index} value={nome} />
+                ))}
+            </datalist>
+
             {/* --- TABELA --- */}
             <div className="table-responsive table-card">
                 <table className="table table-hover align-middle mb-0">
@@ -381,21 +389,14 @@ setDados(Array.isArray(res.data) ? res.data : []);
                                         {/* COLUNA: MOTORISTA COM DATALIST */}
                                         <td>
                                             {emEdicao ? (
-                                                <>
-                                                    <input 
-    type="text" 
-    className="form-control" 
-    value={formEdicao.motorista} 
-    onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
-    placeholder="Digite para pesquisar..."
-    list="lista-geral-motoristas" // Nome do ID do datalist
-/>
-<datalist id="lista-geral-motoristas">
-    {listaMotoristas.map((nome, index) => (
-        <option key={index} value={nome} />
-    ))}
-</datalist>
-                                                </>
+                                                <input 
+                                                    type="text" 
+                                                    className="form-control form-control-sm border-warning" 
+                                                    value={formEdicao.motorista} 
+                                                    onChange={e => setFormEdicao({...formEdicao, motorista: e.target.value})}
+                                                    placeholder="Digite para pesquisar..."
+                                                    list="lista-geral-motoristas" // Aponta para o ID da lista global lá em cima
+                                                />
                                             ) : (
                                                 <>
                                                     <div className="d-flex align-items-center">
