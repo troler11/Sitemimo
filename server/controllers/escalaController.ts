@@ -97,34 +97,36 @@ const processarDados = (rows: any[]) => {
 // ==========================================
 // ROTA GET: BUSCAR LISTA DE MOTORISTAS
 // ==========================================
+// ==========================================
+// ROTA GET: BUSCAR LISTA DE MOTORISTAS
+// ==========================================
 export const getMotoristas = async (req: Request, res: Response): Promise<Response> => {
     const cacheKey = 'lista_motoristas';
     const cached = escalaCache.get(cacheKey);
     
-    // Como a lista de motoristas não muda a cada minuto, podemos usar o cache!
     if (cached) return res.json(cached);
 
     try {
         const client = await auth.getClient();
         const sheets = google.sheets({ version: 'v4', auth: client as any });
 
+        // 🔥 CORREÇÃO AQUI: Aspas simples adicionadas em volta do nome da aba!
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: 'BASE CONSULTA MOTORISTAS!A:A', // Pega a coluna A inteira
+            range: "'BASE CONSULTA MOTORISTAS'!A:A", 
         });
 
         const rows = response.data.values;
         if (!rows) return res.json([]);
 
-        // Limpa os dados: pega só a string, remove vazios e tira o cabeçalho
+        // Limpa os dados
         const motoristas = rows
             .map(row => row[0] ? String(row[0]).trim() : '')
             .filter(nome => nome !== '' && nome.toLowerCase() !== 'motorista');
 
-        // Remove nomes duplicados e coloca em ordem alfabética
+        // Remove duplicados e ordena
         const motoristasUnicos = [...new Set(motoristas)].sort();
 
-        // Salva no cache por 1 hora (3600 segundos) para não pesar no Sheets
         escalaCache.set(cacheKey, motoristasUnicos, 3600);
 
         return res.json(motoristasUnicos);
