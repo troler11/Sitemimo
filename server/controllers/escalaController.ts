@@ -9,7 +9,7 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgB
 // ==========================================
 // CONFIGURAÇÕES PARA A ATUALIZAÇÃO (PUT)
 // ==========================================
-const SPREADSHEET_ID = 'COLE_AQUI_O_ID_DA_PLANILHA'; // Fica na URL da sua planilha do Sheets
+const SPREADSHEET_ID = '1xljTWv2Gyvvh3mUkVS4ibfLcxOMr6iXXy4RBn6c0H0M'; // Fica na URL da sua planilha do Sheets
 const SHEET_NAME = 'Página1'; // Nome da aba exata onde os dados estão
 
 // Requer o arquivo 'credentials.json' na raiz do seu backend
