@@ -69,7 +69,7 @@ setDados(Array.isArray(res.data) ? res.data : []);
     useEffect(() => {
         const fetchMotoristas = async () => {
             try {
-                const res = await api.get('/motoristas');
+                const res = await api.get(`/motoristas?t=${new Date().getTime()}`);
                 const dados = Array.isArray(res.data) ? res.data : [];
                 
                 // Vai imprimir os nomes no console do seu navegador para você conferir!
