@@ -81,14 +81,13 @@ const processarDados = (rows: any[]) => {
 // ==========================================
 // ROTA GET: BUSCAR MOTORISTAS (VIA SCRIPT)
 // ==========================================
-export const getMotoristas = async (req: Request, res: Response): Promise<Response> => {
-    const cacheKey = 'lista_motoristas';
-    const cached = escalaCache.get(cacheKey);
-    
-    if (cached) return res.json(cached);
-
+// ==========================================
+// ROTA GET: BUSCAR MOTORISTAS (SEM CACHE!)
+// ==========================================
+export const getMotoristas = async (req: Request, res: Response) => {
     try {
-        // Agora quem busca na planilha é o Google Apps Script, não o Node.js!
+        console.log("Buscando lista fresca de motoristas direto do Google...");
+        
         const response = await axios.get(GOOGLE_SCRIPT_URL, {
             params: { action: 'getMotoristas' }
         });
@@ -96,7 +95,7 @@ export const getMotoristas = async (req: Request, res: Response): Promise<Respon
         const motoristasUnicos = response.data;
         
         if (Array.isArray(motoristasUnicos)) {
-            escalaCache.set(cacheKey, motoristasUnicos, 3600);
+            console.log(`Encontrou ${motoristasUnicos.length} motoristas!`);
             return res.json(motoristasUnicos);
         } else {
             return res.json([]);
