@@ -5,7 +5,7 @@ import NodeCache from 'node-cache';
 const escalaCache = new NodeCache({ stdTTL: 60 });
 
 // 👇 Coloque aqui a URL do seu Google Apps Script (Terminada em /exec)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyt3rsW4VTNgBeTnop4_whvzGZ39eSkCHpKU2vldxVuN2HG6nw2bPRq7fcJqpJfwV8/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhQNK2NnlOmWKX1Ahd4xRBrnXPX8IIXH35vSWE8YnQh8eL2mKxcHI67TLwtwF01wKO/exec';
 
 // ==========================================
 // FUNÇÃO DE PROCESSAMENTO (MANTIDA INTACTA)
