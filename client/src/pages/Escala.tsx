@@ -40,8 +40,9 @@ const Escala: React.FC = () => {
     const fetchData = useCallback(async (isAutoUpdate = false) => {
         if (!isAutoUpdate && linhaEmEdicao === null) setLoading(true);
         try {
-            const res = await api.get('/escala', { params: { data: filtroData } });
-            setDados(res.data);
+           const res = await api.get('/escala', { params: { data: filtroData } });
+// Garante que se a API retornar erro, seta um array vazio para não quebrar a tela
+setDados(Array.isArray(res.data) ? res.data : []);
         } catch (err) { 
             console.error("Erro ao carregar escala:", err); 
         } finally { 
@@ -69,7 +70,7 @@ const Escala: React.FC = () => {
         const fetchMotoristas = async () => {
             try {
                 const res = await api.get('/motoristas');
-                setListaMotoristas(res.data);
+setListaMotoristas(Array.isArray(res.data) ? res.data : []);
             } catch (err) {
                 console.error("Erro ao carregar lista de motoristas:", err);
             }
@@ -385,10 +386,10 @@ const Escala: React.FC = () => {
                                                         list={`lista-motoristas-${i}`} 
                                                     />
                                                     <datalist id={`lista-motoristas-${i}`}>
-                                                        {listaMotoristas.map((mot, idx) => (
-                                                            <option key={idx} value={mot} />
-                                                        ))}
-                                                    </datalist>
+    {Array.isArray(listaMotoristas) && listaMotoristas.map((mot, idx) => (
+        <option key={idx} value={mot} />
+    ))}
+</datalist>
                                                 </>
                                             ) : (
                                                 <>
