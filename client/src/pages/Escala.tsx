@@ -70,7 +70,12 @@ setDados(Array.isArray(res.data) ? res.data : []);
         const fetchMotoristas = async () => {
             try {
                 const res = await api.get('/motoristas');
-setListaMotoristas(Array.isArray(res.data) ? res.data : []);
+                const dados = Array.isArray(res.data) ? res.data : [];
+                
+                // Vai imprimir os nomes no console do seu navegador para você conferir!
+                console.log("Motoristas carregados com sucesso: ", dados); 
+                
+                setListaMotoristas(dados);
             } catch (err) {
                 console.error("Erro ao carregar lista de motoristas:", err);
             }
