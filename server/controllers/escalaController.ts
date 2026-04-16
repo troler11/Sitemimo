@@ -95,12 +95,6 @@ const processarDados = (rows: any[]) => {
 };
 
 // ==========================================
-// ROTA GET: BUSCAR LISTA DE MOTORISTAS
-// ==========================================
-// ==========================================
-// ROTA GET: BUSCAR LISTA DE MOTORISTAS
-// ==========================================
-// ==========================================
 // ROTA GET: BUSCAR LISTA DE MOTORISTAS (MODO DEBUG)
 // ==========================================
 export const getMotoristas = async (req: Request, res: Response): Promise<Response> => {
