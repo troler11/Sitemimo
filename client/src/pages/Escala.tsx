@@ -486,11 +486,11 @@ const Escala: React.FC = () => {
                                                     value={formEdicao.status}
                                                     onChange={e => setFormEdicao({...formEdicao, status: e.target.value})}
                                                 >
-                                                    <option value="Pendente">Pendente</option>
-                                                    <option value="Aguardando">Aguardando Carro</option>
-                                                    <option value="Manutenção">Manutenção</option>
-                                                    <option value="Confirmado">CONFIRMADO</option>
-                                                    <option value="Cobrir">COBRIR</option>
+                                                    <option value="PENDENTE DE CONFIRMAÇÃO">Pendente</option>
+                                                    <option value="AGUARDANDO CARRO">Aguardando Carro</option>
+                                                    <option value="MANUTENÇÃO">Manutenção</option>
+                                                    <option value="CONFIRMADO">Confirmado</option>
+                                                    <option value="COBRIR">Cobrir</option>
                                                 </select>
                                             ) : (
                                                 row.manutencao ? <span className="badge badge-red">Manutenção</span> :
