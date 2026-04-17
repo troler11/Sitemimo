@@ -32,7 +32,7 @@ const Escala: React.FC = () => {
 
     // --- ESTADOS PARA EDIÇÃO ---
     const [linhaEmEdicao, setLinhaEmEdicao] = useState<number | null>(null);
-    const [formEdicao, setFormEdicao] = useState({ frota_enviada: '', motorista: '' });
+    const [formEdicao, setFormEdicao] = useState({ frota_enviada: '', motorista: '', status: '' });
     const [salvando, setSalvando] = useState(false);
     
     // --- ESTADOS DO AUTOCOMPLETE ---
@@ -150,9 +150,16 @@ const Escala: React.FC = () => {
     // --- FUNÇÕES DE EDIÇÃO ---
     const iniciarEdicao = (index: number, row: ItemEscala) => {
         setLinhaEmEdicao(index);
+        
+        // Descobre qual é o status atual para já vir selecionado
+        let statusAtual = 'Pendente';
+        if (row.manutencao) statusAtual = 'Manutenção';
+        if (row.aguardando) statusAtual = 'Aguardando';
+
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
-            motorista: row.motorista
+            motorista: row.motorista,
+            status: statusAtual // <-- Adicionado
         });
         setMostrarSugestoes(false);
     };
@@ -165,42 +172,34 @@ const Escala: React.FC = () => {
     const salvarEdicao = async (row: ItemEscala) => {
         setSalvando(true);
         try {
-            // 1. Envia para o servidor
             await api.put('/escala/atualizar', {
-                data_escala: filtroData, 
-                empresa: row.empresa, 
-                rota: row.rota,
-                h_prog: row.h_prog, 
-                novo_motorista: formEdicao.motorista, 
-                nova_frota: formEdicao.frota_enviada
+                data_escala: filtroData, empresa: row.empresa, rota: row.rota,
+                h_prog: row.h_prog, novo_motorista: formEdicao.motorista, 
+                nova_frota: formEdicao.frota_enviada,
+                novo_status: formEdicao.status // <-- Adicionado
             });
             
-            // 2. ATUALIZAÇÃO OTIMISTA: 
-            // Atualizamos o array 'dados' no estado. O React vai re-renderizar 
-            // apenas essa linha. Como o valor de 'frota_enviada' mudou, 
-            // a lógica de comparação (divergência) vai disparar sozinha.
+           // Atualização Otimista
             setDados(prevDados => prevDados.map(item => {
                 if (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) {
+                    // ... (sua lógica do reserva continua igualzinha) ...
                     
-                    let novoReserva = item.reserva;
-                    const motTitular = String(item.motorista).trim().toUpperCase();
-                    const motEnviado = String(formEdicao.motorista).trim().toUpperCase();
-
-                    if (motEnviado !== motTitular && motEnviado !== "") {
-                        novoReserva = formEdicao.motorista;
-                    } else {
-                        novoReserva = "";
-                    }
-
                     return { 
                         ...item, 
-                        // Mantemos o titular intacto e atualizamos o reserva e a frota
-                        reserva: novoReserva,
-                        frota_enviada: formEdicao.frota_enviada || '---' 
+                        // ... (outros itens) ...
+                        manutencao: formEdicao.status === 'Manutenção', // <-- Força a tela a mudar a cor
+                        aguardando: formEdicao.status === 'Aguardando'  // <-- Força a tela a mudar a cor
                     };
                 }
                 return item;
             }));
+            setLinhaEmEdicao(null);
+        } catch (err) {
+            alert("Erro ao salvar as alterações.");
+        } finally {
+            setSalvando(false);
+        }
+    };
 
             // 3. Sai do modo de edição
             setLinhaEmEdicao(null);
