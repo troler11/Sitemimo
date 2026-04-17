@@ -19,6 +19,7 @@ interface ItemEscala {
     aguardando: string | boolean;
     cobrir: string | boolean;
     confirmado: string | boolean;
+    realocado: string | boolean;
 }
 
 const Escala: React.FC = () => {
