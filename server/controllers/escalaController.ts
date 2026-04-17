@@ -178,24 +178,39 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         // 🔥 A MÁGICA ULTRA-OTIMIZADA DO CACHE 🔥
         // Em vez de deletar o cache e forçar o servidor a buscar tudo no Google de novo,
         // nós abrimos a memória do servidor e atualizamos SÓ a linha que você editou!
+        // 🔥 A MÁGICA ULTRA-OTIMIZADA DO CACHE (AGORA COM LÓGICA DE RESERVA) 🔥
         const cacheKey = `escala_v2_${data_escala}`;
         if (typeof escalaCache !== 'undefined') {
             const dadosEmMemoria = escalaCache.get(cacheKey) as any[];
             
             if (dadosEmMemoria && Array.isArray(dadosEmMemoria)) {
                 const cacheAtualizado = dadosEmMemoria.map(item => {
-                    // Se for a viagem exata que acabamos de editar...
+                    // Se achou a linha editada
                     if (item.empresa === empresa && item.rota === rota && item.h_prog === h_prog) {
+                        
+                        let novoReserva = item.reserva;
+                        // Limpa os nomes para comparar com segurança
+                        const motTitular = String(item.motorista).trim().toUpperCase();
+                        const motEnviado = String(novo_motorista).trim().toUpperCase();
+
+                        // Se o nome for diferente do titular, vira reserva!
+                        if (motEnviado !== motTitular && motEnviado !== "") {
+                            novoReserva = novo_motorista; 
+                        } else {
+                            // Se for igual, ele volta a ser só o titular sem reserva
+                            novoReserva = ""; 
+                        }
+
                         return { 
                             ...item, 
-                            motorista: novo_motorista, 
+                            // IMPORTANTE: Não alteramos o 'motorista' (titular), apenas a reserva!
+                            reserva: novoReserva, 
                             frota_enviada: nova_frota 
                         };
                     }
-                    return item; // As outras viagens ficam intocadas
+                    return item; // Linhas não editadas passam direto
                 });
                 
-                // Salva a lista atualizada de volta na memória do servidor
                 escalaCache.set(cacheKey, cacheAtualizado);
             }
         }
