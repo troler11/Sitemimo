@@ -66,7 +66,7 @@ const Escala: React.FC = () => {
    useEffect(() => {
         const fetchMotoristas = async () => {
             try {
-                const res = await api.get(`/motoristas?t=${new Date().getTime()}`);
+                const res = await api.get(`/motoristas`);
                 
                 // Força o React a entender que é um Array, mesmo que venha como texto JSON
                 let dados = res.data;
