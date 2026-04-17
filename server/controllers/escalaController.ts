@@ -174,7 +174,10 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         if (response.data && response.data.error) {
             return res.status(404).json({ error: response.data.error });
         }
-
+const cacheKey = `escala_v2_${data_escala}`;
+        if (typeof escalaCache !== 'undefined') {
+            escalaCache.del(cacheKey);
+        }
 
         return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
     } catch (error) {
