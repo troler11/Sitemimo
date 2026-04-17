@@ -206,7 +206,10 @@ export const atualizarEscala = async (req: Request, res: Response) => {
                             frota_enviada: nova_frota,
                             // Atualiza os booleanos do status na memória
                             manutencao: novo_status === 'Manutenção', 
-                            aguardando: novo_status === 'Aguardando'
+                            aguardando: novo_status === 'PENDENTE DE CONFIRMAÇÃO',
+                            confirmado:novo_status === 'CONFIRMADO',
+                            cobrir::novo_status === 'COBRIR',
+                    
                         };
                     }
                     return item; // Linhas não editadas passam direto
