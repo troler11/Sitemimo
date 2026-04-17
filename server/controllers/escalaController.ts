@@ -151,7 +151,7 @@ export const getEscala = async (req: Request, res: Response) => {
 // ROTA PUT: ATUALIZAR DADOS (Manda pro Google Salvar)
 // ==========================================
 export const atualizarEscala = async (req: Request, res: Response) => {
-    const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota } = req.body;
+    const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota, novo_status } = req.body;
 
     if (!data_escala) {
         return res.status(400).json({ error: "Data não informada para atualização" });
@@ -159,13 +159,8 @@ export const atualizarEscala = async (req: Request, res: Response) => {
 
     try {
         const response = await axios.post(GOOGLE_SCRIPT_URL, {
-            action: 'update',
-            data_escala: data_escala,
-            empresa: empresa,
-            rota: rota,
-            h_prog: h_prog,
-            novo_motorista: novo_motorista,
-            nova_frota: nova_frota
+            action: 'update', data_escala, empresa, rota, h_prog, 
+            novo_motorista, nova_frota, novo_status
         }, {
             headers: { 'Content-Type': 'application/json' },
             timeout: 60000 // ⏳ Limite aumentado para 60s
@@ -179,38 +174,24 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         // Em vez de deletar o cache e forçar o servidor a buscar tudo no Google de novo,
         // nós abrimos a memória do servidor e atualizamos SÓ a linha que você editou!
         // 🔥 A MÁGICA ULTRA-OTIMIZADA DO CACHE (AGORA COM LÓGICA DE RESERVA) 🔥
-        const cacheKey = `escala_v2_${data_escala}`;
         if (typeof escalaCache !== 'undefined') {
             const dadosEmMemoria = escalaCache.get(cacheKey) as any[];
-            
             if (dadosEmMemoria && Array.isArray(dadosEmMemoria)) {
                 const cacheAtualizado = dadosEmMemoria.map(item => {
-                    // Se achou a linha editada
                     if (item.empresa === empresa && item.rota === rota && item.h_prog === h_prog) {
+                        // ... (sua lógica de titular/reserva) ...
                         
-                        let novoReserva = item.reserva;
-                        // Limpa os nomes para comparar com segurança
-                        const motTitular = String(item.motorista).trim().toUpperCase();
-                        const motEnviado = String(novo_motorista).trim().toUpperCase();
-
-                        // Se o nome for diferente do titular, vira reserva!
-                        if (motEnviado !== motTitular && motEnviado !== "") {
-                            novoReserva = novo_motorista; 
-                        } else {
-                            // Se for igual, ele volta a ser só o titular sem reserva
-                            novoReserva = ""; 
-                        }
-
                         return { 
                             ...item, 
-                            // IMPORTANTE: Não alteramos o 'motorista' (titular), apenas a reserva!
                             reserva: novoReserva, 
-                            frota_enviada: nova_frota 
+                            frota_enviada: nova_frota,
+                            // 3. Atualize o status na memória
+                            manutencao: novo_status === 'Manutenção', 
+                            aguardando: novo_status === 'Aguardando'
                         };
                     }
-                    return item; // Linhas não editadas passam direto
+                    return item; 
                 });
-                
                 escalaCache.set(cacheKey, cacheAtualizado);
             }
         }
