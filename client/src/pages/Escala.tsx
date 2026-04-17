@@ -63,11 +63,20 @@ const Escala: React.FC = () => {
         return () => clearInterval(intervalo);
     }, [fetchData, linhaEmEdicao]);
 
-    useEffect(() => {
+   useEffect(() => {
         const fetchMotoristas = async () => {
             try {
                 const res = await api.get(`/motoristas?t=${new Date().getTime()}`);
-                setListaMotoristas(Array.isArray(res.data) ? res.data : []);
+                
+                // Força o React a entender que é um Array, mesmo que venha como texto JSON
+                let dados = res.data;
+                if (typeof dados === 'string') {
+                    try { dados = JSON.parse(dados); } catch (e) {}
+                }
+                
+                if (Array.isArray(dados)) {
+                    setListaMotoristas(dados);
+                }
             } catch (err) {
                 console.error("Erro ao carregar lista de motoristas:", err);
             }
@@ -368,48 +377,50 @@ const Escala: React.FC = () => {
                                         
                                         {/* 🔥 COLUNA: MOTORISTA COM AUTOCOMPLETE CUSTOMIZADO 🔥 */}
                                         <td style={{ position: 'relative' }}>
-                                            {emEdicao ? (
-                                                <>
-                                                    <input 
-                                                        type="text" 
-                                                        className="form-control form-control-sm border-warning" 
-                                                        value={formEdicao.motorista} 
-                                                        onChange={e => {
-                                                            setFormEdicao({...formEdicao, motorista: e.target.value});
-                                                            setMostrarSugestoes(true);
-                                                        }}
-                                                        onFocus={() => setMostrarSugestoes(true)}
-                                                        onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
-                                                        placeholder="Pesquise o Motorista..."
-                                                        autoComplete="off"
-                                                    />
-                                                    
-                                                    {/* MENU SUSPENSO FLUTUANTE */}
-                                                    {mostrarSugestoes && sugestoesFiltradas.length > 0 && (
-                                                        <ul className="list-group position-absolute w-100 shadow-sm border border-secondary" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto', top: '100%', left: 0 }}>
-                                                            {sugestoesFiltradas.map((mot, idx) => (
-                                                                <li 
-                                                                    key={idx} 
-                                                                    className="list-group-item list-group-item-action py-2 px-2 small cursor-pointer"
-                                                                    style={{ cursor: 'pointer' }}
-                                                                    onMouseDown={(e) => {
-                                                                        e.preventDefault(); 
-                                                                        selecionarMotorista(mot);
-                                                                    }}
-                                                                >
-                                                                    {mot}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className="fw-bold text-dark small">{row.motorista}</div>
-                                                    {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
-                                                </>
-                                            )}
-                                        </td>
+    {emEdicao ? (
+        <>
+            <input 
+                type="text" 
+                className="form-control form-control-sm border-warning" 
+                value={formEdicao.motorista} 
+                onChange={e => {
+                    setFormEdicao({...formEdicao, motorista: e.target.value});
+                    setMostrarSugestoes(true);
+                }}
+                onFocus={() => setMostrarSugestoes(true)}
+                onClick={() => setMostrarSugestoes(true)} // 🔥 Força abrir ao clicar
+                onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
+                placeholder="Pesquise o Motorista..."
+                autoComplete="off"
+            />
+            
+            {/* MENU SUSPENSO FLUTUANTE */}
+            {mostrarSugestoes && sugestoesFiltradas.length > 0 && (
+                <ul className="list-group position-absolute w-100 shadow-lg border border-secondary" 
+                    style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, backgroundColor: 'white' }}>
+                    {sugestoesFiltradas.map((mot, idx) => (
+                        <li 
+                            key={idx} 
+                            className="list-group-item list-group-item-action py-2 px-2 small"
+                            style={{ cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                            onMouseDown={(e) => {
+                                e.preventDefault(); 
+                                selecionarMotorista(mot);
+                            }}
+                        >
+                            {mot}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </>
+    ) : (
+        <>
+            <div className="fw-bold text-dark small">{row.motorista}</div>
+            {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
+        </>
+    )}
+</td>
 
                                         <td>
                                             <div className="d-flex flex-column">
