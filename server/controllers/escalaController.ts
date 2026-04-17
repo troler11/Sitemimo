@@ -175,9 +175,6 @@ export const atualizarEscala = async (req: Request, res: Response) => {
             return res.status(404).json({ error: response.data.error });
         }
 
-        // Limpa o cache para forçar a nova leitura na tela
-        const cacheKey = `escala_v2_${data_escala}`;
-        escalaCache.del(cacheKey);
 
         return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
     } catch (error) {
