@@ -164,6 +164,7 @@ const Escala: React.FC = () => {
         else if (row.aguardando) statusAtual = 'AGUARDANDO CARRO';
         else if (row.confirmado || realizou) statusAtual = 'CONFIRMADO';
         else if (row.cobrir || obsTexto.includes('COBRIR')) statusAtual = 'COBRIR';
+         else if (row.realocado || obsTexto.includes('REALOCADO')) statusAtual = 'REALOCADO';
 
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
@@ -214,7 +215,8 @@ const Escala: React.FC = () => {
                         manutencao: formEdicao.status === 'MANUTENÇÃO' ? 'sim' : '', 
                         aguardando: formEdicao.status === 'AGUARDANDO CARRO' ? 'sim' : '',
                         cobrir: formEdicao.status === 'COBRIR' ? 'sim' : '' ,
-                        confirmado: formEdicao.status === 'CONFIRMADO' ? 'sim' : '' 
+                        confirmado: formEdicao.status === 'CONFIRMADO' ? 'sim' : '',
+                        realocado: formEdicao.status === 'REALOCADO' ? 'sim' : '' ,
                     };
                 }
                 return item;
@@ -498,6 +500,7 @@ const Escala: React.FC = () => {
                                                     <option value="MANUTENÇÃO">Manutenção</option>
                                                     <option value="CONFIRMADO">Confirmado</option>
                                                     <option value="COBRIR">Cobrir</option>
+                                                    <option value="REALOCADO">Realozado</option>
                                                 </select>
                                             ) : (
                                                 row.manutencao ? <span className="badge badge-red">Manutenção</span> :
