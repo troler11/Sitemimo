@@ -5,7 +5,7 @@ import NodeCache from 'node-cache';
 const escalaCache = new NodeCache({ stdTTL: 60 });
 
 // A sua URL atualizada do Google Apps Script
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIf2nyBhDWsHsFzkgcKSn3KPS1LM3LgoKMhhFJL8X4-qx5lqIxp9a03XZApINpWFXE/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-zF-RQZLVCxp_UkAf1FRY8GkRKbJasgq65zpj4I-mmi-KR6P6KzYZk_FOoNTUSyPg/exec';
 
 // ==========================================
 // FUNÇÃO DE PROCESSAMENTO
