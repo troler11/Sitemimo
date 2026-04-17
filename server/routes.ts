@@ -27,6 +27,7 @@ router.delete('/users/:id', verifyToken, deleteUser);
 // Escala
 router.get('/escala', verifyToken, getEscala);
 router.put('/escala/atualizar', atualizarEscala);
+router.get('/motoristas', getMotoristas);
 
 // Rota para integração externa
 router.get('/v1/monitoramento/frota', getFrotaExterna);
