@@ -1,6 +1,6 @@
 {
   "name": "sistema-frota-mimo",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sistema de Gestão de Frota Full Stack",
   "main": "dist/server/index.js",
   "scripts": {
