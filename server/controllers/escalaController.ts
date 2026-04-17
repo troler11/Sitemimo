@@ -205,10 +205,11 @@ export const atualizarEscala = async (req: Request, res: Response) => {
                             reserva: novoReserva, 
                             frota_enviada: nova_frota,
                             // Atualiza os booleanos do status na memória
-                            manutencao: novo_status === 'Manutenção', 
+                            manutencao: novo_status === 'MANUTENÇÃO', 
                             aguardando: novo_status === 'PENDENTE DE CONFIRMAÇÃO',
                             confirmado:novo_status === 'CONFIRMADO',
-                            cobrir:novo_status === 'COBRIR'
+                            cobrir:novo_status === 'COBRIR',
+                            realozado:novo_status === 'REALOCADO'
                     
                         };
                     }
