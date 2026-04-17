@@ -165,12 +165,26 @@ const Escala: React.FC = () => {
     const salvarEdicao = async (row: ItemEscala) => {
         setSalvando(true);
         try {
+            // 1. Manda salvar no servidor
             await api.put('/escala/atualizar', {
                 data_escala: filtroData, empresa: row.empresa, rota: row.rota,
                 h_prog: row.h_prog, novo_motorista: formEdicao.motorista, nova_frota: formEdicao.frota_enviada
             });
+            
+            // 2. MÁGICA VISUAL: Atualiza a linha localmente na mesma hora (Instantâneo, sem recarregar a tela)
+            setDados(prevDados => prevDados.map(item => 
+                (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) 
+                ? { ...item, motorista: formEdicao.motorista, frota_enviada: formEdicao.frota_enviada } 
+                : item
+            ));
+
+            // 3. Fecha a edição (tira a caixinha amarela)
             setLinhaEmEdicao(null);
-            fetchData(false); 
+            
+            // 4. MÁGICA DA ROLAGEM: O 'true' diz para o sistema buscar dados novos no Google "em silêncio", 
+            // sem mostrar a mensagem de "Carregando..." e sem destruir a tabela.
+            fetchData(true); 
+
         } catch (err) {
             alert("Ocorreu um erro ao salvar as alterações.");
         } finally {
