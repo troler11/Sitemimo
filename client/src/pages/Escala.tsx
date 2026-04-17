@@ -494,7 +494,7 @@ const Escala: React.FC = () => {
                                                 </select>
                                             ) : (
                                                 row.manutencao ? <span className="badge badge-red">Manutenção</span> :
-                                                realizou ? <span className="badge badge-green">Confirmado</span> :
+                                                realizou ? <span className="badge badge-green">CONFIRMADO</span> :
                                                 row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
                                                 <span className="badge badge-gray">Pendente</span>
                                             )}
