@@ -174,9 +174,30 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         if (response.data && response.data.error) {
             return res.status(404).json({ error: response.data.error });
         }
-const cacheKey = `escala_v2_${data_escala}`;
+
+        // 🔥 A MÁGICA ULTRA-OTIMIZADA DO CACHE 🔥
+        // Em vez de deletar o cache e forçar o servidor a buscar tudo no Google de novo,
+        // nós abrimos a memória do servidor e atualizamos SÓ a linha que você editou!
+        const cacheKey = `escala_v2_${data_escala}`;
         if (typeof escalaCache !== 'undefined') {
-            escalaCache.del(cacheKey);
+            const dadosEmMemoria = escalaCache.get(cacheKey) as any[];
+            
+            if (dadosEmMemoria && Array.isArray(dadosEmMemoria)) {
+                const cacheAtualizado = dadosEmMemoria.map(item => {
+                    // Se for a viagem exata que acabamos de editar...
+                    if (item.empresa === empresa && item.rota === rota && item.h_prog === h_prog) {
+                        return { 
+                            ...item, 
+                            motorista: novo_motorista, 
+                            frota_enviada: nova_frota 
+                        };
+                    }
+                    return item; // As outras viagens ficam intocadas
+                });
+                
+                // Salva a lista atualizada de volta na memória do servidor
+                escalaCache.set(cacheKey, cacheAtualizado);
+            }
         }
 
         return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
