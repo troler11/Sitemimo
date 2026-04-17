@@ -150,19 +150,25 @@ const Escala: React.FC = () => {
     }, [dados, filtroEmpresa]);
 
     // --- FUNÇÕES DE EDIÇÃO ---
+    // --- FUNÇÕES DE EDIÇÃO ---
     const iniciarEdicao = (index: number, row: ItemEscala) => {
         setLinhaEmEdicao(index);
         
-        // Descobre qual é o status atual para já vir selecionado
-        let statusAtual = 'Pendente';
-        if (row.manutencao) statusAtual = 'Manutenção';
-        if (row.aguardando) statusAtual = 'PENDENTE DE CONFIRMAÇÃO';
-        if (row.cobrir) statusAtual = 'COBRIR';
-        if (row.confirmado) statusAtual = 'CONFIRMADO';
+        // 1. Lógica do Status (Tem que ser EXATAMENTE igual aos 'values' do <select>)
+        let statusAtual = 'PENDENTE DE CONFIRMAÇÃO'; 
+        
+        const realizou = row.ra_val && String(row.ra_val).trim() !== '' && String(row.ra_val).trim() !== '0';
+        const obsTexto = String(row.obs || '').toUpperCase();
+
+        if (row.manutencao) statusAtual = 'MANUTENÇÃO';
+        else if (row.aguardando) statusAtual = 'AGUARDANDO CARRO';
+        else if (row.confirmado || realizou) statusAtual = 'CONFIRMADO';
+        else if (row.cobrir || obsTexto.includes('COBRIR')) statusAtual = 'COBRIR';
 
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
-            motorista: row.motorista,
+            // Se houver reserva, ele puxa o reserva para editar. Se não, puxa o titular.
+            motorista: row.reserva ? row.reserva : row.motorista, 
             status: statusAtual
         });
         setMostrarSugestoes(false);
@@ -204,8 +210,9 @@ const Escala: React.FC = () => {
                         ...item, 
                         reserva: novoReserva,
                         frota_enviada: formEdicao.frota_enviada || '---',
-                        manutencao: formEdicao.status === 'Manutenção' ? 'sim' : '', 
-                        aguardando: formEdicao.status === 'PENDENTE DE CONFIRMAÇÃO' ? 'sim' : '',
+                        // 2. Corrigido para bater exatamente com os nomes do select
+                        manutencao: formEdicao.status === 'MANUTENÇÃO' ? 'sim' : '', 
+                        aguardando: formEdicao.status === 'AGUARDANDO CARRO' ? 'sim' : '',
                         cobrir: formEdicao.status === 'COBRIR' ? 'sim' : '' ,
                         confirmado: formEdicao.status === 'CONFIRMADO' ? 'sim' : '' 
                     };
