@@ -17,6 +17,8 @@ interface ItemEscala {
     ra_val: string;
     manutencao: string | boolean;
     aguardando: string | boolean;
+    cobrir: string | boolean;
+    confirmado: string | boolean;
 }
 
 const Escala: React.FC = () => {
@@ -156,7 +158,7 @@ const Escala: React.FC = () => {
         if (row.manutencao) statusAtual = 'Manutenção';
         if (row.aguardando) statusAtual = 'Aguardando';
         if (row.cobrir) statusAtual = 'Cobrir';
-        if (row.Confirmado) statusAtual = 'Confirmado';
+        if (row.confirmado) statusAtual = 'Confirmado';
 
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
