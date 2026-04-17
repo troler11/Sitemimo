@@ -165,7 +165,7 @@ const Escala: React.FC = () => {
     const salvarEdicao = async (row: ItemEscala) => {
         setSalvando(true);
         try {
-            // 1. Manda o servidor salvar no Google (em silêncio)
+            // 1. Envia para o servidor
             await api.put('/escala/atualizar', {
                 data_escala: filtroData, 
                 empresa: row.empresa, 
@@ -175,18 +175,27 @@ const Escala: React.FC = () => {
                 nova_frota: formEdicao.frota_enviada
             });
             
-            // 2. MÁGICA: Atualiza a linha na tela instantaneamente, sem recarregar nada!
-            setDados(prevDados => prevDados.map(item => 
-                (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) 
-                ? { ...item, motorista: formEdicao.motorista, frota_enviada: formEdicao.frota_enviada } 
-                : item
-            ));
+            // 2. ATUALIZAÇÃO OTIMISTA: 
+            // Atualizamos o array 'dados' no estado. O React vai re-renderizar 
+            // apenas essa linha. Como o valor de 'frota_enviada' mudou, 
+            // a lógica de comparação (divergência) vai disparar sozinha.
+            setDados(prevDados => prevDados.map(item => {
+                if (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) {
+                    return { 
+                        ...item, 
+                        motorista: formEdicao.motorista, 
+                        frota_enviada: formEdicao.frota_enviada || '---' 
+                    };
+                }
+                return item;
+            }));
 
-            // 3. Fecha a caixinha de edição
+            // 3. Sai do modo de edição
             setLinhaEmEdicao(null);
 
         } catch (err) {
-            alert("Ocorreu um erro ao salvar as alterações.");
+            console.error("Erro ao salvar:", err);
+            alert("Erro ao salvar as alterações.");
         } finally {
             setSalvando(false);
         }
