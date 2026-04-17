@@ -15,8 +15,8 @@ interface ItemEscala {
     h_real: string;
     obs: string;
     ra_val: string;
-    manutencao: string;
-    aguardando: string;
+    manutencao: string | boolean;
+    aguardando: string | boolean;
 }
 
 const Escala: React.FC = () => {
@@ -69,13 +69,13 @@ const Escala: React.FC = () => {
                 const res = await api.get(`/motoristas`);
                 
                 // Força o React a entender que é um Array, mesmo que venha como texto JSON
-                let dados = res.data;
-                if (typeof dados === 'string') {
-                    try { dados = JSON.parse(dados); } catch (e) {}
+                let dadosMotoristas = res.data;
+                if (typeof dadosMotoristas === 'string') {
+                    try { dadosMotoristas = JSON.parse(dadosMotoristas); } catch (e) {}
                 }
                 
-                if (Array.isArray(dados)) {
-                    setListaMotoristas(dados);
+                if (Array.isArray(dadosMotoristas)) {
+                    setListaMotoristas(dadosMotoristas);
                 }
             } catch (err) {
                 console.error("Erro ao carregar lista de motoristas:", err);
@@ -159,7 +159,7 @@ const Escala: React.FC = () => {
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
             motorista: row.motorista,
-            status: statusAtual // <-- Adicionado
+            status: statusAtual
         });
         setMostrarSugestoes(false);
     };
@@ -173,37 +173,41 @@ const Escala: React.FC = () => {
         setSalvando(true);
         try {
             await api.put('/escala/atualizar', {
-                data_escala: filtroData, empresa: row.empresa, rota: row.rota,
-                h_prog: row.h_prog, novo_motorista: formEdicao.motorista, 
+                data_escala: filtroData, 
+                empresa: row.empresa, 
+                rota: row.rota,
+                h_prog: row.h_prog, 
+                novo_motorista: formEdicao.motorista, 
                 nova_frota: formEdicao.frota_enviada,
-                novo_status: formEdicao.status // <-- Adicionado
+                novo_status: formEdicao.status
             });
             
-           // Atualização Otimista
+            // Atualização Otimista
             setDados(prevDados => prevDados.map(item => {
                 if (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) {
-                    // ... (sua lógica do reserva continua igualzinha) ...
+                    
+                    let novoReserva = item.reserva;
+                    const motTitular = String(item.motorista).trim().toUpperCase();
+                    const motEnviado = String(formEdicao.motorista).trim().toUpperCase();
+
+                    if (motEnviado !== motTitular && motEnviado !== "") {
+                        novoReserva = formEdicao.motorista;
+                    } else {
+                        novoReserva = "";
+                    }
                     
                     return { 
                         ...item, 
-                        // ... (outros itens) ...
-                        manutencao: formEdicao.status === 'Manutenção', // <-- Força a tela a mudar a cor
-                        aguardando: formEdicao.status === 'Aguardando'  // <-- Força a tela a mudar a cor
+                        reserva: novoReserva,
+                        frota_enviada: formEdicao.frota_enviada || '---',
+                        manutencao: formEdicao.status === 'Manutenção' ? 'sim' : '', 
+                        aguardando: formEdicao.status === 'Aguardando' ? 'sim' : '' 
                     };
                 }
                 return item;
             }));
+            
             setLinhaEmEdicao(null);
-        } catch (err) {
-            alert("Erro ao salvar as alterações.");
-        } finally {
-            setSalvando(false);
-        }
-    };
-
-            // 3. Sai do modo de edição
-            setLinhaEmEdicao(null);
-
         } catch (err) {
             console.error("Erro ao salvar:", err);
             alert("Erro ao salvar as alterações.");
@@ -411,50 +415,50 @@ const Escala: React.FC = () => {
                                         
                                         {/* 🔥 COLUNA: MOTORISTA COM AUTOCOMPLETE CUSTOMIZADO 🔥 */}
                                         <td style={{ position: 'relative' }}>
-    {emEdicao ? (
-        <>
-            <input 
-                type="text" 
-                className="form-control form-control-sm border-warning" 
-                value={formEdicao.motorista} 
-                onChange={e => {
-                    setFormEdicao({...formEdicao, motorista: e.target.value});
-                    setMostrarSugestoes(true);
-                }}
-                onFocus={() => setMostrarSugestoes(true)}
-                onClick={() => setMostrarSugestoes(true)} // 🔥 Força abrir ao clicar
-                onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
-                placeholder="Pesquise o Motorista..."
-                autoComplete="off"
-            />
-            
-            {/* MENU SUSPENSO FLUTUANTE */}
-            {mostrarSugestoes && sugestoesFiltradas.length > 0 && (
-                <ul className="list-group position-absolute w-100 shadow-lg border border-secondary" 
-                    style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, backgroundColor: 'white' }}>
-                    {sugestoesFiltradas.map((mot, idx) => (
-                        <li 
-                            key={idx} 
-                            className="list-group-item list-group-item-action py-2 px-2 small"
-                            style={{ cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                            onMouseDown={(e) => {
-                                e.preventDefault(); 
-                                selecionarMotorista(mot);
-                            }}
-                        >
-                            {mot}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </>
-    ) : (
-        <>
-            <div className="fw-bold text-dark small">{row.motorista}</div>
-            {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
-        </>
-    )}
-</td>
+                                            {emEdicao ? (
+                                                <>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control form-control-sm border-warning" 
+                                                        value={formEdicao.motorista} 
+                                                        onChange={e => {
+                                                            setFormEdicao({...formEdicao, motorista: e.target.value});
+                                                            setMostrarSugestoes(true);
+                                                        }}
+                                                        onFocus={() => setMostrarSugestoes(true)}
+                                                        onClick={() => setMostrarSugestoes(true)}
+                                                        onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
+                                                        placeholder="Pesquise o Motorista..."
+                                                        autoComplete="off"
+                                                    />
+                                                    
+                                                    {/* MENU SUSPENSO FLUTUANTE */}
+                                                    {mostrarSugestoes && sugestoesFiltradas.length > 0 && (
+                                                        <ul className="list-group position-absolute w-100 shadow-lg border border-secondary" 
+                                                            style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, backgroundColor: 'white' }}>
+                                                            {sugestoesFiltradas.map((mot, idx) => (
+                                                                <li 
+                                                                    key={idx} 
+                                                                    className="list-group-item list-group-item-action py-2 px-2 small"
+                                                                    style={{ cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault(); 
+                                                                        selecionarMotorista(mot);
+                                                                    }}
+                                                                >
+                                                                    {mot}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="fw-bold text-dark small">{row.motorista}</div>
+                                                    {row.reserva && <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>Reserva: {row.reserva}</small>}
+                                                </>
+                                            )}
+                                        </td>
 
                                         <td>
                                             <div className="d-flex flex-column">
@@ -467,12 +471,27 @@ const Escala: React.FC = () => {
                                                 {realizou && <small className="text-green fw-bold mt-1">RA: {row.ra_val}</small>}
                                             </div>
                                         </td>
+                                        
+                                        {/* 🔥 NOVA COLUNA DE STATUS COM DROPDOWN 🔥 */}
                                         <td className="text-center">
-                                            {row.manutencao ? <span className="badge badge-red">Manutenção</span> :
-                                             realizou ? <span className="badge badge-green">Confirmado</span> :
-                                             row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
-                                             <span className="badge badge-gray">Pendente</span>}
+                                            {emEdicao ? (
+                                                <select 
+                                                    className="form-select form-select-sm border-warning text-center"
+                                                    value={formEdicao.status}
+                                                    onChange={e => setFormEdicao({...formEdicao, status: e.target.value})}
+                                                >
+                                                    <option value="Pendente">Pendente</option>
+                                                    <option value="Aguardando">Aguardando Carro</option>
+                                                    <option value="Manutenção">Manutenção</option>
+                                                </select>
+                                            ) : (
+                                                row.manutencao ? <span className="badge badge-red">Manutenção</span> :
+                                                realizou ? <span className="badge badge-green">Confirmado</span> :
+                                                row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
+                                                <span className="badge badge-gray">Pendente</span>
+                                            )}
                                         </td>
+                                        
                                         <td className="text-end">
                                             <div className="small text-muted">Prog: {row.h_prog}</div>
                                             {(row.h_real && row.h_real.length > 2) && (
