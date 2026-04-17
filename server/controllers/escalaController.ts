@@ -208,7 +208,7 @@ export const atualizarEscala = async (req: Request, res: Response) => {
                             manutencao: novo_status === 'Manutenção', 
                             aguardando: novo_status === 'PENDENTE DE CONFIRMAÇÃO',
                             confirmado:novo_status === 'CONFIRMADO',
-                            cobrir:novo_status === 'COBRIR',
+                            cobrir:novo_status === 'COBRIR'
                     
                         };
                     }
