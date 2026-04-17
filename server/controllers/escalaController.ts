@@ -5,7 +5,7 @@ import NodeCache from 'node-cache';
 const escalaCache = new NodeCache({ stdTTL: 60 });
 
 // A sua URL atualizada do Google Apps Script
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz55Nyom6MdNFAOgatDcNJIY96Dack709aYkw1_ktJ1S4gf-TwJ02CryGGVlbWCxEdI/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpkvksn-f254seQr1HJz98-VRcffzn_XGmDc7ks8qUHE45xirsCy0UhAQnwhps9eM/exec';
 
 // ==========================================
 // FUNÇÃO DE PROCESSAMENTO
@@ -84,7 +84,7 @@ const processarDados = (rows: any[]) => {
 export const getMotoristas = async (req: Request, res: Response) => {
     try {
         // A mesmíssima URL que funcionou no seu Chrome
-        const urlGoogle = 'https://script.google.com/macros/s/AKfycbz55Nyom6MdNFAOgatDcNJIY96Dack709aYkw1_ktJ1S4gf-TwJ02CryGGVlbWCxEdI/exec?action=getMotoristas';
+        const urlGoogle = 'https://script.google.com/macros/s/AKfycbxpkvksn-f254seQr1HJz98-VRcffzn_XGmDc7ks8qUHE45xirsCy0UhAQnwhps9eM/exec?action=getMotoristas';
         
         console.log("Buscando motoristas usando FETCH NATIVO (Modo Navegador)...");
         
