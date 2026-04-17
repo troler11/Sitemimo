@@ -156,7 +156,7 @@ const Escala: React.FC = () => {
         if (row.manutencao) statusAtual = 'Manutenção';
         if (row.aguardando) statusAtual = 'Aguardando';
         if (row.cobrir) statusAtual = 'Cobrir';
-        if (row.confirmado) statusAtual = 'Confirmado';
+        if (row.Confirmado) statusAtual = 'Confirmado';
 
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
