@@ -157,8 +157,8 @@ const Escala: React.FC = () => {
         let statusAtual = 'Pendente';
         if (row.manutencao) statusAtual = 'Manutenção';
         if (row.aguardando) statusAtual = 'PENDENTE DE CONFIRMAÇÃO';
-        if (row.COBRIR) statusAtual = 'COBRIR';
-        if (row.CONFIRMADO) statusAtual = 'CONFIRMADO';
+        if (row.cobrir) statusAtual = 'COBRIR';
+        if (row.confirmado) statusAtual = 'CONFIRMADO';
 
         setFormEdicao({
             frota_enviada: row.frota_enviada !== '---' ? row.frota_enviada : '',
