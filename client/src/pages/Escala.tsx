@@ -181,9 +181,21 @@ const Escala: React.FC = () => {
             // a lógica de comparação (divergência) vai disparar sozinha.
             setDados(prevDados => prevDados.map(item => {
                 if (item.empresa === row.empresa && item.rota === row.rota && item.h_prog === row.h_prog) {
+                    
+                    let novoReserva = item.reserva;
+                    const motTitular = String(item.motorista).trim().toUpperCase();
+                    const motEnviado = String(formEdicao.motorista).trim().toUpperCase();
+
+                    if (motEnviado !== motTitular && motEnviado !== "") {
+                        novoReserva = formEdicao.motorista;
+                    } else {
+                        novoReserva = "";
+                    }
+
                     return { 
                         ...item, 
-                        motorista: formEdicao.motorista, 
+                        // Mantemos o titular intacto e atualizamos o reserva e a frota
+                        reserva: novoReserva,
                         frota_enviada: formEdicao.frota_enviada || '---' 
                     };
                 }
