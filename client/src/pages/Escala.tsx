@@ -205,9 +205,9 @@ const Escala: React.FC = () => {
                         reserva: novoReserva,
                         frota_enviada: formEdicao.frota_enviada || '---',
                         manutencao: formEdicao.status === 'Manutenção' ? 'sim' : '', 
-                        aguardando: formEdicao.status === 'Aguardando' ? 'sim' : '',
-                        cobrir: formEdicao.status === 'Cobrir' ? 'sim' : '' ,
-                        confirmado: formEdicao.status === 'Confirmado' ? 'sim' : '' 
+                        aguardando: formEdicao.status === 'PENDENTE DE CONFIRMAÇÃO' ? 'sim' : '',
+                        cobrir: formEdicao.status === 'COBRIR' ? 'sim' : '' ,
+                        confirmado: formEdicao.status === 'CONFIRMADO' ? 'sim' : '' 
                     };
                 }
                 return item;
