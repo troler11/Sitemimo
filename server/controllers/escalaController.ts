@@ -79,25 +79,26 @@ const processarDados = (rows: any[]) => {
 };
 
 // ==========================================
-// ROTA GET: BUSCAR MOTORISTAS (Sem Cache)
+// ROTA GET: BUSCAR MOTORISTAS 
 // ==========================================
 export const getMotoristas = async (req: Request, res: Response) => {
     try {
-        console.log("Buscando motoristas na URL:", GOOGLE_SCRIPT_URL);
+        console.log("Buscando lista fresca de motoristas direto do Google...");
         
         const response = await axios.get(GOOGLE_SCRIPT_URL, {
-            params: { action: 'getMotoristas' }
+            params: { action: 'getMotoristas' },
+            // 🔥 O DISFARCE E O TEMPO QUE FALTAVAM AQUI:
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            timeout: 60000 
         });
 
-        const respostaDoGoogle = response.data;
+        const motoristasUnicos = response.data;
         
-        // Se for a lista certa, manda a lista
-        if (Array.isArray(respostaDoGoogle)) {
-            return res.json(respostaDoGoogle);
+        if (Array.isArray(motoristasUnicos)) {
+            return res.json(motoristasUnicos);
         } else {
-            // Se não for lista, JOGA NA TELA O QUE O GOOGLE MANDOU!
-            console.log("⚠️ O Google não mandou array. Mandou isto:", typeof respostaDoGoogle);
-            return res.send(respostaDoGoogle); 
+            console.log("O Google não mandou a lista, mandou:", motoristasUnicos);
+            return res.json([]);
         }
     } catch (error) {
         console.error("Erro ao buscar motoristas:", error);
