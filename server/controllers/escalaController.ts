@@ -83,23 +83,32 @@ const processarDados = (rows: any[]) => {
 // ==========================================
 export const getMotoristas = async (req: Request, res: Response) => {
     try {
-        console.log("Buscando lista fresca de motoristas direto do Google...");
+        // A mesmíssima URL que funcionou no seu Chrome
+        const urlGoogle = 'https://script.google.com/macros/s/AKfycbwhQNK2NnlOmWKX1Ahd4xRBrnXPX8IIXH35vSWE8YnQh8eL2mKxcHI67TLwtwF01wKO/exec?action=getMotoristas';
         
-        const response = await axios.get(GOOGLE_SCRIPT_URL, {
-            params: { action: 'getMotoristas' },
-            // 🔥 O DISFARCE E O TEMPO QUE FALTAVAM AQUI:
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 60000 
+        console.log("Buscando motoristas usando FETCH NATIVO (Modo Navegador)...");
+        
+        const response = await fetch(urlGoogle, {
+            method: 'GET',
+            redirect: 'follow' // 🔥 O SEGREDO: Manda o servidor seguir o redirecionamento do Google sem se perder
         });
 
-        const motoristasUnicos = response.data;
+        const texto = await response.text(); // Pega a resposta crua primeiro
         
-        if (Array.isArray(motoristasUnicos)) {
-            return res.json(motoristasUnicos);
-        } else {
-            console.log("O Google não mandou a lista, mandou:", motoristasUnicos);
+        try {
+            const motoristasUnicos = JSON.parse(texto);
+            
+            if (Array.isArray(motoristasUnicos)) {
+                return res.json(motoristasUnicos);
+            } else {
+                return res.json([]);
+            }
+        } catch (parseError) {
+            // Se o Google tentar mandar uma tela de login HTML, ele cai aqui
+            console.error("Erro! O Google não mandou JSON. Mandou isto:", texto.substring(0, 150));
             return res.json([]);
         }
+
     } catch (error) {
         console.error("Erro ao buscar motoristas:", error);
         return res.status(500).json({ error: 'Erro ao buscar a lista de motoristas.' });
