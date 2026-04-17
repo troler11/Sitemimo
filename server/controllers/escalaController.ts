@@ -209,7 +209,7 @@ export const atualizarEscala = async (req: Request, res: Response) => {
                             aguardando: novo_status === 'PENDENTE DE CONFIRMAÇÃO',
                             confirmado:novo_status === 'CONFIRMADO',
                             cobrir:novo_status === 'COBRIR',
-                            realozado:novo_status === 'REALOCADO'
+                            realocado:novo_status === 'REALOCADO'
                     
                         };
                     }
