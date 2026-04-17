@@ -112,7 +112,7 @@ const Escala: React.FC = () => {
             let statusItem = 'pendente';
             if (item.manutencao) statusItem = 'manutencao';
             else if (item.aguardando) statusItem = 'aguardando';
-            else if (realizou) statusItem = 'confirmado';
+            else if (realizou) statusItem = 'CONFIRMADO';
             
             if (filtroStatus) {
                 if (filtroStatus === 'cobrir') {
