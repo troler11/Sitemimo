@@ -492,7 +492,7 @@ const Escala: React.FC = () => {
                                         <td className="text-center">
                                             {emEdicao ? (
                                                 <select 
-                                                    className="form-select form-select-sm border-warning text-center"
+                                                    className="form-select form-select-sm border-warning text-left"
                                                     value={formEdicao.status}
                                                     onChange={e => setFormEdicao({...formEdicao, status: e.target.value})}
                                                 >
