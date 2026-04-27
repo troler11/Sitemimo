@@ -537,9 +537,15 @@ const Escala: React.FC = () => {
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <button type="button" class="btn-circle-edit" title="Editar Motorista/Frota" onClick={() => iniciarEdicao(i, row)}>
-        <i class="fas fa-pencil-alt"></i>
-    </button>
+                                                // Correto (React/JSX)
+<button 
+    type="button" 
+    className="btn-circle-edit" 
+    title="Editar Motorista/Frota" 
+    onClick={() => iniciarEdicao(i, row)}
+>
+    <i className="fas fa-pencil-alt"></i>
+</button>
                                             )}
                                         </td>
                                         
