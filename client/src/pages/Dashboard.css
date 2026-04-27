@@ -233,6 +233,30 @@ body {
     color: var(--mimo-red-accent);
 }
 
+.btn-circle-edit {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%; /* Faz o botão ser um círculo perfeito */
+    border: none;
+    background-color: rgba(0, 123, 255, 0.1); /* Azul bem clarinho/transparente */
+    color: #007bff; /* Cor do ícone */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-circle-edit:hover {
+    background-color: #007bff; /* Fica sólido no hover */
+    color: white;
+    transform: scale(1.1); /* Dá um leve zoom */
+}
+
+.btn-circle-edit i {
+    font-size: 18px;
+}
+
 /* --- ADIÇÕES PARA A PÁGINA DE ESCALA --- */
 
 /* Cores de Texto Adicionais */
