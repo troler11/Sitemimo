@@ -525,14 +525,14 @@ const Escala: React.FC = () => {
                                             {emEdicao ? (
                                                 <div className="d-flex gap-1 justify-content-center">
                                                     <button 
-                                                        className="btn btn-sm btn-success" 
+                                                        className="btn-circle-salvar" 
                                                         title="Salvar" 
                                                         onClick={() => salvarEdicao(row)}
                                                         disabled={salvando}
                                                     >
                                                         {salvando ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}
                                                     </button>
-                                                    <button className="btn btn-sm btn-outline-danger" title="Cancelar" onClick={cancelarEdicao} disabled={salvando}>
+                                                    <button className="btn-circle-cancel" title="Cancelar" onClick={cancelarEdicao} disabled={salvando}>
                                                         <i className="fas fa-times"></i>
                                                     </button>
                                                 </div>
