@@ -273,7 +273,7 @@ body {
 }
 
 .btn-circle-salvar:hover {
-    background-color: #007bff; /* Fica sólido no hover */
+    background-color: #198754; /* Fica sólido no hover */
     color: white;
     transform: scale(1.1); /* Dá um leve zoom */
 }
@@ -297,7 +297,7 @@ body {
 }
 
 .btn-circle-cancel:hover {
-    background-color: #007bff; /* Fica sólido no hover */
+    background-color: #dc3545; /* Fica sólido no hover */
     color: white;
     transform: scale(1.1); /* Dá um leve zoom */
 }
