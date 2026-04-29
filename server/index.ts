@@ -1,47 +1,55 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import routes from './routes'; // Importa o arquivo acima
-import { getDashboardData } from './controllers/dashboardController';
-import { verifyToken } from './middleware/auth';
-import { login } from './controllers/authController'; // Você precisa criar este baseado no login.php
+import helmet from 'helmet'; // <--- IMPORTANTE: Adicionado para segurança
 import path from 'path';
+import routes from './routes'; 
 
 const app = express();
 
-app.use(cors());
+// 1. HELMET: Esconde a identidade do servidor e protege contra injeções
+// Desativamos o contentSecurityPolicy temporariamente para não bloquear imagens externas do seu React
+app.use(helmet({ contentSecurityPolicy: false }));
 
-app.use(express.json());
+// 2. CORS RESTRITO: Só permite requisições do seu próprio domínio
+const originPermitida = process.env.NODE_ENV === 'production' 
+    ? 'https://mimo-mimopainel.3sbqz4.easypanel.host/' // Troque para sua URL de produção
+    : '*'; // Permite tudo se estiver no localhost (desenvolvimento)
 
-// Rotas Publicas
-app.post('/api/login', login);
-app.get('/api/dashboard', verifyToken, getDashboardData); // <--- Mova para cima
-app.use('/api', routes); // Prefixo /api para tudo
+app.use(cors({
+    origin: originPermitida,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// 3. PROTEÇÃO DE PAYLOAD: Limita o tamanho do body da requisição (Evita ataques DOS)
+app.use(express.json({ limit: '1mb' })); 
+
+// 4. DELEGAÇÃO DE ROTAS: 
+// Removi o app.post('/api/login') e o app.get('/api/dashboard') daqui.
+// Como você já tem um `routes.ts`, TUDO de API deve ficar lá dentro para manter organizado.
+app.use('/api', routes); 
 
 
-// Serve os arquivos estáticos do React (JS, CSS)
+// --- SERVINDO O FRONTEND (React / Webpack) ---
+// Consolidei as chamadas de arquivos estáticos para usar apenas a pasta do build final
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
-app.use(express.static(path.join(__dirname, '../client')));
-
-app.get('*', (req, res) => {
-
-    res.sendFile(path.join(__dirname, '../client/index.html'));
-
+app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
-// Servir o Frontend (Webpack Build) em produção
 
-app.use(express.static('../client/dist'));
+// 5. TRATAMENTO DE ERRO GLOBAL (A Rede de Segurança)
+// Se der algum erro fatal em qualquer lugar do código, ele cai aqui em vez de derrubar o Node.js
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error('🚨 Erro Global:', err.message);
+    res.status(500).json({ error: 'Ocorreu um erro interno no servidor.' });
+});
 
-// server/index.ts
 
+// --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = parseInt(process.env.PORT || '3000');
 
-
-
-// Adicione '0.0.0.0' como segundo argumento
-
 app.listen(PORT, '0.0.0.0', () => {
-
     console.log(`✅ Servidor rodando na porta ${PORT} e IP 0.0.0.0`);
-
 });
