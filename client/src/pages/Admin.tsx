@@ -66,7 +66,7 @@ const Admin: React.FC = () => {
     const fetchUsers = async () => {
         try {
             const res = await api.get('/users');
-            setUsers(response.data.users);
+            setUsers(res.data.users);
         } catch (error) {
             console.error("Erro ao carregar usuários", error);
         }
