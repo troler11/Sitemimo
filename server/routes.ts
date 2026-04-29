@@ -4,7 +4,7 @@ import { getDashboardData } from './controllers/dashboardController';
 import { calculateRoute } from './controllers/mapController';
 import { getUsers, createUser, updateUser, deleteUser } from './controllers/userController';
 import { getEscala, atualizarEscala, getMotoristas } from './controllers/escalaController';
-import { verifyToken } from './middleware/auth';
+import { verifyToken, authorizeRole } from './middleware/auth';
 import { getFrotaExterna } from './src/controllers/ExternalApiController';
 import { createRota, getRotas, getRotaById, updateRota, deleteRota } from './controllers/rotaController';
 
