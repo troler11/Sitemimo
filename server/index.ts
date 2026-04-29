@@ -9,10 +9,10 @@ const app = express();
 // 1. HELMET: Esconde a identidade do servidor e protege contra injeções
 app.use(helmet({ contentSecurityPolicy: false }));
 
-// 2. CORS RESTRITO: Só permite requisições do seu próprio domínio
+// 2. CORS RESTRITO
 const originPermitida = process.env.NODE_ENV === 'production' 
-    ? 'https://mimo-mimopainel.3sbqz4.easypanel.host' // <-- CORREÇÃO: Sem a barra (/) no final
-    : '*'; // Permite tudo se estiver no localhost (desenvolvimento)
+    ? 'https://mimo-mimopainel.3sbqz4.easypanel.host' 
+    : '*'; 
 
 app.use(cors({
     origin: originPermitida,
@@ -20,30 +20,32 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 3. PROTEÇÃO DE PAYLOAD: Limita o tamanho do body da requisição (Evita ataques DOS)
+// 3. PROTEÇÃO DE PAYLOAD
 app.use(express.json({ limit: '1mb' })); 
 
-// 4. DELEGAÇÃO DE ROTAS: 
+// 4. DELEGAÇÃO DE ROTAS API
 app.use('/api', routes); 
 
 
-// --- SERVINDO O FRONTEND (React / Webpack) ---
-// CORREÇÃO: Usando process.cwd() no lugar de __dirname para evitar o erro ENOENT
-const clientBuildPath = path.join(process.cwd(), 'client/dist');
+// --- SERVINDO O FRONTEND (Conforme seu código original que funcionava) ---
 
-app.use(express.static(clientBuildPath));
+// Serve os arquivos estáticos da pasta client
+app.use(express.static(path.join(__dirname, '../client')));
 
+// Serve os arquivos do Webpack/Build em produção
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// O curinga (*) que entrega o index.html DEVE ficar por último
 app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
+    res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 
-// 5. TRATAMENTO DE ERRO GLOBAL (A Rede de Segurança)
+// 5. TRATAMENTO DE ERRO GLOBAL
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error('🚨 Erro Global:', err.message);
     res.status(500).json({ error: 'Ocorreu um erro interno no servidor.' });
 });
-
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = parseInt(process.env.PORT || '3000');
