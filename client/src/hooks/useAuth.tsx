@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // --- LOGIN COM ADAPTADOR DE DADOS ---
     const login = (token: string, backendUser: any) => {
         
-        console.log("Recebido do Backend:", backendUser); // Debug
+        //console.log("Recebido do Backend:", backendUser); // Debug
 
         // Aqui nós "traduzimos" o que o backend manda para o que o React entende
         const userNormalizado: UserData = {
@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             menus: backendUser.menus || []
         };
 
-        console.log("Usuário Normalizado (Salvo):", userNormalizado); // Debug
+      //  console.log("Usuário Normalizado (Salvo):", userNormalizado); // Debug
 
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(userNormalizado));
