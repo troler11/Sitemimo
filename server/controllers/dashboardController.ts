@@ -16,12 +16,13 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
        // 2. SANITIZAÇÃO DE DADOS 
         if (!isAdmin) {
+            // Garante que temos um array
             const rawCompanies: any[] = Array.isArray(user.allowed_companies) ? user.allowed_companies : [];
             
+            // Ajustado para aceitar e limpar as Strings (nomes das empresas)
             allowed = rawCompanies
-                .map((item: any) => Number(item)) // 1. Tenta transformar tudo em número
-                .filter((item: any) => !isNaN(item) && item > 0) // 2. Joga fora o que for lixo ou texto malicioso
-                .map((item: any) => String(item)); // <--- 3. CORREÇÃO: Transforma os números limpos DE VOLTA em texto!
+                .map((item: any) => String(item).trim()) // Transforma em string e remove espaços extras
+                .filter((item: string) => item.length > 0 && item !== "undefined" && item !== "null"); // Remove lixo
 
             if (allowed.length === 0) {
                 return res.json({ 
