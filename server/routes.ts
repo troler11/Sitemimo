@@ -1,17 +1,20 @@
 import { Router } from 'express';
 import { login } from './controllers/authController';
 import { getDashboardData } from './controllers/dashboardController';
-import { calculateRoute } from './controllers/mapController'; // <--- Importe
+import { calculateRoute } from './controllers/mapController';
 import { getUsers, createUser, updateUser, deleteUser } from './controllers/userController';
 import { getEscala, atualizarEscala, getMotoristas } from './controllers/escalaController';
 import { verifyToken } from './middleware/auth';
 import { getFrotaExterna } from './src/controllers/ExternalApiController';
-import {createRota, getRotas, getRotaById, updateRota, deleteRota} from './controllers/rotaController';
+import { createRota, getRotas, getRotaById, updateRota, deleteRota } from './controllers/rotaController';
 
 const router = Router();
 
-// Rota Pública
+// --- ROTAS PÚBLICAS ---
+// O Login precisa ser público para que o usuário consiga o token inicial
 router.post('/login', login);
+
+// --- ROTAS PROTEGIDAS (Exigem Token no Insomnia) ---
 
 // Dashboard & Mapa
 router.get('/dashboard', verifyToken, getDashboardData);
@@ -23,22 +26,19 @@ router.post('/users', verifyToken, createUser);
 router.put('/users/:id', verifyToken, updateUser);
 router.delete('/users/:id', verifyToken, deleteUser);
 
-
-// Escala
+// Escala (Adicionei verifyToken nas que faltavam)
 router.get('/escala', verifyToken, getEscala);
-router.put('/escala/atualizar', atualizarEscala);
-router.get('/motoristas', getMotoristas);
+router.put('/escala/atualizar', verifyToken, atualizarEscala); // Protegido!
+router.get('/motoristas', verifyToken, getMotoristas);        // Protegido!
 
 // Rota para integração externa
-router.get('/v1/monitoramento/frota', getFrotaExterna);
+router.get('/v1/monitoramento/frota', verifyToken, getFrotaExterna); // Protegido!
 
-//Criar Rotas
-router.post('/rotas', createRota);
-router.get('/rotas', getRotas);
-
-// 2. Operações por ID (Necessário para a Edição funcionar)
-router.get('/rotas/:id', getRotaById); // <--- Busca os dados para preencher o formulário
-router.put('/rotas/:id', updateRota);  // <--- Salva as alterações do formulário
-router.delete('/rotas/:id', deleteRota); // <--- NOVA ROTA
+// Operações de Rotas (Protegi todas)
+router.post('/rotas', verifyToken, createRota);
+router.get('/rotas', verifyToken, getRotas);
+router.get('/rotas/:id', verifyToken, getRotaById);
+router.put('/rotas/:id', verifyToken, updateRota);
+router.delete('/rotas/:id', verifyToken, deleteRota);
 
 export default router;
