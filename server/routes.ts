@@ -21,10 +21,11 @@ router.get('/dashboard', verifyToken, getDashboardData);
 router.get('/rota/:tipo/:placa', verifyToken, calculateRoute);
 
 // Admin (Usuários)
-router.get('/users', verifyToken, getUsers);
-router.post('/users', verifyToken, createUser);
-router.put('/users/:id', verifyToken, updateUser);
-router.delete('/users/:id', verifyToken, deleteUser);
+
+router.get('/users', verifyToken, authorizeRole('admin'), getUsers);
+router.post('/users', verifyToken, authorizeRole('admin'), createUser);
+router.delete('/users/:id', verifyToken, authorizeRole('admin'), deleteUser);
+router.put('/users/:id', verifyToken, authorizeRole('admin'), updateUser);
 
 // Escala (Adicionei verifyToken nas que faltavam)
 router.get('/escala', verifyToken, getEscala);
