@@ -14,20 +14,18 @@ export const getDashboardData = async (req: Request, res: Response) => {
         const isAdmin = user.role === 'admin';
         let allowed = null;
 
-        // 2. SANITIZAÇÃO DE DADOS (Prevenção contra injeção ou dados corrompidos)
+        // 2. SANITIZAÇÃO DE DADOS 
         if (!isAdmin) {
-            // Garante 100% que seja um Array, ignorando se vier como string mal formatada, objeto ou nulo do banco
-            const rawCompanies = Array.isArray(user.allowed_companies) ? user.allowed_companies : [];
+            // Tipamos o array como any[] para o TypeScript ficar feliz
+            const rawCompanies: any[] = Array.isArray(user.allowed_companies) ? user.allowed_companies : [];
             
-            // Filtra o array para garantir que só existam números (ajuste para 'string' se seus IDs forem UUID/Texto)
-            // Isso impede que um JWT adulterado passe um comando SQL malicioso no array
-            allowed = rawCompanies.filter(item => typeof item === 'number' && !isNaN(item));
+            // Adicionamos (item: any) aqui!
+            allowed = rawCompanies.filter((item: any) => typeof item === 'number' && !isNaN(item));
 
-            // Bloqueio Pró-ativo: Se o usuário não é admin e não tem empresas, não precisamos nem bater no banco!
             if (allowed.length === 0) {
                 return res.json({ 
                     message: "Nenhuma empresa vinculada ao seu perfil.", 
-                    data: [] // Retorna uma estrutura vazia segura para o front-end não quebrar
+                    data: [] 
                 });
             }
         }
