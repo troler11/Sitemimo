@@ -3,14 +3,15 @@ import { pool } from '../db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+
 export const login = async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
     try {
         const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
         
-        if (result.rows.length === 0) {
-            return res.status(401).json({ message: "Usuário não encontrado" });
+       if (result.rows.length === 0) {
+    return res.status(401).json({ message: "Credenciais inválidas" });
         }
 
         const user = result.rows[0];
@@ -28,9 +29,15 @@ export const login = async (req: Request, res: Response) => {
         const validPassword = await bcrypt.compare(password, storedHash);
         
         if (!validPassword) {
-            return res.status(401).json({ message: "Senha incorreta" });
+    return res.status(401).json({ message: "Credenciais inválidas" });
         }
 
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+        console.error("ERRO FATAL: * não está definido nas variáveis de ambiente!");
+        return res.status(500).json({ message: "Erro interno de configuração do servidor." });
+                        }
+        
         // Gera Token JWT
         const token = jwt.sign(
             { 
@@ -41,7 +48,7 @@ export const login = async (req: Request, res: Response) => {
                     ? JSON.parse(user.allowed_companies) 
                     : (user.allowed_companies || [])
             },
-            process.env.JWT_SECRET || 'secret',
+           jwtSecret,
             { expiresIn: '24h' }
         );
 
