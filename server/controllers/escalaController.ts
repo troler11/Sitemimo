@@ -1,14 +1,29 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
+import { z } from 'zod';
 
 const escalaCache = new NodeCache({ stdTTL: 60 });
 
-// A sua URL atualizada do Google Apps Script
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxNzGvOtAjURyletoGmeXYa_NYk3DFGE4C2EW570iAHtQ5MmxodP-mydFSeo_nB21Q7/exec';
+// 1. SEGURANÇA DA URL: Mova essa URL para o seu arquivo .env em produção!
+// Ex: GOOGLE_SCRIPT_URL=https://script.google.com/...
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxNzGvOtAjURyletoGmeXYa_NYk3DFGE4C2EW570iAHtQ5MmxodP-mydFSeo_nB21Q7/exec';
 
 // ==========================================
-// FUNÇÃO DE PROCESSAMENTO
+// SCHEMAS DE VALIDAÇÃO (ZOD)
+// ==========================================
+const updateEscalaSchema = z.object({
+    data_escala: z.string().min(6, "Data inválida"),
+    empresa: z.string().min(1, "Empresa é obrigatória"),
+    rota: z.string().min(1, "Rota é obrigatória"),
+    h_prog: z.string().min(1, "Horário é obrigatório"),
+    novo_motorista: z.string().optional().default(""),
+    nova_frota: z.string().optional().default(""),
+    novo_status: z.string().optional().default("")
+});
+
+// ==========================================
+// FUNÇÃO DE PROCESSAMENTO (Mantida igual, pois é a regra de negócio do Sheets)
 // ==========================================
 const processarDados = (rows: any[]) => {
     if (!Array.isArray(rows) || rows.length < 2) return [];
@@ -83,34 +98,20 @@ const processarDados = (rows: any[]) => {
 // ==========================================
 export const getMotoristas = async (req: Request, res: Response) => {
     try {
-        // A mesmíssima URL que funcionou no seu Chrome
-        const urlGoogle = 'https://script.google.com/macros/s/AKfycbxNzGvOtAjURyletoGmeXYa_NYk3DFGE4C2EW570iAHtQ5MmxodP-mydFSeo_nB21Q7/exec?action=getMotoristas';
+        const urlGoogle = `${GOOGLE_SCRIPT_URL}?action=getMotoristas`;
         
-        console.log("Buscando motoristas usando FETCH NATIVO (Modo Navegador)...");
-        
-        const response = await fetch(urlGoogle, {
-            method: 'GET',
-            redirect: 'follow' // 🔥 O SEGREDO: Manda o servidor seguir o redirecionamento do Google sem se perder
-        });
-
-        const texto = await response.text(); // Pega a resposta crua primeiro
+        const response = await fetch(urlGoogle, { method: 'GET', redirect: 'follow' });
+        const texto = await response.text(); 
         
         try {
             const motoristasUnicos = JSON.parse(texto);
-            
-            if (Array.isArray(motoristasUnicos)) {
-                return res.json(motoristasUnicos);
-            } else {
-                return res.json([]);
-            }
+            return res.json(Array.isArray(motoristasUnicos) ? motoristasUnicos : []);
         } catch (parseError) {
-            // Se o Google tentar mandar uma tela de login HTML, ele cai aqui
-            console.error("Erro! O Google não mandou JSON. Mandou isto:", texto.substring(0, 150));
+            console.error("🚨 Erro de Parse (Provável bloqueio do Google):", texto.substring(0, 150));
             return res.json([]);
         }
-
     } catch (error) {
-        console.error("Erro ao buscar motoristas:", error);
+        console.error("🚨 Erro GET /motoristas:", error);
         return res.status(500).json({ error: 'Erro ao buscar a lista de motoristas.' });
     }
 };
@@ -121,99 +122,110 @@ export const getMotoristas = async (req: Request, res: Response) => {
 export const getEscala = async (req: Request, res: Response) => {
     const dataFiltro = req.query.data as string; 
     
-    if (!dataFiltro) {
-        return res.status(400).json({ error: "Data não informada pelo frontend" });
+    if (!dataFiltro || typeof dataFiltro !== 'string') {
+        return res.status(400).json({ error: "Data não informada no formato correto." });
     }
+
+    // 2. RECUPERAÇÃO DO CONTEXTO DE SEGURANÇA DO USUÁRIO
+    const user = (req as any).user;
+    const isAdmin = user?.role === 'admin';
+    const userCompanies = Array.isArray(user?.allowed_companies) ? user.allowed_companies.map((c: any) => String(c).trim()) : [];
 
     const cacheKey = `escala_v2_${dataFiltro}`;
-    const cached = escalaCache.get(cacheKey);
-    if (cached) return res.json(cached);
+    let dadosLimpos: any[] = escalaCache.get(cacheKey) || [];
 
-    try {
-        const response = await axios.get(GOOGLE_SCRIPT_URL, {
-            params: { action: 'read', data: dataFiltro },
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 60000 // ⏳ Limite aumentado para 60s
-        });
+    if (dadosLimpos.length === 0) {
+        try {
+            const response = await axios.get(GOOGLE_SCRIPT_URL, {
+                params: { action: 'read', data: dataFiltro },
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                timeout: 60000 
+            });
 
-        const dadosLimpos = processarDados(response.data);
-
-        escalaCache.set(cacheKey, dadosLimpos);
-        return res.json(dadosLimpos);
-
-    } catch (error) {
-        console.error("Erro Escala:", error);
-        return res.status(500).json({ error: "Erro ao buscar dados externos" });
+            dadosLimpos = processarDados(response.data);
+            escalaCache.set(cacheKey, dadosLimpos);
+        } catch (error) {
+            console.error("🚨 Erro Axios Escala:", error);
+            return res.status(500).json({ error: "Serviço do Google indisponível no momento." });
+        }
     }
+
+    // 3. ISOLAMENTO DE EMPRESAS (Apenas envia as empresas que o usuário tem permissão)
+    if (!isAdmin) {
+        dadosLimpos = dadosLimpos.filter(item => userCompanies.includes(String(item.empresa).trim()));
+    }
+
+    return res.json(dadosLimpos);
 };
 
 // ==========================================
-// ROTA PUT: ATUALIZAR DADOS (Manda pro Google Salvar)
+// ROTA PUT: ATUALIZAR DADOS
 // ==========================================
 export const atualizarEscala = async (req: Request, res: Response) => {
-    const { data_escala, empresa, rota, h_prog, novo_motorista, nova_frota, novo_status } = req.body;
-
-    if (!data_escala) {
-        return res.status(400).json({ error: "Data não informada para atualização" });
-    }
-
     try {
-        // 1. Envia a atualização para o Google Apps Script
+        // 4. VALIDAÇÃO ZOD (Bloqueia dados maliciosos antes de chegar no Google ou no Cache)
+        const validData = updateEscalaSchema.parse(req.body);
+
+        // 5. BLOQUEIO DE ESCRITA NÃO AUTORIZADA
+        const user = (req as any).user;
+        const isAdmin = user?.role === 'admin';
+        const userCompanies = Array.isArray(user?.allowed_companies) ? user.allowed_companies.map((c: any) => String(c).trim()) : [];
+
+        if (!isAdmin && !userCompanies.includes(validData.empresa)) {
+            return res.status(403).json({ error: "Você não tem permissão para editar dados desta empresa." });
+        }
+
+        // Envia para o Google Apps Script
         const response = await axios.post(GOOGLE_SCRIPT_URL, {
             action: 'update',
-            data_escala: data_escala,
-            empresa: empresa,
-            rota: rota,
-            h_prog: h_prog,
-            novo_motorista: novo_motorista,
-            nova_frota: nova_frota,
-            novo_status: novo_status // Enviando o status novo para o Google
+            data_escala: validData.data_escala,
+            empresa: validData.empresa,
+            rota: validData.rota,
+            h_prog: validData.h_prog,
+            novo_motorista: validData.novo_motorista,
+            nova_frota: validData.nova_frota,
+            novo_status: validData.novo_status 
         }, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 60000 // ⏳ Limite de 60s
+            timeout: 60000
         });
 
-        if (response.data && response.data.error) {
+        if (response.data?.error) {
             return res.status(404).json({ error: response.data.error });
         }
 
-        // 2. Atualiza o Cache Local (para a tela não piscar com dados antigos)
-        const cacheKey = `escala_v2_${data_escala}`; // <-- Declarado corretamente
+        // Atualiza o Cache Local de forma segura (usando apenas os dados validados pelo Zod)
+        const cacheKey = `escala_v2_${validData.data_escala}`; 
         
         if (typeof escalaCache !== 'undefined') {
             const dadosEmMemoria = escalaCache.get(cacheKey) as any[];
             
-            if (dadosEmMemoria && Array.isArray(dadosEmMemoria)) {
+            if (Array.isArray(dadosEmMemoria)) {
                 const cacheAtualizado = dadosEmMemoria.map(item => {
-                    // Se encontrou a viagem que acabamos de editar...
-                    if (item.empresa === empresa && item.rota === rota && item.h_prog === h_prog) {
+                    if (item.empresa === validData.empresa && item.rota === validData.rota && item.h_prog === validData.h_prog) {
                         
-                        // Lógica de Titular x Reserva
-                        let novoReserva = item.reserva; // <-- Declarado corretamente
+                        let novoReserva = item.reserva; 
                         const motTitular = String(item.motorista).trim().toUpperCase();
-                        const motEnviado = String(novo_motorista).trim().toUpperCase();
+                        const motEnviado = String(validData.novo_motorista).trim().toUpperCase();
 
                         if (motEnviado !== motTitular && motEnviado !== "") {
-                            novoReserva = novo_motorista; 
+                            novoReserva = validData.novo_motorista; 
                         } else {
                             novoReserva = ""; 
                         }
 
-                        // Retorna o item na memória com as novas informações
                         return { 
                             ...item, 
                             reserva: novoReserva, 
-                            frota_enviada: nova_frota,
-                            // Atualiza os booleanos do status na memória
-                            manutencao: novo_status === 'MANUTENÇÃO', 
-                            aguardando: novo_status === 'PENDENTE DE CONFIRMAÇÃO',
-                            confirmado:novo_status === 'CONFIRMADO',
-                            cobrir:novo_status === 'COBRIR',
-                            realocado:novo_status === 'REALOCADO'
-                    
+                            frota_enviada: validData.nova_frota,
+                            manutencao: validData.novo_status === 'MANUTENÇÃO', 
+                            aguardando: validData.novo_status === 'PENDENTE DE CONFIRMAÇÃO',
+                            confirmado: validData.novo_status === 'CONFIRMADO',
+                            cobrir: validData.novo_status === 'COBRIR',
+                            realocado: validData.novo_status === 'REALOCADO'
                         };
                     }
-                    return item; // Linhas não editadas passam direto
+                    return item; 
                 });
                 
                 escalaCache.set(cacheKey, cacheAtualizado);
@@ -221,8 +233,12 @@ export const atualizarEscala = async (req: Request, res: Response) => {
         }
 
         return res.status(200).json({ success: true, message: 'Atualizado com sucesso!' });
+
     } catch (error) {
-        console.error("Erro ao atualizar o Sheets:", error);
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: "Dados de atualização inválidos." });
+        }
+        console.error("🚨 Erro ao atualizar o Sheets:", error);
         return res.status(500).json({ error: 'Erro interno ao salvar as alterações.' });
     }
 };
