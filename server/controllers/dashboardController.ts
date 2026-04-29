@@ -14,15 +14,14 @@ export const getDashboardData = async (req: Request, res: Response) => {
         const isAdmin = user.role === 'admin';
         let allowed = null;
 
-        // 2. SANITIZAÇÃO DE DADOS 
        // 2. SANITIZAÇÃO DE DADOS 
         if (!isAdmin) {
             const rawCompanies: any[] = Array.isArray(user.allowed_companies) ? user.allowed_companies : [];
             
-            // CORREÇÃO: Converte para número primeiro. Se for uma string "1", vira o número 1.
             allowed = rawCompanies
-                .map((item: any) => Number(item)) // Transforma tudo em número
-                .filter((item: any) => !isNaN(item) && item > 0); // Fica só com os válidos e maiores que zero
+                .map((item: any) => Number(item)) // 1. Tenta transformar tudo em número
+                .filter((item: any) => !isNaN(item) && item > 0) // 2. Joga fora o que for lixo ou texto malicioso
+                .map((item: any) => String(item)); // <--- 3. CORREÇÃO: Transforma os números limpos DE VOLTA em texto!
 
             if (allowed.length === 0) {
                 return res.json({ 
