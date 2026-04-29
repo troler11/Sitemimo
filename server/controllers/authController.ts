@@ -58,6 +58,11 @@ export const login = async (req: Request, res: Response) => {
                 id: user.id,
                 name: user.full_name,
                 role: user.role,
+                // --- CORREÇÃO: Adicionado o retorno das empresas para o frontend ---
+                allowed_companies: typeof user.allowed_companies === 'string'
+                    ? JSON.parse(user.allowed_companies)
+                    : (user.allowed_companies || []),
+                // ------------------------------------------------------------------
                 menus: typeof user.allowed_menus === 'string'
                     ? JSON.parse(user.allowed_menus)
                     : (user.allowed_menus || [])
