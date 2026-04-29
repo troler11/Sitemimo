@@ -14,3 +14,17 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         return res.status(401).json({ message: "Token inválido" });
     }
 };
+
+// No seu arquivo de middleware
+export const authorizeRole = (requiredRole: string) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const user = (req as any).user; // O verifyToken já colocou o usuário aqui
+
+        if (!user || user.role !== requiredRole) {
+            return res.status(403).json({ 
+                message: "Acesso negado: você não tem permissão para esta ação." 
+            });
+        }
+        next();
+    };
+};
