@@ -15,12 +15,14 @@ export const getDashboardData = async (req: Request, res: Response) => {
         let allowed = null;
 
         // 2. SANITIZAÇÃO DE DADOS 
+       // 2. SANITIZAÇÃO DE DADOS 
         if (!isAdmin) {
-            // Tipamos o array como any[] para o TypeScript ficar feliz
             const rawCompanies: any[] = Array.isArray(user.allowed_companies) ? user.allowed_companies : [];
             
-            // Adicionamos (item: any) aqui!
-            allowed = rawCompanies.filter((item: any) => typeof item === 'number' && !isNaN(item));
+            // CORREÇÃO: Converte para número primeiro. Se for uma string "1", vira o número 1.
+            allowed = rawCompanies
+                .map((item: any) => Number(item)) // Transforma tudo em número
+                .filter((item: any) => !isNaN(item) && item > 0); // Fica só com os válidos e maiores que zero
 
             if (allowed.length === 0) {
                 return res.json({ 
