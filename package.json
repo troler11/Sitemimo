@@ -13,6 +13,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
   },
   "dependencies": {
+    "zod": "^3.23.8",
     "helmet": "^7.1.0",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
