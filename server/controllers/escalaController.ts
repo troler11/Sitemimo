@@ -49,6 +49,8 @@ const processarDados = (rows: any[]) => {
         prog: findCol(['ini', 'inicio', 'prog']),
         real: findCol(['real', 'realizado', 'chegada']),
         obs: findCol(['motivo troca?']),
+        hr_sai: findCol(['sai', 'saida']),
+        sentido: findCol(['ent', 'entrada', 'sentido']),
         manut: findCol(['manutenção', 'manut', 'observações', 'observação']),
         carro: findCol(['aguardando', 'carro','observações', 'observação']),
         ra: findCol(['ra', 'r.a', 'registro'])
@@ -80,6 +82,8 @@ const processarDados = (rows: any[]) => {
             frota_enviada: r[map.enviada] || '---',
             h_prog: limparHorario(r[map.prog]),
             h_real: limparHorario(r[map.real]),
+            h_fim: limparHorario(r[map.fim]), 
+            sentido: r[map.sentido] ? String(r[map.sentido]).trim() : '',
             obs: r[map.obs] || '',
             ra_val: r[map.ra] || '',
             manutencao: (valManut.includes('sim') || valManut.includes('manuten')),
