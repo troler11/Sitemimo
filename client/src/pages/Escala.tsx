@@ -385,6 +385,8 @@ const Escala: React.FC = () => {
                             <th className="text-center" style={{width: '10%'}}>SENTIDO</th>
                             <th className="text-center" style={{width: '10%'}}>INICIO</th>
                             <th className="text-end" style={{width: '10%'}}>FIM</th>
+                            <th className="text-end" style={{width: '10%'}}>PREFIXO</th>
+                            <th className="text-end" style={{width: '10%'}}>OBSERVAÇÔES</th>
                             <th className="text-center" style={{width: '5%'}}>Ações</th>
                         </tr>
                     </thead>
