@@ -485,7 +485,7 @@ const Escala: React.FC = () => {
                                         
                                         {/* LINHA */}
                                         <td>
-                                        <div className="text-muted small text" style={{maxWidth: '250px'}} title={row.rota}>
+                                        <div className="fw-bold text-dark" style={{maxWidth: '250px'}} title={row.rota}>
                                                 {row.rota}
                                             </div>
                                         </td>
@@ -493,14 +493,14 @@ const Escala: React.FC = () => {
                                         {/* SENTIDO */}
 
                                         <td>
-                                        <div className="text-muted small text" style={{maxWidth: '250px'}} title={row.sentido}>
+                                        <div className="fw-bold text-dark" style={{maxWidth: '250px'}} title={row.sentido}>
                                                 {row.sentido}
                                             </div>
                                         </td>
                                         
                                     {/* INICIO */}
                                          <td className="text-end">
-                                            <div className="small text-muted">{row.h_prog}</div>
+                                            <div className="fw-bold text-dark">{row.h_prog}</div>
                                             {(row.h_real && row.h_real.length > 2) && (
                                                 <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
                                                     Real: {row.h_real}
@@ -510,7 +510,7 @@ const Escala: React.FC = () => {
 
                                           {/* FIM */}
                                         <td className="text-end">
-                                            <div className="small text-muted">{row.hr_sai}</div>
+                                            <div className="fw-bold text-dark">{row.hr_sai}</div>
                                             {(row.h_real && row.h_real.length > 2) && (
                                                 <div className={row.hr_sai > row.hr_sai ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
                                                     Real: {row.hr_sai}
@@ -529,7 +529,7 @@ const Escala: React.FC = () => {
                                                     placeholder="Nova Frota"
                                                 />
                                             ) : (
-                                                <div className="d-flex flex-column align-items-center">
+                                                <div className="d-flex flex-column align-items-left">
                                                     <span className="badge badge-gray mb-1">{row.frota_escala}</span>
                                                     {divergencia ? (
                                                         <span className="badge badge-red">{row.frota_enviada}</span>
