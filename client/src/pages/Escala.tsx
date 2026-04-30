@@ -548,7 +548,7 @@ const Escala: React.FC = () => {
                                                         {row.obs}
                                                     </small>
                                                 )}
-                                                {realizou && <small className="text-green fw-bold mt-1">RA: {row.ra_val}</small>}
+                                                
                                             </div>
                                         </td>
                                         
