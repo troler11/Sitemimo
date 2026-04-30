@@ -378,12 +378,13 @@ const Escala: React.FC = () => {
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
-                            <th style={{width: '25%'}}>Empresa / Rota</th>
-                            <th className="text-center" style={{width: '15%'}}>Frota</th>
-                            <th style={{width: '20%'}}>Motorista</th>
-                            <th style={{width: '15%'}}>Detalhes</th>
-                            <th className="text-center" style={{width: '10%'}}>Status</th>
-                            <th className="text-end" style={{width: '10%'}}>Horário</th>
+                            <th style={{width: '25%'}}>STATUS</th>
+                            <th className="text-center" style={{width: '15%'}}>MOTORISTA</th>
+                            <th style={{width: '20%'}}>CLIENTE</th>
+                            <th style={{width: '15%'}}>LINHA</th>
+                            <th className="text-center" style={{width: '10%'}}>SENTIDO</th>
+                            <th className="text-center" style={{width: '10%'}}>INICIO</th>
+                            <th className="text-end" style={{width: '10%'}}>FIM</th>
                             <th className="text-center" style={{width: '5%'}}>Ações</th>
                         </tr>
                     </thead>
