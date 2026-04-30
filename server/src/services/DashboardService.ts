@@ -3,50 +3,53 @@ import axios from 'axios';
 import NodeCache from 'node-cache';
 import moment from 'moment-timezone';
 import { predictionCache } from '../../utils/sharedCache'; 
+import { z } from 'zod'; // <-- Adicionado para segurança
 
 // --- CONFIGURAÇÕES E CONSTANTES ---
-const appCache = new NodeCache({ stdTTL: 30 }); // Cache de 30 segundos
+const appCache = new NodeCache({ stdTTL: 30 }); 
 const TIMEZONE = 'America/Sao_Paulo';
 
 const URL_DASHBOARD_MAIN = "https://abmbus.com.br:8181/api/dashboard/mongo/95?naoVerificadas=false&agrupamentos=";
+
+// 1. SEGURANÇA DE AMBIENTE: Garante que o token existe antes de tentar usar
+const TOKEN_ABMBUS = process.env.TOKEN_ABMBUS || "";
+if (!TOKEN_ABMBUS) {
+    console.error("🚨 ERRO CRÍTICO: TOKEN_ABMBUS não está definido no .env!");
+}
+
 const HEADERS_DASHBOARD_MAIN = {
     "Accept": "application/json, text/plain, */*",
-    "Authorization": process.env.TOKEN_ABMBUS
+    "Authorization": TOKEN_ABMBUS
 };
 
-// Agente HTTPS para evitar ECONNRESET em conexões longas/instáveis
 const httpsAgent = new https.Agent({
     keepAlive: true,
     timeout: 60000,
     scheduling: 'lifo'
 });
 
-const INPUT_FORMATS = [
-    "DD/MM/YYYY HH:mm:ss", 
-    "DD/MM/YYYY HH:mm", 
-    "YYYY-MM-DD HH:mm:ss",
-    "YYYY-MM-DDTHH:mm:ss",
-    moment.ISO_8601
-];
-
 // --- INTERFACES ---
 export interface LinhaOutput {
     id: string;
-    e: string;      // Empresa
-    r: string;      // Rota
-    v: string;      // Veículo (Placa)
-    s: number;      // Sentido (1=Ida, 0=Volta)
-    pi: string;     // Programado Início
-    ri: string;     // Real Início
-    pf: string;     // Programado Fim
-    pfn: string;    // Previsão Fim Nova (Estimada)
-    u: string;      // Último Reporte
-    c: string;      // Categoria (Status Bruto)
-    li?: string;    // Lat/Long Inicial
-    lf?: string;    // Lat/Long Final
-    status_api: string; // Status Calculado (ATRASADO, PONTUAL, ETC)
-    pontos?: any[]; // Array de pontos para checagem de desvio no frontend
+    e: string;      
+    r: string;      
+    v: string;      
+    s: number;      
+    pi: string;     
+    ri: string;     
+    pf: string;     
+    pfn: string;    
+    u: string;      
+    c: string;      
+    li?: string;    
+    lf?: string;    
+    status_api: string; 
+    pontos?: any[]; 
 }
+
+// 2. SCHEMAS DE PROTEÇÃO (ZOD)
+// Garante que o input interno seja sempre um array de strings válido
+const allowedCompaniesSchema = z.array(z.string()).nullable();
 
 // --- FUNÇÃO AUXILIAR: CALCULAR STATUS ---
 const calcularStatus = (
@@ -58,54 +61,54 @@ const calcularStatus = (
     horaServidor: string,
     sentidoIda: boolean
 ): string => {
-    // 1. Carro Desligado
-    if (categoria === "Carro desligado") return "DESLIGADO";
+    // Sanitização básica para evitar erros se vierem dados corrompidos
+    const catSafe = String(categoria || "").trim();
+    const piSafe = String(pi || "N/D").trim();
+    const riSafe = String(ri || "N/D").trim();
+    const pfSafe = String(pf || "N/D").trim();
+    const pfnSafe = String(pfn || "N/D").trim();
 
-    // 2. Não Iniciou (ri é N/D ou vazio)
-    if (!ri || ri === "N/D") {
-        if (!pi || pi === "N/D") return "INDEFINIDO";
-        
-        // Se a hora programada (pi) já passou (< horaServidor), é atraso na origem (NAO_INICIOU)
-        // Se a hora programada é futura (>= horaServidor), está aguardando (DESLOCAMENTO)
-        return pi < horaServidor ? "NAO_INICIOU" : "DESLOCAMENTO";
+    if (catSafe === "Carro desligado") return "DESLIGADO";
+
+    if (riSafe === "N/D") {
+        if (piSafe === "N/D") return "INDEFINIDO";
+        return piSafe < horaServidor ? "NAO_INICIOU" : "DESLOCAMENTO";
     }
 
-    // 3. Já saiu - Verificar Atraso na Saída (Origem)
-    const cleanRi = ri.split(' ')[0]; // Remove "(Pt 2)" se houver
+    // 3. PROTEÇÃO DE STRING: Garante que o split não quebre se ri não for string
+    const cleanRi = riSafe.split(' ')[0]; 
     const hoje = moment().format('YYYY-MM-DD');
     
-    const mPi = moment.tz(`${hoje} ${pi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+    const mPi = moment.tz(`${hoje} ${piSafe}`, "YYYY-MM-DD HH:mm", TIMEZONE);
     const mRi = moment.tz(`${hoje} ${cleanRi}`, "YYYY-MM-DD HH:mm", TIMEZONE);
 
     if (mPi.isValid() && mRi.isValid()) {
         const diffMinutos = mRi.diff(mPi, 'minutes');
-        if (diffMinutos > 10) return "ATRASADO"; // Saiu com mais de 10 min de atraso
+        if (diffMinutos > 10) return "ATRASADO"; 
     }
 
-    // 4. Verificar Atraso de Percurso (TomTom/Estimativa)
-    // REGRA: Só verifica percurso se for SENTIDO IDA (Entrada)
     if (sentidoIda === true) { 
-        if (pfn && pfn !== "N/D" && pf && pf !== "N/D" && pfn !== "--:--") {
-            const mPf = moment.tz(`${hoje} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
-            const mPfn = moment.tz(`${hoje} ${pfn}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+        if (pfnSafe !== "N/D" && pfSafe !== "N/D" && pfnSafe !== "--:--") {
+            const mPf = moment.tz(`${hoje} ${pfSafe}`, "YYYY-MM-DD HH:mm", TIMEZONE);
+            const mPfn = moment.tz(`${hoje} ${pfnSafe}`, "YYYY-MM-DD HH:mm", TIMEZONE);
             
             if (mPf.isValid() && mPfn.isValid()) {
                  const diffChegada = mPfn.diff(mPf, 'minutes');
-                 // Se a previsão de chegada for > 10 min que a tabela
                  if (diffChegada > 10) return "ATRASADO_PERCURSO";
             }
         }
     }
 
-    // Se passou por todas as validações sem cair em erro
     return "PONTUAL";
 };
 
 // --- SERVIÇO PRINCIPAL ---
 export const fetchDashboardData = async (allowedCompanies: string[] | null = null) => {
+    // 4. VALIDAÇÃO DE ENTRADA: Evita que sujeira quebre o mapeamento de empresas
+    const safeAllowedCompanies = allowedCompaniesSchema.parse(allowedCompanies);
+
     let dashboardData = appCache.get('dashboard_main');
     
-    // 1. Busca na API Externa se não estiver em cache
     if (!dashboardData) {
         try {
             const response = await axios.get(URL_DASHBOARD_MAIN, { 
@@ -120,8 +123,7 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             dashboardData = response.data;
             appCache.set('dashboard_main', dashboardData);
         } catch (apiError: any) {
-            console.error("⚠️ Service: Falha na API Externa:", apiError.code || apiError.message);
-            // Retorna estrutura vazia para não quebrar a aplicação
+            console.error("⚠️ Service: Falha na API Externa ABMBus:", apiError.code || apiError.message);
             dashboardData = { 
                 linhasAndamento: [], 
                 linhasCarroDesligado: [], 
@@ -130,29 +132,33 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
         }
     }
 
-    const data: any = dashboardData;
+    // 5. PROTEÇÃO DE ESTRUTURA: Garante que os dados sejam arrays iteráveis
+    const data: any = dashboardData || {};
+    const andamento = Array.isArray(data.linhasAndamento) ? data.linhasAndamento : [];
+    const desligado = Array.isArray(data.linhasCarroDesligado) ? data.linhasCarroDesligado : [];
+    const semPonto = Array.isArray(data.linhasComecaramSemPrimeiroPonto) ? data.linhasComecaramSemPrimeiroPonto : [];
+
     let todasLinhas: LinhaOutput[] = [];
     const horaAtualServidor = moment().tz(TIMEZONE).format('HH:mm');
 
-    // Normaliza lista de empresas permitidas (se houver restrição)
-    const allowedNorm = allowedCompanies ? allowedCompanies.map(c => c.toUpperCase().trim()) : null;
+    const allowedNorm = safeAllowedCompanies ? safeAllowedCompanies.map(c => String(c).toUpperCase().trim()) : null;
 
-    // Função interna para processar cada grupo de linhas
     const processarGrupo = (lista: any[], categoria: string) => {
-        if (!lista) return;
+        if (!lista || lista.length === 0) return;
         
         for (const l of lista) {
-            // A. Filtro de Empresa
+            // 6. SANITIZAÇÃO NATIVA: Transforma em string com segurança caso venha undefined/null/number
             if (allowedNorm) {
-                const empNome = (l.empresa?.nome || '').toUpperCase().trim();
+                const empNome = String(l.empresa?.nome || '').toUpperCase().trim();
                 if (!allowedNorm.includes(empNome)) continue;
             }
 
-            // B. Ignorar linhas finalizadas
-            const finalizada = l.pontoDeParadas?.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou);
+            const finalizada = Array.isArray(l.pontoDeParadas) 
+                ? l.pontoDeParadas.some((p: any) => p.tipoPonto?.tipo === "Final" && p.passou)
+                : false;
+                
             if (finalizada) continue;
 
-            // --- PROCESSAMENTO DE DADOS ---
             let pi = "N/D"; 
             let ri = "N/D"; 
             let pf = "N/D"; 
@@ -160,51 +166,46 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
             let li = "N/D";
             let lf = "N/D";
             
-            // Ultimo reporte
             let u = "N/D";
             let rawDate = l.veiculo?.dataHora || l.veiculo?.dataComunicacao || l.ultimaData;
             if (rawDate) u = String(rawDate);
             
             let diffMinutosSaida = 0; 
             let saiu = false;
-            const sentidoIda = l.sentidoIDA ? true : false;
+            const sentidoIda = Boolean(l.sentidoIDA);
 
-            const pontosSimplificados: any[] = []; // Array para guardar os pontos para o Frontend
+            const pontosSimplificados: any[] = []; 
 
-            // C. Loop nos Pontos de Parada
-            if (l.pontoDeParadas && Array.isArray(l.pontoDeParadas)) {
+            if (Array.isArray(l.pontoDeParadas)) {
                 for (const p of l.pontoDeParadas) {
-                    const tipo = p.tipoPonto?.tipo;
+                    const tipo = String(p.tipoPonto?.tipo || "");
                     const indexPonto = l.pontoDeParadas.indexOf(p) + 1; 
 
-                    // Salva se o ponto foi atendido para o cálculo de desvio
                     pontosSimplificados.push({
                         ordem: indexPonto,
-                        atendido: p.passou === true
+                        atendido: Boolean(p.passou)
                     });
 
-                    // Ponto Inicial (Tabela)
                     if (tipo === "Inicial") {
                         if (p.latitude && p.longitude) li = `${p.latitude},${p.longitude}`;
-                        if (p.horario) pi = p.horario;
+                        if (p.horario) pi = String(p.horario);
                     }
 
-                    // Ponto Real (Onde está ou passou)
-                    // Pega até o 4º ponto para definir inicio de viagem
                     if (ri === "N/D" && tipo !== "Final" && p.passou && indexPonto <= 4) {
                         if (p.tempoDiferenca !== null && p.tempoDiferenca !== undefined && p.tempoDiferenca !== "") {
                             saiu = true; 
 
-                            const horaTabelaDestePonto = p.horario || moment().format('HH:mm'); 
+                            const horaTabelaDestePonto = String(p.horario || moment().format('HH:mm')); 
                             const hojeStr = moment().format('YYYY-MM-DD');
                             const baseTime = moment.tz(`${hojeStr} ${horaTabelaDestePonto}`, "YYYY-MM-DD HH:mm", TIMEZONE);
                             
                             let dm = 0;
-                            if (typeof p.tempoDiferenca === 'string' && p.tempoDiferenca.includes(':')) {
-                                const parts = p.tempoDiferenca.split(':');
+                            const tdStr = String(p.tempoDiferenca);
+                            if (tdStr.includes(':')) {
+                                const parts = tdStr.split(':');
                                 dm = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
                             } else {
-                                dm = parseInt(p.tempoDiferenca);
+                                dm = parseInt(tdStr) || 0;
                             }
                             
                             if (diffMinutosSaida === 0) {
@@ -224,15 +225,13 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                         }
                     }
 
-                    // Ponto Final (Tabela)
                     if (tipo === "Final") {
                         if (p.latitude && p.longitude) lf = `${p.latitude},${p.longitude}`;
-                        if (p.horario) pf = p.horario;
+                        if (p.horario) pf = String(p.horario);
                     }
                 }
             }
 
-            // D. Validação de Tolerância (Bug de GPS/Viagem errada > 40min)
             if (pi !== "N/D" && ri !== "N/D") {
                 const cleanRi = ri.split(' ')[0]; 
                 const hoje = moment().format('YYYY-MM-DD');
@@ -249,12 +248,11 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 }
             }
 
-            // E. Previsão de Chegada (Cache ou Cálculo)
-            const placaLimpa = (l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+            const placaLimpa = String(l.veiculo?.veiculo || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
             const cachedPred = predictionCache.get(placaLimpa) as any;
             
             if (cachedPred && cachedPred.horario) {
-                pfn = cachedPred.horario;
+                pfn = String(cachedPred.horario);
             } 
             else if (pf !== "N/D" && saiu) {
                 const progFimObj = moment.tz(`${moment().format('YYYY-MM-DD')} ${pf}`, "YYYY-MM-DD HH:mm", TIMEZONE);
@@ -265,16 +263,14 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                  pfn = "--:--"; 
             }
 
-            // F. Cálculo do STATUS FINAL
             const statusApi = calcularStatus(categoria, pi, ri, pf, pfn, horaAtualServidor, sentidoIda);
 
-            // G. Montagem do Objeto
             todasLinhas.push({
-                id: l.idLinha || l.id,
-                e: l.empresa?.nome || '',
-                r: l.descricaoLinha || '',
-                v: l.veiculo?.veiculo || '',
-                s: l.sentidoIDA ? 1 : 0, 
+                id: String(l.idLinha || l.id || ''),
+                e: String(l.empresa?.nome || ''),
+                r: String(l.descricaoLinha || ''),
+                v: String(l.veiculo?.veiculo || ''),
+                s: sentidoIda ? 1 : 0, 
                 pi: pi,
                 ri: ri,
                 pf: pf,
@@ -284,15 +280,15 @@ export const fetchDashboardData = async (allowedCompanies: string[] | null = nul
                 u: u,
                 c: categoria,
                 status_api: statusApi,
-                pontos: pontosSimplificados // Enviando os pontos mapeados para o front-end
+                pontos: pontosSimplificados 
             });
         }
     };
 
-    // Executa para os 3 grupos da API original
-    processarGrupo(data.linhasAndamento, "Em andamento");
-    processarGrupo(data.linhasCarroDesligado, "Carro desligado");
-    processarGrupo(data.linhasComecaramSemPrimeiroPonto, "Começou sem ponto");
+    // Executa usando os arrays previamente validados e seguros
+    processarGrupo(andamento, "Em andamento");
+    processarGrupo(desligado, "Carro desligado");
+    processarGrupo(semPonto, "Começou sem ponto");
 
     return { 
         todas_linhas: todasLinhas, 
