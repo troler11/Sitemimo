@@ -378,7 +378,7 @@ const Escala: React.FC = () => {
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
-                            <th style={{width: '25%'}}>STATUS</th>
+                            <th style={{width: '5%'}}>STATUS</th>
                             <th className="text-center" style={{width: '15%'}}>MOTORISTA</th>
                             <th style={{width: '20%'}}>CLIENTE</th>
                             <th style={{width: '15%'}}>LINHA</th>
@@ -428,36 +428,7 @@ const Escala: React.FC = () => {
     <span className="badge badge-gray">Pendente</span>
                                             )}
                                         </td>
-                                        
-                                        <td>
-                                            <div className="fw-bold text-dark">{row.empresa}</div>
-                                            <div className="text-muted small text-truncate" style={{maxWidth: '250px'}} title={row.rota}>
-                                                {row.rota}
-                                            </div>
-                                        </td>
-                                        
-                                        <td className="text-center">
-                                            {emEdicao ? (
-                                                <input 
-                                                    type="text" 
-                                                    className="form-control form-control-sm text-center border-warning" 
-                                                    value={formEdicao.frota_enviada} 
-                                                    onChange={e => setFormEdicao({...formEdicao, frota_enviada: e.target.value})}
-                                                    placeholder="Nova Frota"
-                                                />
-                                            ) : (
-                                                <div className="d-flex flex-column align-items-center">
-                                                    <span className="badge badge-gray mb-1">{row.frota_escala}</span>
-                                                    {divergencia ? (
-                                                        <span className="badge badge-red">{row.frota_enviada}</span>
-                                                    ) : (
-                                                        <span className="text-muted small" style={{fontSize: '0.7rem'}}>{row.frota_enviada}</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </td>
-                                        
-                                        {/* 🔥 COLUNA: MOTORISTA COM AUTOCOMPLETE CUSTOMIZADO 🔥 */}
+ {/* 🔥 COLUNA: MOTORISTA COM AUTOCOMPLETE CUSTOMIZADO 🔥 */}
                                         <td style={{ position: 'relative' }}>
                                             {emEdicao ? (
                                                 <>
@@ -503,6 +474,41 @@ const Escala: React.FC = () => {
                                                 </>
                                             )}
                                         </td>
+
+                                        
+                                        <td>
+                                            <div className="fw-bold text-dark">{row.empresa}</div>
+                                            
+                                        </td>
+                                        
+                                        <td>
+                                        <div className="text-muted small text" style={{maxWidth: '250px'}} title={row.rota}>
+                                                {row.rota}
+                                            </div>
+                                        </td>
+                                        
+                                        <td className="text-center">
+                                            {emEdicao ? (
+                                                <input 
+                                                    type="text" 
+                                                    className="form-control form-control-sm text-center border-warning" 
+                                                    value={formEdicao.frota_enviada} 
+                                                    onChange={e => setFormEdicao({...formEdicao, frota_enviada: e.target.value})}
+                                                    placeholder="Nova Frota"
+                                                />
+                                            ) : (
+                                                <div className="d-flex flex-column align-items-center">
+                                                    <span className="badge badge-gray mb-1">{row.frota_escala}</span>
+                                                    {divergencia ? (
+                                                        <span className="badge badge-red">{row.frota_enviada}</span>
+                                                    ) : (
+                                                        <span className="text-muted small" style={{fontSize: '0.7rem'}}>{row.frota_enviada}</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </td>
+                                        
+                                       
 
                                         <td>
                                             <div className="d-flex flex-column">
