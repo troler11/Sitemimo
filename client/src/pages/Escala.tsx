@@ -545,7 +545,7 @@ const Escala: React.FC = () => {
                                         <td>
                                             <div className="d-flex flex-column">
                                                 {row.obs && (
-                                                    <small className="fst-italic" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
+                                                    <small className="fw-bold text-dark small" style={{color: isCobrir ? '#6f42c1' : '#6c757d', fontWeight: isCobrir ? 'bold' : 'normal'}}>
                                                         {isCobrir && <i className="fas fa-sync-alt me-1"></i>}
                                                         {row.obs}
                                                     </small>
