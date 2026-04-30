@@ -511,10 +511,10 @@ const Escala: React.FC = () => {
 
                                           {/* FIM */}
                                         <td className="text-end">
-                                            <div className="small text-muted">{row.hr_fim}</div>
+                                            <div className="small text-muted">{row.hr_sai}</div>
                                             {(row.h_real && row.h_real.length > 2) && (
-                                                <div className={row.hr_fim > row.hr_fim ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
-                                                    Real: {row.hr_fim}
+                                                <div className={row.hr_sai > row.hr_sai ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
+                                                    Real: {row.hr_sai}
                                                 </div>
                                             )}
                                         </td>
