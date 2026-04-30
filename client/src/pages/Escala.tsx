@@ -14,7 +14,6 @@ interface ItemEscala {
     h_prog: string;
     h_real: string;
     hr_sai: string;
-    sentido: string;
     obs: string;
     sentido: string;
     ra_val: string;
