@@ -48,7 +48,7 @@ const processarDados = (rows: any[]) => {
         enviada: findCol(['enviada', 'veiculo enviado']),
         prog: findCol(['ini', 'inicio', 'prog']),
         real: findCol(['real', 'realizado', 'chegada']),
-        obs: findCol(['observação', 'obs', 'ocorrencia','observações']),
+        obs: findCol(['MOTIVO TROCA?']),
         manut: findCol(['manutenção', 'manut', 'observações', 'observação']),
         carro: findCol(['aguardando', 'carro','observações', 'observação']),
         ra: findCol(['ra', 'r.a', 'registro'])
