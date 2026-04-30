@@ -404,6 +404,31 @@ const Escala: React.FC = () => {
                                 
                                 return (
                                     <tr key={i} className={emEdicao ? 'table-warning' : ''}>
+
+                                         {/* 🔥 NOVA COLUNA DE STATUS COM DROPDOWN 🔥 */}
+                                        <td className="text-center">
+                                            {emEdicao ? (
+                                                <select 
+                                                    className="form-select form-select-sm border-warning text-left"
+                                                    value={formEdicao.status}
+                                                    onChange={e => setFormEdicao({...formEdicao, status: e.target.value})}
+                                                >
+                                                    <option value="PENDENTE DE CONFIRMAÇÃO">Pendente</option>
+                                                    <option value="AGUARDANDO CARRO">Aguardando Carro</option>
+                                                    <option value="MANUTENÇÃO">Manutenção</option>
+                                                    <option value="CONFIRMADO">Confirmado</option>
+                                                    <option value="COBRIR">Cobrir</option>
+                                                    <option value="REALOCADO">Realocado</option>
+                                                </select>
+                                            ) : (
+                                               row.manutencao ? <span className="badge badge-red">Manutenção</span> :
+    realizou ? <span className="badge badge-green">CONFIRMADO</span> :
+    row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
+    row.realocado ? <span className="badge badge-info text-dark">Realocado</span> : 
+    <span className="badge badge-gray">Pendente</span>
+                                            )}
+                                        </td>
+                                        
                                         <td>
                                             <div className="fw-bold text-dark">{row.empresa}</div>
                                             <div className="text-muted small text-truncate" style={{maxWidth: '250px'}} title={row.rota}>
@@ -491,29 +516,7 @@ const Escala: React.FC = () => {
                                             </div>
                                         </td>
                                         
-                                        {/* 🔥 NOVA COLUNA DE STATUS COM DROPDOWN 🔥 */}
-                                        <td className="text-center">
-                                            {emEdicao ? (
-                                                <select 
-                                                    className="form-select form-select-sm border-warning text-left"
-                                                    value={formEdicao.status}
-                                                    onChange={e => setFormEdicao({...formEdicao, status: e.target.value})}
-                                                >
-                                                    <option value="PENDENTE DE CONFIRMAÇÃO">Pendente</option>
-                                                    <option value="AGUARDANDO CARRO">Aguardando Carro</option>
-                                                    <option value="MANUTENÇÃO">Manutenção</option>
-                                                    <option value="CONFIRMADO">Confirmado</option>
-                                                    <option value="COBRIR">Cobrir</option>
-                                                    <option value="REALOCADO">Realocado</option>
-                                                </select>
-                                            ) : (
-                                               row.manutencao ? <span className="badge badge-red">Manutenção</span> :
-    realizou ? <span className="badge badge-green">CONFIRMADO</span> :
-    row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
-    row.realocado ? <span className="badge badge-info text-dark">Realocado</span> : 
-    <span className="badge badge-gray">Pendente</span>
-                                            )}
-                                        </td>
+                                       
                                         
                                         <td className="text-end">
                                             <div className="small text-muted">Prog: {row.h_prog}</div>
