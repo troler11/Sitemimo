@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+// Adicionamos o 'Navigate' aqui na importação
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth'; 
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
@@ -9,7 +10,7 @@ import RouteCreate from './pages/RouteCreate';
 // Páginas
 import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
-import RotasPage from './pages/Rotas';
+import RotasPage from './pages/Rotas'; // <-- Caso esteja usando no RoutesList, se não, pode remover
 import AdminPage from './pages/Admin';
 import EscalaPage from './pages/Escala';
 import AtrasosPage from './pages/RelatorioAtrasos';
@@ -29,7 +30,6 @@ const Layout = () => {
 
     return (
         <div className="d-flex">
-            {/* CORREÇÃO: Passamos a propriedade toggle obrigatória */}
             <Sidebar 
                 isOpen={isSidebarOpen} 
                 toggle={() => setIsSidebarOpen(!isSidebarOpen)} 
@@ -60,8 +60,11 @@ const App: React.FC = () => {
                             <Route path="/" element={<DashboardPage />} />
                         </Route>
 
+                        {/* CORREÇÃO: As sub-rotas de criação/edição agora estão protegidas! */}
                         <Route element={<AuthGuard requiredMenu="rotas" />}>
                             <Route path="/rotas" element={<RoutesList />} />
+                            <Route path="/rotas/nova" element={<RouteCreate />} />
+                            <Route path="/rotas/editar/:id" element={<RouteCreate />} />
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="escala" />}>
@@ -79,11 +82,11 @@ const App: React.FC = () => {
                         <Route element={<AuthGuard requiredMenu="usuarios" />}>
                             <Route path="/admin/usuarios" element={<AdminPage />} />
                         </Route>
-
-<Route path="/rotas/nova" element={<RouteCreate />} />
-<Route path="/rotas/editar/:id" element={<RouteCreate />} /> {/* Reutiliza a mesma tela */}
                         
                     </Route>
+
+                    {/* CORREÇÃO: Redireciona qualquer URL digitada errada para o Dashboard */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
