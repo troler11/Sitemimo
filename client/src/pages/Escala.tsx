@@ -379,9 +379,9 @@ const Escala: React.FC = () => {
                     <thead className="table-light">
                         <tr>
                             <th style={{width: '5%'}}>STATUS</th>
-                            <th className="text-center" style={{width: '15%'}}>MOTORISTA</th>
-                            <th style={{width: '20%'}}>CLIENTE</th>
-                            <th style={{width: '15%'}}>LINHA</th>
+                            <th className="text-left" style={{width: '25%'}}>MOTORISTA</th>
+                            <th style={{width: '5%'}}>CLIENTE</th>
+                            <th style={{width: '20%'}}>LINHA</th>
                             <th className="text-center" style={{width: '10%'}}>SENTIDO</th>
                             <th className="text-center" style={{width: '10%'}}>INICIO</th>
                             <th className="text-end" style={{width: '10%'}}>FIM</th>
@@ -426,7 +426,7 @@ const Escala: React.FC = () => {
     row.aguardando ? <span className="badge badge-warning text-dark">Aguardando</span> :
     row.realocado ? <span className="badge badge-info text-dark">Realocado</span> : 
     <span className="badge badge-gray">Pendente</span>
-                                            )}
+                                            )} {realizou && <small className="text-green fw-bold mt-1">RA: {row.ra_val}</small>}
                                         </td>
  {/* 🔥 COLUNA: MOTORISTA COM AUTOCOMPLETE CUSTOMIZADO 🔥 */}
                                         <td style={{ position: 'relative' }}>
@@ -475,18 +475,48 @@ const Escala: React.FC = () => {
                                             )}
                                         </td>
 
-                                        
+                                          {/* EMPRESA */}
                                         <td>
                                             <div className="fw-bold text-dark">{row.empresa}</div>
                                             
                                         </td>
                                         
+                                        {/* LINHA */}
+                                        <td>
+                                        <div className="text-muted small text" style={{maxWidth: '250px'}} title={row.rota}>
+                                                {row.rota}
+                                            </div>
+                                        </td>
+                                      
+                                        {/* SENTIDO */}
+
                                         <td>
                                         <div className="text-muted small text" style={{maxWidth: '250px'}} title={row.rota}>
                                                 {row.rota}
                                             </div>
                                         </td>
                                         
+                                    {/* INICIO */}
+                                         <td className="text-end">
+                                            <div className="small text-muted">{row.h_prog}</div>
+                                            {(row.h_real && row.h_real.length > 2) && (
+                                                <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
+                                                    Real: {row.h_real}
+                                                </div>
+                                            )}
+                                        </td>
+
+                                          {/* FIM */}
+                                        <td className="text-end">
+                                            <div className="small text-muted">{row.h_prog}</div>
+                                            {(row.h_real && row.h_real.length > 2) && (
+                                                <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
+                                                    Real: {row.h_real}
+                                                </div>
+                                            )}
+                                        </td>
+                                        
+                                        {/* FROTA */}
                                         <td className="text-center">
                                             {emEdicao ? (
                                                 <input 
@@ -524,14 +554,7 @@ const Escala: React.FC = () => {
                                         
                                        
                                         
-                                        <td className="text-end">
-                                            <div className="small text-muted">Prog: {row.h_prog}</div>
-                                            {(row.h_real && row.h_real.length > 2) && (
-                                                <div className={row.h_real > row.h_prog ? 'text-red fw-bold small' : 'text-green fw-bold small'}>
-                                                    Real: {row.h_real}
-                                                </div>
-                                            )}
-                                        </td>
+                                       
 
                                         <td className="text-center">
                                             {emEdicao ? (
