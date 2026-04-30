@@ -82,7 +82,7 @@ const processarDados = (rows: any[]) => {
             frota_enviada: r[map.enviada] || '---',
             h_prog: limparHorario(r[map.prog]),
             h_real: limparHorario(r[map.real]),
-            hr_sai: limparHorario(r[map.fim]), 
+            hr_sai: limparHorario(r[map.hr_sai]), 
             sentido: r[map.sentido] ? String(r[map.sentido]).trim() : '',
             obs: r[map.obs] || '',
             ra_val: r[map.ra] || '',
