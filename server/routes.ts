@@ -7,6 +7,7 @@ import { getEscala, atualizarEscala, getMotoristas } from './controllers/escalaC
 import { verifyToken, authorizeRole } from './middleware/auth';
 import { getFrotaExterna } from './src/controllers/ExternalApiController';
 import { createRota, getRotas, getRotaById, updateRota, deleteRota } from './controllers/rotaController';
+import { cadastrarMotorista } from '../controllers/motoristaController';
 
 const router = Router();
 
@@ -41,5 +42,8 @@ router.get('/rotas', verifyToken, getRotas);
 router.get('/rotas/:id', verifyToken, getRotaById);
 router.put('/rotas/:id', verifyToken, updateRota);
 router.delete('/rotas/:id', verifyToken, deleteRota);
+
+// Cadastro motorista
+router.post('/motoristas', verifyToken, cadastrarMotorista);
 
 export default router;
