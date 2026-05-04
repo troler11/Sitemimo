@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { motoristaSchema } from '../schemas/motoristaSchema';
+import { motoristaSchema } from '../src/schemas/motoristaSchema';
 import { ZodError } from 'zod';
 
 export const cadastrarMotorista = async (req: Request, res: Response) => {
