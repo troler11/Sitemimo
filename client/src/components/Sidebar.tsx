@@ -95,6 +95,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggle }) => {
                         </Link>
                     )}
 
+                     {/* Escala */}
+                    {hasPermission('motoristas') && (
+                        <Link to="/motorista" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/motorista')}`} title="Motoristas">
+                            <i className="bi bi-calendar-week fs-5 me-3"></i>
+                            {isOpen && <span>Motoristas</span>}
+                        </Link>
+                    )}
+
                     {/* Power B.I (Relatórios) */}
                     {hasPermission('relatorios') && (
                         <Link to="/relatorios" className={`list-group-item list-group-item-action border-0 rounded mb-1 ${isActive('/relatorios')}`} title="Power B.I">
