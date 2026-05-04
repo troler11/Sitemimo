@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { motoristaSchema } from '../schemas/motoristaSchema'; // Ajuste o caminho se necessário
+import { motoristaSchema } from '../src/schemas/motoristaSchema'; // Ajuste o caminho se necessário
 import { ZodError } from 'zod';
 
 // ==========================================
