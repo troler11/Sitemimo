@@ -44,6 +44,6 @@ router.put('/rotas/:id', verifyToken, updateRota);
 router.delete('/rotas/:id', verifyToken, deleteRota);
 
 // Cadastro motorista
-router.post('/motoristas', verifyToken, cadastrarMotorista);
+router.post('/motorista', verifyToken, cadastrarMotorista);
 
 export default router;
