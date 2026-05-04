@@ -12,6 +12,7 @@ import LoginPage from './pages/Login';
 import DashboardPage from './pages/Dashboard';
 import RotasPage from './pages/Rotas'; // <-- Caso esteja usando no RoutesList, se não, pode remover
 import AdminPage from './pages/Admin';
+import MotoristaPage from './pages/FormularioMotorista';
 import EscalaPage from './pages/Escala';
 import AtrasosPage from './pages/RelatorioAtrasos';
 import Relatorios from './pages/Relatorios';
@@ -73,6 +74,10 @@ const App: React.FC = () => {
 
                        <Route element={<AuthGuard requiredMenu="atrasos" />}>
                             <Route path="/atrasos" element={<AtrasosPage />} />
+                        </Route>
+                        
+                         <Route element={<AuthGuard requiredMenu="motoristas" />}>
+                            <Route path="/motorista" element={<MotoristaPage />} />
                         </Route>
 
                         <Route element={<AuthGuard requiredMenu="relatorios" />}>
