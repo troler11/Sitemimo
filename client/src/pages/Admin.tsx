@@ -28,7 +28,8 @@ const SISTEMA_MENUS = [
     { key: 'escala', label: 'Escala' },
     { key: 'relatorios', label: 'Power B.I' },
     { key: 'usuarios', label: 'Usuários' },
-    { key: 'atrasos', label: 'Atrasos' }
+    { key: 'atrasos', label: 'Atrasos' },
+    { key: 'motoristas', label: 'Motoristas' }
 ];
 
 const Admin: React.FC = () => {
